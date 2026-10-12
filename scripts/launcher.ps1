@@ -209,24 +209,60 @@ function Initialize-Bot {
     $hashFile = Join-Path $root 'node_modules\.chatbot-deps'
     $wanted = (Get-FileHash $lock -Algorithm SHA256).Hash
     $have = if (Test-Path $hashFile) { (Get-Content $hashFile -Raw).Trim() } else { '' }
+
     if ($have -ne $wanted) {
-        Write-Info 'memasang dependensi (sekali saja, butuh internet)...'
-        $npm = Join-Path (Split-Path $node) 'npm.cmd'
-        Push-Location $root
-        try {
-            # Out-Host: npm's output must reach the screen, not this function's
-            # return value, or callers get "added 202 packages ... node.exe" as the node path.
-            & $npm install --no-audit --no-fund | Out-Host
-            if ($LASTEXITCODE -ne 0) { throw 'npm install gagal. Periksa koneksi internet lalu coba lagi.' }
-            # npm may rewrite the lock file; remember the hash it ends with.
-            Set-Content -Path $hashFile -Value (Get-FileHash $lock -Algorithm SHA256).Hash -Encoding ascii
-        } finally {
-            Pop-Location
+        Install-Dependencies $node $lock $hashFile
+    }
+
+    # Prove the database library really loads on this PC. A half-finished
+    # install (e.g. from an older launcher) heals itself with one reinstall.
+    if (-not (Test-Database $node)) {
+        Write-Warn 'database belum bisa dibuka, memasang ulang dependensi...'
+        Remove-Item (Join-Path $root 'node_modules') -Recurse -Force -ErrorAction SilentlyContinue
+        Install-Dependencies $node $lock $hashFile
+
+        if (-not (Test-Database $node)) {
+            throw 'Database bot tidak bisa dibuka di PC ini setelah dipasang ulang. Kirim foto layar ini ke developer.'
         }
     }
     Write-Ok 'dependensi siap'
 
     return $node
+}
+
+# --ignore-scripts: nothing here needs compiling. better-sqlite3 ships a
+# ready Windows binary, but npm would still run node-gyp "just to check",
+# and node-gyp fails on a plain PC without Python and Visual Studio Build
+# Tools. The skipped scripts are only version checks (baileys, protobufjs);
+# this launcher checks the Node.js version itself.
+function Install-Dependencies {
+    param($node, $lock, $hashFile)
+
+    Write-Info 'memasang dependensi (sekali saja, butuh internet)...'
+    $npm = Join-Path (Split-Path $node) 'npm.cmd'
+    Push-Location $root
+    try {
+        # Out-Host: npm's output must reach the screen, not this function's
+        # return value, or callers get "added 202 packages ... node.exe" as the node path.
+        & $npm install --no-audit --no-fund --ignore-scripts | Out-Host
+        if ($LASTEXITCODE -ne 0) { throw 'npm install gagal. Periksa koneksi internet lalu coba lagi.' }
+        # npm may rewrite the lock file; remember the hash it ends with.
+        Set-Content -Path $hashFile -Value (Get-FileHash $lock -Algorithm SHA256).Hash -Encoding ascii
+    } finally {
+        Pop-Location
+    }
+}
+
+function Test-Database {
+    param($node)
+
+    Push-Location $root
+    try {
+        & $node -e "new (require('better-sqlite3'))(':memory:').prepare('select 1').get()" 2>$null | Out-Null
+        return $LASTEXITCODE -eq 0
+    } finally {
+        Pop-Location
+    }
 }
 
 function Assert-NotRunning {
@@ -551,13 +587,15 @@ function Invoke-Update {
         }
     }
 
-    New-Item -ItemType Directory -Force -Path (Join-Path $root 'data') | Out-Null
-    if ($sha) { Set-Content -Path $versionFile -Value $sha -Encoding ascii }
     Write-Ok 'file terbaru terpasang'
 
     # Run the freshly copied launcher, so new install steps apply right away.
     & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -Action install -NoPause
-    if ($LASTEXITCODE -ne 0) { throw 'Menyalakan ulang bot gagal; lihat pesan di atas.' }
+    if ($LASTEXITCODE -ne 0) { throw 'Menyalakan ulang bot gagal; lihat pesan di atas. Klik Update ChatBot Prema.bat lagi setelah masalahnya beres.' }
+
+    # Only now: a failed install must not count as "already up to date".
+    New-Item -ItemType Directory -Force -Path (Join-Path $root 'data') | Out-Null
+    if ($sha) { Set-Content -Path $versionFile -Value $sha -Encoding ascii }
 
     Write-Host ''
     Write-Host "  Update selesai$(if ($sha) { " (versi $($sha.Substring(0, 7)))" })." -ForegroundColor Green
