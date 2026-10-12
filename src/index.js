@@ -6,12 +6,14 @@ import express from 'express';
 
 import { Bot } from './bot/bot.js';
 import { aiEnabled } from './bot/classify-ai.js';
-import { classifyWithRules } from './bot/classify-rules.js';
+import { catalogStatus, setItemProduct } from './bot/catalog.js';
+import { addPatternKeyword, createPattern, deletePattern, getPattern, listPatterns, updatePattern } from './bot/patterns.js';
+import { classifyWithRules, findPattern, normalise } from './bot/classify-rules.js';
 import { TEACHABLE, addKeyword, customKeywords, removeKeyword, seedStarterKeywords } from './bot/keywords.js';
 import { media } from './bot/media.js';
 import { productKeys, productName } from './bot/products.js';
 import { listTemplates, render, resetTemplate, templateText, updateTemplate } from './bot/replies.js';
-import { isBotActive, localClock, nextChange } from './bot/schedule.js';
+import { holidayOn, isBotActive, localClock, nextChange } from './bot/schedule.js';
 import { resetSimulation, simulate } from './bot/simulator.js';
 import { analytics, listConversations, loadConversation, markHandover, messagesOf, stats, unrecognised } from './bot/store.js';
 import { config, root } from './config.js';
@@ -77,6 +79,7 @@ app.get('/info', wrap(async (req, res) => {
         activeFrom: config.bot.activeFrom,
         activeUntil: config.bot.activeUntil,
         clock: localClock(new Date(), config.bot.timezone),
+        holiday: holidayOn(),
         forceMode: config.bot.forceMode || null,
         ai: aiEnabled() ? `AI (${config.ai.model}), cadangan kata kunci` : 'kata kunci saja',
         jerseyPromo: Boolean(templateText('jerseyPromo')),
@@ -248,6 +251,71 @@ app.post('/media/:slot', express.raw({ type: () => true, limit: '16mb' }), wrap(
     res.status(201).json({ slots: media.slots() });
 }));
 
+/* -------------------------------------------------------- answer patterns --- */
+
+const patternView = (p) => ({ ...p, photos: media.files('pola', String(p.id)).map((file) => path.relative(config.mediaDir, file).replace(/\\/g, '/')) });
+
+app.get('/patterns', wrap(async (req, res) => {
+    res.json({ patterns: listPatterns().map(patternView) });
+}));
+
+app.post('/patterns', wrap(async (req, res) => {
+    res.status(201).json({ pattern: patternView(createPattern(req.body?.name)) });
+}));
+
+app.put('/patterns/:id', wrap(async (req, res) => {
+    const pattern = updatePattern(req.params.id, req.body ?? {});
+
+    logger.info({ pattern: pattern.name }, 'pola jawaban diubah dari konsol');
+    res.json({ pattern: patternView(pattern) });
+}));
+
+app.delete('/patterns/:id', wrap(async (req, res) => {
+    deletePattern(req.params.id);
+
+    res.json({ ok: true });
+}));
+
+app.post('/patterns/:id/photos', express.raw({ type: () => true, limit: '16mb' }), wrap(async (req, res) => {
+    const pattern = getPattern(req.params.id);
+    media.savePattern(pattern.id, req.body);
+
+    res.status(201).json({ pattern: patternView(pattern) });
+}));
+
+/** "Coba kalimat": which pattern (if any) a sentence triggers. */
+app.post('/patterns/test', wrap(async (req, res) => {
+    const hit = findPattern(normalise(String(req.body?.text ?? '').slice(0, 500)));
+
+    res.json({ pattern: hit ? { id: hit.id, name: hit.name } : null });
+}));
+
+/* -------------------------------------------- WhatsApp Business catalog --- */
+
+app.get('/catalog', wrap(async (req, res) => {
+    res.json(catalogStatus());
+}));
+
+app.post('/catalog/sync', wrap(async (req, res) => {
+    const count = await (await manager.defaultSession()).syncCatalog();
+
+    res.json({ count, ...catalogStatus() });
+}));
+
+/** Correct which product an item belongs to: a product key, 'none', or '' for automatic. */
+app.put('/catalog/:id', wrap(async (req, res) => {
+    setItemProduct(req.params.id, req.body?.product);
+
+    res.json(catalogStatus());
+}));
+
+app.put('/media/:slot/link', wrap(async (req, res) => {
+    const url = media.setLink(req.params.slot, req.body?.url);
+
+    logger.info({ slot: req.params.slot, url }, 'link katalog diubah dari konsol');
+    res.json({ slots: media.slots() });
+}));
+
 app.get('/media/file', wrap(async (req, res) => {
     res.sendFile(media.resolve(req.query.path));
 }));
@@ -323,11 +391,20 @@ app.get('/keywords', wrap(async (req, res) => {
     res.json({
         keywords: customKeywords(),
         intents: TEACHABLE,
+        patterns: listPatterns().map((p) => ({ id: p.id, name: p.name })),
         products: productKeys.map((key) => ({ key, name: productName(key) })),
     });
 }));
 
 app.post('/keywords', wrap(async (req, res) => {
+    const target = String(req.body?.intent ?? '');
+
+    if (target.startsWith('pola:')) {
+        const pattern = addPatternKeyword(target.slice(5), req.body?.phrase);
+
+        return res.status(201).json({ ok: true, phrase: pattern.keywords.at(-1), pattern: pattern.name });
+    }
+
     const phrase = addKeyword(req.body ?? {});
 
     res.status(201).json({ ok: true, phrase });

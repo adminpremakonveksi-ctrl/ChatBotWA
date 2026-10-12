@@ -12,6 +12,7 @@ import makeWASocket, {
 } from 'baileys';
 
 import { useSqliteAuthState } from './auth-state.js';
+import { recordSyncError, syncCatalog } from './bot/catalog.js';
 import { MIME } from './bot/media.js';
 import { config } from './config.js';
 import { now, run } from './db.js';
@@ -133,6 +134,11 @@ export class Session {
             });
 
             this.log.info({ number: this.phoneNumber }, 'tersambung');
+
+            // Read the WhatsApp Business catalog now and every 6 hours after.
+            clearInterval(this.catalogTimer);
+            setTimeout(() => this.syncCatalog().catch(() => {}), 5000);
+            this.catalogTimer = setInterval(() => this.syncCatalog().catch(() => {}), 6 * 3600000);
         }
 
         if (connection === 'close') {
@@ -244,7 +250,24 @@ export class Session {
     }
 
     /** Stops the socket without touching the stored pairing. */
+    /** Copies this number's WhatsApp Business catalog into the bot. */
+    async syncCatalog() {
+        if (this.state !== 'connected' || !this.socket) {
+            throw Object.assign(new Error('WhatsApp belum tersambung'), { statusCode: 409 });
+        }
+
+        try {
+            return await syncCatalog(this.socket);
+        } catch (error) {
+            // A personal (non-Business) number has no catalog: remember why, keep running.
+            recordSyncError(error);
+            this.log.warn({ err: error.message }, 'katalog WhatsApp gagal dibaca');
+            throw error;
+        }
+    }
+
     async stop() {
+        clearInterval(this.catalogTimer);
         this.stopping = true;
         clearTimeout(this.reconnectTimer);
 
@@ -262,6 +285,7 @@ export class Session {
     /** Unlinks the device on the phone and clears the stored pairing. */
     async logout() {
         this.stopping = true;
+        clearInterval(this.catalogTimer);
         clearTimeout(this.reconnectTimer);
 
         try {

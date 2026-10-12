@@ -17,7 +17,8 @@ import { PRODUCTS, productKeys } from './products.js';
 const EXTRA_INTENTS = ['size_chart', 'location', 'shipping', 'trust', 'design_reference', 'moq', 'product'];
 
 const ResultSchema = z.object({
-    intent: z.enum(INTENTS),
+    // Team patterns are matched by their own keywords, never guessed by AI.
+    intent: z.enum(INTENTS.filter((i) => i !== 'custom')),
     extras: z.array(z.enum(EXTRA_INTENTS)),
     product: z.enum(productKeys).nullable(),
     name: z.string().nullable(),

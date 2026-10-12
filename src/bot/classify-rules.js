@@ -1,5 +1,6 @@
 import { normaliseResult } from './intents.js';
 import { customKeywords } from './keywords.js';
+import { activePatterns } from './patterns.js';
 import { PRODUCTS, productKeys } from './products.js';
 
 /**
@@ -11,14 +12,43 @@ import { PRODUCTS, productKeys } from './products.js';
  * "other", which the engine hands to CS.
  */
 
-/** Lowercase, strip punctuation, squash "kakkk" -> "kak", collapse spaces. */
+/**
+ * Chat shorthand, written out, so "brp min order nya" matches "berapa" and
+ * "minimal" keywords. Only unambiguous abbreviations: a wrong expansion is
+ * worse than none.
+ */
+export const SHORTHAND = {
+    brp: 'berapa', brapa: 'berapa', berapaan: 'berapa', brpa: 'berapa',
+    gmn: 'gimana', gmna: 'gimana', gimn: 'gimana', bgmn: 'bagaimana', bgmna: 'bagaimana',
+    dmn: 'dimana', dmna: 'dimana', dimn: 'dimana', mana2: 'mana',
+    bs: 'bisa', bsa: 'bisa', bisaa: 'bisa',
+    gk: 'gak', ggk: 'gak', g: 'gak', ga: 'gak', nggk: 'nggak', engga: 'nggak', ngga: 'nggak', kaga: 'gak',
+    tdk: 'tidak', tak: 'tidak',
+    blm: 'belum', blom: 'belum', belom: 'belum',
+    udh: 'udah', udah: 'udah', dah: 'udah', sdh: 'sudah', sudh: 'sudah',
+    klo: 'kalau', kalo: 'kalau', kl: 'kalau', kalu: 'kalau',
+    yg: 'yang', dgn: 'dengan', utk: 'untuk', untk: 'untuk', tp: 'tapi', jg: 'juga', sm: 'sama', aja: 'aja', aj: 'aja', ajh: 'aja',
+    pesen: 'pesan', psn: 'pesan', mesen: 'pesan', bkin: 'bikin', bikinin: 'bikin', bkn: 'bikin', mau: 'mau', mo: 'mau', pgn: 'pengen', pngn: 'pengen',
+    mnta: 'minta', mnt: 'minta', tny: 'tanya', tnya: 'tanya', nnya: 'nanya',
+    hrg: 'harga', hrga: 'harga', harganya: 'harga', ongkos: 'ongkos', okr: 'ongkir',
+    lok: 'lokasi', loc: 'lokasi', almt: 'alamat', alamt: 'alamat',
+    pcs: 'pcs', psc: 'pcs', pc: 'pcs', biji: 'pcs',
+    sz: 'size', siz: 'size', ukrn: 'ukuran', ukr: 'ukuran',
+    mksh: 'makasih', mks: 'makasih', trims: 'makasih', thx: 'makasih', tq: 'makasih',
+    kk: 'kak', kakk: 'kak', ka: 'kak', kaka: 'kak',
+};
+
+/** Lowercase, strip punctuation, squash "kakkk" -> "kak", expand shorthand, collapse spaces. */
 export function normalise(text) {
-    return ` ${String(text ?? '')
+    const words = String(text ?? '')
         .toLowerCase()
         .replace(/[^\p{L}\p{N}&\- ]/gu, ' ')
         .replace(/(\p{L})\1{2,}/gu, '$1')
-        .replace(/\s+/g, ' ')
-        .trim()} `;
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((word) => SHORTHAND[word] ?? word);
+
+    return ` ${words.join(' ')} `;
 }
 
 const containsWord = (haystack, needles) => needles.some((needle) => haystack.includes(` ${needle} `));
@@ -75,6 +105,25 @@ const ORDER_WORDS = ['mau', 'mo ', 'ingin', 'pengen', 'pgn', 'pingin', 'bikin', 
 
 // FAQ answers, in the order they are sent when one message asks several.
 const FAQ_ORDER = ['size_chart', 'trust', 'location', 'shipping', 'moq', 'design_reference'];
+
+/**
+ * The team's own answer pattern this message triggers, if any: the one whose
+ * matching phrase is longest (most specific) wins.
+ */
+export function findPattern(normalised) {
+    let best = null;
+
+    for (const pattern of activePatterns()) {
+        for (const keyword of pattern.keywords) {
+            const hit = /\d$/.test(keyword) ? normalised.includes(` ${keyword} `) : normalised.includes(` ${keyword}`);
+            const score = hit ? keyword.length + 1 : tokens(normalised).some((token) => nearly(token, keyword)) ? keyword.length : 0;
+
+            if (score && (!best || score > best.score)) best = { pattern, score };
+        }
+    }
+
+    return best?.pattern ?? null;
+}
 
 /** Built-in keywords plus the ones the team taught from the console. */
 function keywordsFor(intent) {
@@ -212,6 +261,15 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
 
     if (step === 'awaiting_quantity' && quantity()) {
         return result('quantity');
+    }
+
+    // The team's own patterns come before the built-in answers.
+    const pattern = findPattern(normalised);
+    if (pattern) {
+        return normaliseResult(
+            { intent: 'custom', pattern: { id: pattern.id, name: pattern.name, bubbles: pattern.bubbles, after: pattern.after }, product, ...intro, sizeVariant, extras: [], source: 'rules' },
+            productKeys,
+        );
     }
 
     // Questions the spec answers at any point in the conversation.

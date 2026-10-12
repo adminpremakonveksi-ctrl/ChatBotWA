@@ -19,6 +19,22 @@ const formatterFor = (timezone) => {
     return formatters.get(timezone);
 };
 
+const dateFormatters = new Map();
+
+/** The shop's calendar date, YYYY-MM-DD. */
+export function localDateString(date, timezone) {
+    if (!dateFormatters.has(timezone)) dateFormatters.set(timezone, new Intl.DateTimeFormat('en-CA', { timeZone: timezone }));
+
+    return dateFormatters.get(timezone).format(date);
+}
+
+/** The holiday (from the console's "Mode libur") covering this date, if any. */
+export function holidayOn(date = new Date(), options = config.bot) {
+    const day = localDateString(date, options.timezone);
+
+    return (options.holidays ?? []).find((h) => day >= h.from && day <= h.to) ?? null;
+}
+
 /** Day of week (0 = Sunday) and minutes since midnight in the shop's timezone. */
 export function localClock(date, timezone) {
     const parts = Object.fromEntries(formatterFor(timezone).formatToParts(date).map((part) => [part.type, part.value]));
@@ -41,7 +57,8 @@ export function isBotActive(date = new Date(), options = config.bot) {
 
     const { day, minutes } = localClock(date, options.timezone);
 
-    if (day === 0) {
+    // Sundays and the team's holidays (Lebaran, ...): on guard all day.
+    if (day === 0 || holidayOn(date, options)) {
         return true;
     }
 

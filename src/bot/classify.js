@@ -10,8 +10,11 @@ import { classifyWithRules } from './classify-rules.js';
  * answering instead of going quiet.
  */
 export async function classify(input) {
-    if (!aiEnabled()) {
-        return classifyWithRules(input);
+    const rules = classifyWithRules(input);
+
+    // A team pattern is matched by its own keywords: use it as is, no AI.
+    if (!aiEnabled() || rules.intent === 'custom') {
+        return rules;
     }
 
     try {
@@ -26,6 +29,6 @@ export async function classify(input) {
 
         logger.warn({ reason }, 'AI gagal, memakai kata kunci');
 
-        return classifyWithRules(input);
+        return rules;
     }
 }

@@ -208,6 +208,15 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 .viewer { position:fixed; inset:0; background:rgba(0,0,0,.8); display:grid; place-items:center; z-index:70; cursor:zoom-out }
 .viewer img { max-width:92vw; max-height:92vh; border-radius:8px }
 
+.linkbox { display:flex; flex-direction:column; gap:5px; padding:10px; border-radius:10px; background:var(--panel-2); border:1px solid var(--line-2) }
+
+.catrow { display:grid; grid-template-columns:52px minmax(0,1fr) 200px 90px; gap:12px; align-items:center; padding:9px 0; border-bottom:1px solid var(--line-2) }
+.catrow:last-child { border-bottom:0 }
+.catrow img, .catrow .noimg { width:52px; height:52px; border-radius:9px; object-fit:cover; background:var(--panel-2); border:1px solid var(--line) }
+.catrow .nm { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.catrow .ds { font-size:12px; color:var(--ink-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+@media (max-width: 760px) { .catrow { grid-template-columns:44px 1fr; } .catrow select, .catrow .sendflag { grid-column:2 } }
+
 /* settings form */
 .form { display:grid; grid-template-columns:220px 1fr; gap:14px 18px; align-items:start }
 .form label { font-weight:600; padding-top:8px }
@@ -230,6 +239,28 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 .tpl .preview .bub { max-width:100% }
 .tpl .warnline { font-size:12.5px; color:var(--warn); margin-top:6px }
 @media (max-width: 1100px) { .tpl { grid-template-columns:1fr } }
+
+/* pola */
+.pola-head { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+.pola-card { padding:0; overflow:hidden }
+.pola-sum { display:flex; gap:12px; align-items:center; padding:14px 18px; cursor:pointer }
+.pola-sum:hover { background:var(--panel-2) }
+.pola-sum b { font-size:15px }
+.pola-body { border-top:1px solid var(--line); padding:18px; display:grid; grid-template-columns:minmax(0,1.4fr) minmax(260px,1fr); gap:20px }
+.pola-body label.lb { font-weight:600; font-size:13px; display:block; margin:12px 0 6px }
+.pola-body label.lb:first-child { margin-top:0 }
+.pola-body .f { width:100% }
+.bubble-ed { border:1px solid var(--line); border-radius:10px; padding:10px; margin-bottom:8px; background:var(--panel-2) }
+.bubble-ed .bar { display:flex; gap:6px; align-items:center; margin-bottom:8px }
+.bubble-ed .bar b { flex:1; font-size:12.5px }
+.mini { border:1px solid var(--line); background:var(--panel); border-radius:7px; padding:2px 8px; cursor:pointer; font-size:12px; color:var(--ink-2) }
+.mini:hover { border-color:var(--accent); color:var(--accent) }
+.catpick { max-height:220px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:var(--panel) }
+.catpick label { display:flex; gap:8px; align-items:center; padding:6px 8px; border-bottom:1px solid var(--line-2); font-size:13px; cursor:pointer }
+.catpick label:last-child { border-bottom:0 }
+.kwchips { display:flex; gap:5px; flex-wrap:wrap; margin-top:6px }
+.kwchips span { font-size:12px; padding:2px 8px; border-radius:99px; background:var(--series-wash); color:var(--ink-2) }
+@media (max-width: 1100px) { .pola-body { grid-template-columns:1fr } }
 
 /* toast */
 .toasts { position:fixed; right:20px; bottom:20px; display:flex; flex-direction:column; gap:8px; z-index:60 }
@@ -255,6 +286,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
     <button class="nav" data-page="percakapan"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Percakapan<span class="count hidden" id="navFollow"></span></button>
     <button class="nav" data-page="coba"><svg class="i" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Coba bot</button>
     <button class="nav" data-page="template"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>Template balasan<span class="count hidden" id="navTpl"></span></button>
+    <button class="nav" data-page="pola"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/><circle cx="12" cy="12" r="3"/></svg>Pola jawaban<span class="count hidden" id="navPola"></span></button>
     <button class="nav" data-page="latih"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8l5.5-.8z"/></svg>Latih bot<span class="count hidden" id="navTeach"></span></button>
     <button class="nav" data-page="statistik"><svg class="i" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistik</button>
     <button class="nav" data-page="media"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>Media<span class="count hidden" id="navMedia"></span></button>
@@ -351,6 +383,16 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         <div class="stack" id="tplList"></div>
       </section>
 
+      <!-- POLA JAWABAN -->
+      <section data-page="pola" class="hidden stack">
+        <div class="card">
+          <div class="pola-head"><h3 style="flex:1">Pola jawaban buatan tim</h3><button class="btn primary" id="polaNew">+ Pola baru</button></div>
+          <p class="hint">Buat jawaban sendiri untuk pertanyaan yang sering muncul, mis. <b>Ukuran</b>, <b>Cara bayar</b>, <b>Lama pengerjaan</b>. Isi kata kunci yang biasa diketik pelanggan, lalu susun jawabannya: teks, foto, produk katalog WhatsApp, atau link. Kalau kata kuncinya cocok, pola ini dipakai <b>sebelum</b> jawaban bawaan.</p>
+          <div class="row"><input class="f" id="polaTest" placeholder="Coba kalimat pelanggan, mis. ukurannya ada apa aja kak" style="flex:1"><button class="btn" id="polaTestBtn">Coba</button><span class="small" id="polaTestOut"></span></div>
+        </div>
+        <div class="stack" id="polaList"></div>
+      </section>
+
       <!-- LATIH BOT -->
       <section data-page="latih" class="hidden">
         <div class="grid g-main">
@@ -385,6 +427,10 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
           <div class="card"><h3>Jam ramai</h3><p class="hint">Pesan masuk per jam (WIB). Area gelap = jam bot diam.</p><div class="chart" id="chHours"></div><details class="tbl"><summary>Lihat sebagai tabel</summary><div id="tbHours"></div></details></div>
           <div class="card"><h3>Yang paling sering ditanyakan</h3><p class="hint">Maksud pesan yang dikenali bot.</p><div id="chIntents"></div></div>
         </div>
+        <div class="grid g2">
+          <div class="card"><h3>Corong percakapan</h3><p class="hint">Berapa pelanggan sampai ke tiap tahap alur. Persen dihitung dari yang menghubungi.</p><div id="chFunnel"></div></div>
+          <div class="card"><h3>Pola jawaban terpakai</h3><p class="hint">Berapa kali tiap pola buatan tim menjawab pelanggan.</p><div id="chPatterns"></div></div>
+        </div>
         <div class="card"><h3>Kenapa diserahkan ke CS</h3><p class="hint">Alasan bot berhenti membalas.</p><div id="chHandover"></div></div>
       </section>
 
@@ -393,6 +439,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         <div class="card"><h3>Gambar & file yang dikirim bot</h3>
           <p class="hint">Klik kotak unggah atau seret file ke sana. Gambar (JPG/PNG/WEBP) dikirim sebagai foto, PDF sebagai dokumen. Maksimal 15 MB per file. Langsung berlaku, tidak perlu restart.</p>
           <div class="progress"><i id="mediaBar" style="width:0"></i></div><div id="mediaText" class="small muted"></div></div>
+        <div class="card" id="catalogCard"></div>
         <div id="mediaGroups" class="stack"></div>
       </section>
 
@@ -408,6 +455,8 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
             <div class="inline"><span>dari</span><input class="f" type="time" name="activeFrom" required><span>sampai</span><input class="f" type="time" name="activeUntil" required><span class="muted small">(melewati tengah malam)</span></div>
             <label>Bot diam setelah diserahkan ke CS<small>Setelah itu pelanggan disapa bot lagi.</small></label>
             <div class="inline"><input class="f" type="number" name="handoverHours" min="1" max="168" style="width:90px" required><span>jam</span></div>
+            <label>Mode libur<small>Tanggal bot berjaga 24 jam (mis. Lebaran, cuti bersama). Satu baris per libur.</small></label>
+            <div><textarea class="f" name="holidays" rows="3" placeholder="2027-03-08 - 2027-03-14 Lebaran&#10;2026-12-25 Natal"></textarea><div class="small muted" id="holidayHint" style="margin-top:4px">Format: tanggal-mulai - tanggal-selesai keterangan. Satu hari cukup satu tanggal.</div></div>
             <label>Kalimat balasan bot<small>Termasuk teks promo jersey [9].</small></label>
             <div style="padding-top:8px">Diatur di halaman <a href="#template" data-goto="template">Template balasan</a>.</div>
           </div>
@@ -458,7 +507,7 @@ const num = (n) => Number(n || 0).toLocaleString('id-ID');
 const toast = (text) => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('#toasts').append(t); setTimeout(() => t.remove(), 3200); };
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
-const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', other:'Tidak dikenali' };
+const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', custom:'Pola buatan tim', other:'Tidak dikenali' };
 const STEPS = [['new','Sapa'], ['awaiting_intro','Kenalan'], ['awaiting_product','Produk'], ['awaiting_design','Desain'], ['awaiting_quantity','Jumlah'], ['handed_over','Ke CS']];
 const STEP_INDEX = { new:0, awaiting_intro:1, awaiting_product:2, awaiting_size_chart_product:2, awaiting_design:3, awaiting_quantity:4, handed_over:5 };
 const STEP_LABEL = { new:'baru menyapa', awaiting_intro:'ditanya nama', awaiting_product:'ditanya produk', awaiting_size_chart_product:'ditanya produk size chart', awaiting_design:'ditanya desain', awaiting_quantity:'ditanya jumlah', handed_over:'di CS' };
@@ -487,7 +536,7 @@ function showTip(e, html) { tip.innerHTML = html; tip.classList.remove('hidden')
 function hideTip() { tip.classList.add('hidden'); }
 
 /* ------------------------------------------------------------ routing --- */
-const TITLES = { ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan' };
+const TITLES = { ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', pola:'Pola jawaban', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan' };
 let page = 'ringkasan';
 function go(p) {
   page = TITLES[p] ? p : 'ringkasan';
@@ -529,7 +578,7 @@ function drawTimeline() {
   const svg = $('#timeline'); const W = 1000;
   const toMin = (s) => { const [h, m] = s.split(/[:.]/).map(Number); return h * 60 + (m || 0); };
   const from = toMin(info.activeFrom), until = toMin(info.activeUntil);
-  const sunday = info.clock.day === 0;
+  const sunday = info.clock.day === 0 || Boolean(info.holiday);
   const x = (min) => (min / 1440) * W;
   const seg = sunday ? [[0, 1440]] : [[0, until], [from, 1440]];
   let s = `<rect x="0" y="8" width="${W}" height="16" rx="8" fill="var(--line-2)"/>`;
@@ -552,7 +601,9 @@ async function loadRingkasan() {
   drawTimeline();
   const main = sessions[0];
   const active = info.botActive;
-  $('#heroTitle').textContent = active ? `${info.botName} sedang berjaga` : `${info.botName} sedang istirahat`;
+  $('#heroTitle').textContent = info.holiday
+    ? `${info.botName} berjaga 24 jam · mode libur${info.holiday.label ? ' ' + info.holiday.label : ''}`
+    : active ? `${info.botName} sedang berjaga` : `${info.botName} sedang istirahat`;
   $('#heroText').textContent = active
     ? `Membalas pelanggan sembari menunggu CS ${info.csName}. Berhenti ${info.nextChange ? 'dalam ' + countdown(info.nextChange) : ''}.`
     : `Jam kerja: CS ${info.csName} yang menangani. ${info.botName} mulai lagi ${info.nextChange ? 'dalam ' + countdown(info.nextChange) : ''}.`;
@@ -704,7 +755,7 @@ $('#simForm').onsubmit = async (e) => {
     if (!r.replies.length) simAdd('<div class="sys">bot tidak membalas</div>');
     for (const m of r.replies) {
       await new Promise((res) => setTimeout(res, 280));
-      if (m.type === 'text') simAdd(`<div class="bub them">${esc(m.text)}<span class="t">${now()}</span></div>`);
+      if (m.type === 'text') simAdd(`<div class="bub them">${esc(m.text).replace(/(https:\/\/wa\.me\/[\w/-]+)/g, '<span style="color:#027eb5;text-decoration:underline">$1</span><br><span class="tag">🛍️ katalog WhatsApp</span>')}<span class="t">${now()}</span></div>`);
       else if (m.type === 'file') simAdd(m.image
         ? `<div class="bub them" style="padding:4px 4px 18px"><img src="${withKey('/media/file?path=' + encodeURIComponent(m.path))}" alt="" style="display:block;max-width:220px;max-height:280px;border-radius:7px"><div class="small muted" style="padding:3px 4px 0">${esc(m.text)}</div><span class="t">${now()}</span></div>`
         : `<div class="bub them file">📄 ${esc(m.text)} (PDF)<span class="t">${now()}</span></div>`);
@@ -803,12 +854,165 @@ function renderTemplates() {
 }
 $('#tplSearch').oninput = () => renderTemplates();
 
+/* -------------------------------------------------------------- pola --- */
+let polas = [], polaLoaded = false, polaOpen = Number(new URLSearchParams(location.search).get('pola')) || null, polaCatalog = [];
+const drafts = {};
+const BUBBLE = { text: '💬 Teks', photos: '🖼️ Foto', catalog: '🛍️ Produk katalog WA', link: '🔗 Link' };
+// The console runs on the bot PC, so its local date is the shop's date.
+const today = () => new Date().toLocaleDateString('en-CA');
+
+async function loadPola() {
+  const [{ patterns }, cat] = await Promise.all([api('/patterns'), api('/catalog').catch(() => ({ items: [] }))]);
+  polas = patterns; polaCatalog = cat.items || []; polaLoaded = true;
+  for (const p of polas) drafts[p.id] ??= JSON.parse(JSON.stringify({ name: p.name, keywords: p.keywords.join('\n'), bubbles: p.bubbles, after: p.after, enabled: p.enabled, startsOn: p.startsOn, endsOn: p.endsOn }));
+  const nb = $('#navPola'); nb.textContent = polas.length; nb.classList.toggle('hidden', !polas.length);
+  renderPola();
+}
+function polaPreview(p, d) {
+  const out = [];
+  for (const b of d.bubbles) {
+    if (b.type === 'text') {
+      const versions = (b.text || '').split(/\n\s*-{3,}\s*\n/).map((v) => v.trim()).filter(Boolean);
+      out.push(`<div class="bub them">${waFormat(fill(versions[0] || ''))}${versions.length > 1 ? `<div><span class="tag">+${versions.length - 1} versi lain, dipilih acak</span></div>` : ''}</div>`);
+    }
+    if (b.type === 'link') out.push(`<div class="bub them" style="color:#027eb5;text-decoration:underline">${esc(b.url || 'https://…')}</div>`);
+    if (b.type === 'photos') out.push(p.photos.length ? p.photos.map((ph) => `<div class="bub them" style="padding:4px"><img src="${withKey('/media/file?path=' + encodeURIComponent(ph))}" style="display:block;max-width:200px;max-height:220px;border-radius:7px"></div>`).join('') : '<div class="sys">(belum ada foto)</div>');
+    if (b.type === 'catalog') out.push((b.items || []).map((id) => { const it = polaCatalog.find((x) => x.id === id); return `<div class="bub them">🛍️ ${esc(it ? it.name : 'produk tidak ada lagi di katalog')}<br><span class="small" style="color:#027eb5">${esc(it?.link || '')}</span></div>`; }).join('') || '<div class="sys">(pilih produk katalog)</div>');
+  }
+  if (d.after === 'handover') out.push('<div class="sys">🤝 lalu diserahkan ke CS, bot diam di nomor ini</div>');
+  return out.join('') || '<div class="sys">Belum ada jawaban.</div>';
+}
+function bubbleEditor(p, b, i) {
+  const ctl = `<button class="mini" data-up="${i}" title="Naik">↑</button><button class="mini" data-down="${i}" title="Turun">↓</button><button class="mini" data-rm="${i}" title="Hapus">✕</button>`;
+  let body = '';
+  if (b.type === 'text') body = `<textarea class="f" data-text="${i}" rows="3" placeholder="Tulis jawabannya…&#10;---&#10;(opsional) versi lain, bot memilih salah satu">${esc(b.text || '')}</textarea>
+    <div class="small muted" style="margin-top:4px">Tip: tulis beberapa versi dipisah baris <code>---</code> supaya jawabannya tidak selalu sama.</div>
+    <div class="vars" style="margin-top:6px">${['nama', 'bot', 'cs'].map((v) => `<button class="mini" data-var="${v}" data-i="${i}">{${v}}</button>`).join(' ')}</div>`;
+  if (b.type === 'link') body = `<input class="f" data-url="${i}" value="${esc(b.url || '')}" placeholder="https://…">`;
+  if (b.type === 'photos') body = `<div class="thumbs">${p.photos.map((ph, n) => `<div class="thumb"><img src="${withKey('/media/file?path=' + encodeURIComponent(ph))}"><span class="n">${n + 1}</span><button class="x" data-delphoto="${esc(ph)}">×</button></div>`).join('')}</div>
+    <div class="drop" data-upload style="margin-top:8px">+ tambah foto (klik atau seret)</div><input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple hidden data-file>`;
+  if (b.type === 'catalog') body = polaCatalog.length ? `<div class="catpick">${polaCatalog.map((it) => `<label><input type="checkbox" data-cat="${i}" value="${esc(it.id)}" ${(b.items || []).includes(it.id) ? 'checked' : ''}> ${esc(it.name)}</label>`).join('')}</div><div class="small muted" style="margin-top:4px">Maks. 5 produk, dikirim berurutan sesuai daftar.</div>`
+    : '<div class="small muted">Katalog belum disinkronkan. Tautkan nomor bot lalu klik Sinkronkan di halaman Media.</div>';
+  return `<div class="bubble-ed"><div class="bar"><b>${i + 1}. ${BUBBLE[b.type]}</b>${ctl}</div>${body}</div>`;
+}
+function renderPola() {
+  $('#polaList').innerHTML = polas.length ? polas.map((p) => {
+    const d = drafts[p.id], open = polaOpen === p.id;
+    const kws = d.keywords.split(/[\n,]/).map((k) => k.trim()).filter(Boolean);
+    return `<div class="card pola-card" data-pola="${p.id}">
+      <div class="pola-sum" data-toggle><b style="flex:1">${esc(d.name || 'Tanpa nama')}</b>
+        <span class="small muted">${kws.length} kata kunci · ${d.bubbles.length} gelembung</span>
+        ${!(p.enabled && p.keywords.length && p.bubbles.length) ? '<span class="pill quiet">belum aktif</span>'
+          : (p.startsOn && today() < p.startsOn) ? `<span class="pill quiet">mulai ${esc(p.startsOn)}</span>`
+          : (p.endsOn && today() > p.endsOn) ? '<span class="pill quiet">sudah lewat</span>'
+          : '<span class="pill good"><span class="dot"></span>aktif</span>'}
+        <span class="muted">${open ? '▴' : '▾'}</span></div>
+      ${open ? `<div class="pola-body">
+        <div>
+          <label class="lb">Nama pola</label><input class="f" data-name value="${esc(d.name)}" maxlength="60">
+          <label class="lb">Kata kunci <span class="small muted" style="font-weight:400">· satu per baris atau pisahkan dengan koma; tahan typo</span></label>
+          <textarea class="f" data-kw rows="4" placeholder="ukuran\nsize\nukurannya apa aja\nlingkar dada">${esc(d.keywords)}</textarea>
+          <div class="kwchips">${kws.slice(0, 40).map((k) => `<span>${esc(k)}</span>`).join('')}</div>
+          <label class="lb">Jawaban <span class="small muted" style="font-weight:400">· dikirim berurutan</span></label>
+          ${d.bubbles.map((b, i) => bubbleEditor(p, b, i)).join('') || '<div class="small muted" style="margin-bottom:8px">Belum ada. Tambah gelembung di bawah.</div>'}
+          <div class="row">${Object.entries(BUBBLE).map(([t, l]) => `<button class="btn sm" data-add="${t}" ${t === 'photos' && d.bubbles.some((b) => b.type === 'photos') ? 'disabled title="Satu gelembung foto sudah memuat semua foto pola ini"' : ''}>+ ${l.slice(2).trim()}</button>`).join('')}</div>
+          <label class="lb">Berlaku <span class="small muted" style="font-weight:400">· opsional, mis. untuk promo; kosong = selalu</span></label>
+          <div class="inline"><span>dari</span><input class="f" type="date" data-start value="${esc(d.startsOn || '')}" style="width:auto"><span>sampai</span><input class="f" type="date" data-end value="${esc(d.endsOn || '')}" style="width:auto"></div>
+          <label class="lb">Setelah menjawab</label>
+          <select class="f" data-after><option value="stay" ${d.after !== 'handover' ? 'selected' : ''}>Lanjutkan percakapan (bot tetap membalas)</option><option value="handover" ${d.after === 'handover' ? 'selected' : ''}>Serahkan ke CS (bot diam di nomor itu)</option></select>
+          <label class="row" style="margin-top:12px;gap:6px"><input type="checkbox" data-enabled ${d.enabled ? 'checked' : ''}> Aktif</label>
+          <div class="row" style="margin-top:14px"><button class="btn primary" data-save>Simpan</button><button class="btn danger" data-delete>Hapus pola</button></div>
+        </div>
+        <div><div class="small muted" style="margin-bottom:6px">Pratinjau (contoh: Kak Budi)</div><div class="chatwall" style="border-radius:12px;min-height:200px">${polaPreview(p, d)}</div></div>
+      </div>` : ''}
+    </div>`;
+  }).join('') : '<div class="card empty">Belum ada pola. Klik <b>+ Pola baru</b>, misalnya untuk pertanyaan "Ukuran".</div>';
+
+  $$('#polaList [data-pola]').forEach((card) => {
+    const id = Number(card.dataset.pola), p = polas.find((x) => x.id === id), d = drafts[id];
+    $('[data-toggle]', card).onclick = () => { polaOpen = polaOpen === id ? null : id; renderPola(); };
+    if (polaOpen !== id) return;
+    const rerender = () => { const y = scrollY; renderPola(); scrollTo(0, y); };
+    const preview = () => { $('.chatwall', card).innerHTML = polaPreview(p, d); };
+    $('[data-name]', card).oninput = (e) => { d.name = e.target.value; };
+    $('[data-kw]', card).oninput = (e) => { d.keywords = e.target.value; };
+    $('[data-kw]', card).onchange = rerender;
+    $('[data-after]', card).onchange = (e) => { d.after = e.target.value; preview(); };
+    $('[data-enabled]', card).onchange = (e) => { d.enabled = e.target.checked; };
+    $('[data-start]', card).onchange = (e) => { d.startsOn = e.target.value; };
+    $('[data-end]', card).onchange = (e) => { d.endsOn = e.target.value; };
+    $$('[data-text]', card).forEach((ta) => ta.oninput = () => { d.bubbles[ta.dataset.text].text = ta.value; preview(); });
+    $$('[data-url]', card).forEach((inp) => inp.oninput = () => { d.bubbles[inp.dataset.url].url = inp.value.trim(); preview(); });
+    $$('[data-var]', card).forEach((b) => b.onclick = () => {
+      const ta = $(`[data-text="${b.dataset.i}"]`, card), s0 = ta.selectionStart, ins = '{' + b.dataset.var + '}';
+      ta.value = ta.value.slice(0, s0) + ins + ta.value.slice(ta.selectionEnd); d.bubbles[b.dataset.i].text = ta.value; ta.focus(); ta.selectionStart = ta.selectionEnd = s0 + ins.length; preview();
+    });
+    $$('[data-cat]', card).forEach((cb) => cb.onchange = () => {
+      const b = d.bubbles[cb.dataset.cat];
+      b.items = $$(`[data-cat="${cb.dataset.cat}"]`, card).filter((x) => x.checked).map((x) => x.value);
+      if (b.items.length > 5) { cb.checked = false; b.items = b.items.filter((x) => x !== cb.value); toast('Maksimal 5 produk'); }
+      preview();
+    });
+    $$('[data-add]', card).forEach((b) => b.onclick = () => { d.bubbles.push({ type: b.dataset.add, ...(b.dataset.add === 'catalog' ? { items: [] } : {}) }); rerender(); });
+    $$('[data-rm]', card).forEach((b) => b.onclick = () => { d.bubbles.splice(Number(b.dataset.rm), 1); rerender(); });
+    $$('[data-up]', card).forEach((b) => b.onclick = () => { const i = Number(b.dataset.up); if (i > 0) { [d.bubbles[i - 1], d.bubbles[i]] = [d.bubbles[i], d.bubbles[i - 1]]; rerender(); } });
+    $$('[data-down]', card).forEach((b) => b.onclick = () => { const i = Number(b.dataset.down); if (i < d.bubbles.length - 1) { [d.bubbles[i + 1], d.bubbles[i]] = [d.bubbles[i], d.bubbles[i + 1]]; rerender(); } });
+    const up = $('[data-upload]', card), file = $('[data-file]', card);
+    const send = async (files) => {
+      for (const f of files) {
+        if (f.size > 15 * 1048576) { toast(`${f.name}: lebih dari 15 MB`); continue; }
+        try {
+          const r = await fetch(`/patterns/${id}/photos`, { method:'POST', headers: { 'Content-Type':'application/octet-stream', ...(key ? { 'X-Api-Key': key } : {}) }, body: f });
+          const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.error || r.statusText);
+          p.photos = body.pattern.photos; toast(`${f.name} terunggah`);
+        } catch (err) { toast(`${f.name}: ${err.message}`); }
+      }
+      rerender();
+    };
+    if (up) { up.onclick = () => file.click(); file.onchange = () => send([...file.files]);
+      up.ondragover = (e) => { e.preventDefault(); up.style.borderColor = 'var(--accent)'; }; up.ondragleave = () => { up.style.borderColor = ''; };
+      up.ondrop = (e) => { e.preventDefault(); send([...e.dataTransfer.files]); }; }
+    $$('[data-delphoto]', card).forEach((b) => b.onclick = async () => {
+      if (!confirm('Hapus foto ini dari pola?')) return;
+      await api('/media/file?path=' + encodeURIComponent(b.dataset.delphoto), { method:'DELETE' });
+      p.photos = p.photos.filter((x) => x !== b.dataset.delphoto); rerender();
+    });
+    $('[data-save]', card).onclick = async () => {
+      try {
+        const { pattern } = await api('/patterns/' + id, { method:'PUT', body: JSON.stringify({ name: d.name, keywords: d.keywords, bubbles: d.bubbles, after: d.after, enabled: d.enabled, startsOn: d.startsOn || '', endsOn: d.endsOn || '' }) });
+        Object.assign(p, pattern); drafts[id] = JSON.parse(JSON.stringify({ name: pattern.name, keywords: pattern.keywords.join('\n'), bubbles: pattern.bubbles, after: pattern.after, enabled: pattern.enabled, startsOn: pattern.startsOn, endsOn: pattern.endsOn }));
+        kwMeta = null; toast(pattern.enabled && pattern.keywords.length && pattern.bubbles.length ? 'Tersimpan. Bot langsung memakai pola ini.' : 'Tersimpan. Pola aktif setelah punya kata kunci dan jawaban.');
+        rerender();
+      } catch (err) { toast('Belum tersimpan: ' + err.message); }
+    };
+    $('[data-delete]', card).onclick = async () => {
+      if (!confirm(`Hapus pola "${d.name}" beserta fotonya?`)) return;
+      await api('/patterns/' + id, { method:'DELETE' }); delete drafts[id]; polaOpen = null; kwMeta = null; toast('Pola dihapus'); loadPola();
+    };
+  });
+}
+$('#polaNew').onclick = async () => {
+  const name = prompt('Nama pola baru (mis. Ukuran):', 'Ukuran'); if (name === null) return;
+  const { pattern } = await api('/patterns', { method:'POST', body: JSON.stringify({ name }) });
+  polaOpen = pattern.id; kwMeta = null; await loadPola();
+};
+$('#polaTestBtn').onclick = async () => {
+  const text = $('#polaTest').value.trim(); if (!text) return;
+  const { pattern } = await api('/patterns/test', { method:'POST', body: JSON.stringify({ text }) });
+  $('#polaTestOut').innerHTML = pattern ? `<span class="pill good"><span class="dot"></span>cocok: ${esc(pattern.name)}</span>` : '<span class="pill quiet">tidak ada pola yang cocok; bot memakai jawaban bawaan</span>';
+};
+$('#polaTest').onkeydown = (e) => { if (e.key === 'Enter') $('#polaTestBtn').click(); };
+
 /* ------------------------------------------------------------- latih --- */
 let kwMeta = null;
-const intentOptions = (sel) => (sel ? '' : '<option value="" selected disabled>pilih maksudnya…</option>') + kwMeta.intents.map((i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${esc(INTENT[i] || i)}</option>`).join('');
+const intentOptions = (sel) => (sel ? '' : '<option value="" selected disabled>pilih maksudnya…</option>')
+  + (kwMeta.patterns?.length ? `<optgroup label="Pola buatan tim">${kwMeta.patterns.map((p) => `<option value="pola:${p.id}">Pola: ${esc(p.name)}</option>`).join('')}</optgroup><optgroup label="Jawaban bawaan">` : '')
+  + kwMeta.intents.map((i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${esc(INTENT[i] || i)}</option>`).join('')
+  + (kwMeta.patterns?.length ? '</optgroup>' : '');
 const productOptions = (sel) => kwMeta.products.map((p) => `<option value="${p.key}" ${p.key === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 async function loadLatih() {
   const [{ messages }, meta] = await Promise.all([api('/unrecognised'), api('/keywords')]);
+  // Teaching into a pattern needs no product picker.
   kwMeta = meta;
   const pending = messages.filter((m) => m.nowIntent === 'other');
   const nt = $('#navTeach'); nt.textContent = pending.length; nt.classList.toggle('hidden', !pending.length);
@@ -835,7 +1039,7 @@ function wireIntent(form) {
 wireIntent($('#kwForm'));
 async function teach(form) {
   const data = Object.fromEntries(new FormData(form));
-  try { const r = await api('/keywords', { method:'POST', body: JSON.stringify(data) }); toast(`Kata kunci "${r.phrase}" diajarkan`); form.reset?.(); loadLatih(); }
+  try { const r = await api('/keywords', { method:'POST', body: JSON.stringify(data) }); toast(r.pattern ? `"${r.phrase}" ditambahkan ke pola ${r.pattern}` : `Kata kunci "${r.phrase}" diajarkan`); form.reset?.(); polaLoaded = false; loadLatih(); }
   catch (err) { toast('Gagal: ' + err.message); }
 }
 $('#kwForm').onsubmit = (e) => { e.preventDefault(); teach(e.target); };
@@ -904,6 +1108,10 @@ function renderStatistik() {
 
   hbars($('#chIntents'), a.intents, { label: (r) => INTENT[r.intent] || r.intent, value: (r) => r.n });
   hbars($('#chHandover'), a.handovers, { label: (r) => r.reason, value: (r) => r.n });
+  const first = a.funnel[0]?.n || 0;
+  hbars($('#chFunnel'), first ? a.funnel : [], { label: (r) => `${r.stage}${first ? ' · ' + Math.round(r.n / first * 100) + '%' : ''}`, value: (r) => r.n });
+  hbars($('#chPatterns'), a.patterns, { label: (r) => r.name, value: (r) => r.n });
+  if (!a.patterns.length) $('#chPatterns').innerHTML = '<div class="empty">Belum ada pola yang terpakai. Buat di halaman <a href="#pola" data-goto="pola">Pola jawaban</a>.</div>';
 }
 function rerenderCharts() { renderStatistik(); }
 let resizeTimer; addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(rerenderCharts, 150); });
@@ -913,20 +1121,65 @@ const withKey = (url) => key ? url + (url.includes('?') ? '&' : '?') + 'key=' + 
 const kb = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 let mediaSlots = [];
 
+let catalog = null;
 async function loadMedia() {
-  ({ slots: mediaSlots } = await api('/media'));
+  [{ slots: mediaSlots }, catalog] = await Promise.all([api('/media'), api('/catalog')]);
+  renderCatalog();
   renderMedia();
+}
+const productLabel = (key) => (kwMeta?.products || []).find((p) => p.key === key)?.name || key;
+
+/** The WhatsApp Business catalog: synced items, which product each belongs to, and which the bot sends. */
+function renderCatalog() {
+  const c = catalog, el = $('#catalogCard');
+  if (!c) return;
+  // Which items actually go out: per product, promos first, then catalog order, capped.
+  const sent = new Set();
+  const byProduct = {};
+  for (const it of c.items) if (it.product) (byProduct[it.product] ||= []).push(it);
+  for (const list of Object.values(byProduct)) {
+    list.sort((a, b) => (/promo/i.test(b.name) - /promo/i.test(a.name)) || a.position - b.position).slice(0, c.maxPerAnswer).forEach((it) => sent.add(it.id));
+  }
+  const opts = (it) => `<option value="" ${!it.override ? 'selected' : ''}>Otomatis: ${esc(it.auto ? productLabel(it.auto) : 'tidak cocok')}</option>`
+    + (kwMeta?.products || []).map((p) => `<option value="${p.key}" ${it.override === p.key ? 'selected' : ''}>${esc(p.name)}</option>`).join('')
+    + `<option value="none" ${it.override === 'none' ? 'selected' : ''}>Tidak dikirim bot</option>`;
+  el.innerHTML = `
+    <div class="row"><h3 style="flex:1">Katalog WhatsApp Business</h3><button class="btn" id="catSync">↻ Sinkronkan sekarang</button></div>
+    <p class="hint">Dibaca langsung dari katalog nomor bot, otomatis saat tersambung dan tiap 6 jam. Saat pelanggan menanyakan produk, bot mengirim link produk yang cocok (maks. ${c.maxPerAnswer}, promo didahulukan), menggantikan gambar. Koreksi pemetaannya di kolom kanan bila perlu.</p>
+    ${c.error ? `<p class="warnline" style="color:var(--warn)">Terakhir gagal dibaca: ${esc(c.error)}${/business|catalog|not.?found|404/i.test(c.error) ? ' · pastikan nomor bot memakai WhatsApp Business dan katalognya tidak kosong.' : ''}</p>` : ''}
+    <div class="small muted" style="margin-bottom:6px">${c.syncedAt ? `${c.items.length} item · disinkronkan ${fmtTime(c.syncedAt)} · nomor +${esc(c.phone)}` : 'Belum pernah disinkronkan. Tautkan nomor bot (scan QR), lalu klik Sinkronkan.'}</div>
+    ${c.items.map((it) => `<div class="catrow" data-id="${esc(it.id)}">
+      ${it.image_url ? `<img src="${esc(it.image_url)}" alt="" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'noimg'}))">` : '<div class="noimg"></div>'}
+      <div style="min-width:0"><div class="nm">${esc(it.name)}</div><div class="ds">${esc(it.description || '')}</div></div>
+      <select class="f" data-map>${opts(it)}</select>
+      <div class="sendflag">${sent.has(it.id) ? `<span class="pill good"><span class="dot"></span>dikirim</span>` : it.product ? '<span class="pill quiet" title="Sudah ada '+c.maxPerAnswer+' item lain untuk produk ini">cadangan</span>' : '<span class="pill quiet">tidak</span>'}</div>
+    </div>`).join('')}`;
+  $('#catSync').onclick = async (e) => {
+    e.target.disabled = true; e.target.textContent = 'Menyinkronkan…';
+    try { const r = await api('/catalog/sync', { method:'POST' }); toast(`${r.count} item katalog terbaca`); }
+    catch (err) { toast('Gagal: ' + err.message); }
+    loadMedia();
+  };
+  $$('#catalogCard [data-map]').forEach((sel) => sel.onchange = async () => {
+    try { catalog = await api('/catalog/' + encodeURIComponent(sel.closest('.catrow').dataset.id), { method:'PUT', body: JSON.stringify({ product: sel.value }) }); toast('Pemetaan disimpan'); loadMedia(); }
+    catch (err) { toast('Gagal: ' + err.message); }
+  });
 }
 function renderMedia() {
   const required = mediaSlots.filter((s) => !s.optional);
-  const ok = required.filter((s) => s.files.length).length;
+  const ok = required.filter((s) => s.files.length || s.link || s.fallbackLink || s.catalogItems).length;
   $('#mediaBar').style.width = (ok / required.length * 100) + '%';
-  $('#mediaText').textContent = `${ok} dari ${required.length} file wajib sudah ada`;
+  $('#mediaText').textContent = `${ok} dari ${required.length} kebutuhan wajib sudah terisi (gambar atau link katalog)`;
   const groups = [...new Set(mediaSlots.map((s) => s.group))];
   $('#mediaGroups').innerHTML = groups.map((g) => `<div><h3 style="margin:6px 0 10px">${esc(g)}</h3><div class="slots">${mediaSlots.filter((s) => s.group === g).map((s) => `
     <div class="slot" data-slot="${esc(s.id)}">
-      <div class="head"><b>${esc(s.label)}</b>${s.files.length ? `<span class="pill good"><span class="dot"></span>${s.files.length > 1 ? s.files.length + ' file' : 'ada'}</span>` : s.optional ? '<span class="pill quiet">opsional</span>' : '<span class="pill warn"><span class="dot"></span>belum ada</span>'}</div>
+      <div class="head"><b>${esc(s.label)}</b>${s.catalogItems ? `<span class="pill good"><span class="dot"></span>${s.catalogItems} produk katalog WA</span>` : s.link || s.fallbackLink ? `<span class="pill good"><span class="dot"></span>katalog WA${s.link ? '' : ' toko'}</span>` : s.files.length ? `<span class="pill good"><span class="dot"></span>${s.files.length > 1 ? s.files.length + ' file' : 'ada'}</span>` : s.optional ? '<span class="pill quiet">opsional</span>' : '<span class="pill warn"><span class="dot"></span>belum ada</span>'}</div>
       <div class="small muted">${esc(s.effect)}</div>
+      ${s.linkable ? `<div class="linkbox">
+        <label class="small" style="font-weight:600">Link katalog WhatsApp ${s.product ? '' : '<span class="muted" style="font-weight:400">(seluruh toko)</span>'}</label>
+        <div class="row" style="gap:6px;flex-wrap:nowrap"><input class="f" data-link value="${esc(s.link || '')}" placeholder="${s.product ? 'kosong = pakai link toko' : 'https://wa.me/c/62…'}" style="flex:1;min-width:0"><button class="btn sm" data-savelink>Simpan</button></div>
+        <div class="small muted">${s.link ? 'Bot mengirim link ini (menggantikan gambar).' : s.catalogItems ? `Bot mengirim ${s.catalogItems} produk dari katalog WhatsApp (lihat daftar di atas). Isi link di sini hanya kalau ingin menggantinya.` : s.fallbackLink ? 'Memakai link katalog toko: ' + esc(s.fallbackLink) : s.product ? (s.files.length ? 'Kosong: bot mengirim gambar di bawah.' : 'Isi link, atau isi link toko di "Katalog umum".') : 'Dipakai untuk semua produk yang belum punya gambar/link sendiri.'}</div>
+      </div>` : ''}
       ${s.files.length ? `<div class="thumbs">${s.files.map((f, i) => `<div class="thumb" title="${esc(f.name)} · ${kb(f.size)}">${f.type === 'image' ? `<img src="${withKey('/media/file?path=' + encodeURIComponent(f.path) + '&v=' + f.size)}" alt="" data-full="${esc(f.path)}">` : `<div>📄<br>PDF<br>${kb(f.size)}</div>`}${s.files.length > 1 ? `<span class="n">${i + 1}</span>` : ''}<button class="x" data-del="${esc(f.path)}" title="Hapus">×</button></div>`).join('')}</div>` : ''}
       <div class="drop">${s.multi ? (s.files.length ? '+ tambah halaman' : 'Klik atau seret file ke sini') : (s.files.length ? 'Ganti file' : 'Klik atau seret file ke sini')}</div>
       <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" ${s.multi ? 'multiple' : ''} hidden>
@@ -939,6 +1192,11 @@ function renderMedia() {
     el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag'); };
     el.ondragleave = () => el.classList.remove('drag');
     el.ondrop = (e) => { e.preventDefault(); el.classList.remove('drag'); upload(el.dataset.slot, [...e.dataTransfer.files]); };
+  });
+  $$('[data-savelink]').forEach((b) => b.onclick = async () => {
+    const slot = b.closest('.slot').dataset.slot, url = $('[data-link]', b.closest('.slot')).value;
+    try { ({ slots: mediaSlots } = await api('/media/' + encodeURIComponent(slot) + '/link', { method:'PUT', body: JSON.stringify({ url }) })); renderMedia(); toast(url.trim() ? 'Link katalog tersimpan' : 'Link dihapus'); loadStatus(); }
+    catch (err) { toast('Belum tersimpan: ' + err.message); }
   });
   $$('[data-del]').forEach((b) => b.onclick = async () => {
     if (!confirm('Hapus file ini? Bot tidak akan mengirimnya lagi.')) return;
@@ -979,6 +1237,7 @@ async function loadPengaturan() {
   if (!settingsLoaded || !document.activeElement?.closest('form')) {
     const set = (form, name, v) => { const el = $(`${form} [name=${name}]`); if (el) el.value = v ?? ''; };
     for (const n of ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours']) set('#settingsForm', n, values[n]);
+    set('#settingsForm', 'holidays', (values.holidays || []).map((h) => `${h.from}${h.to !== h.from ? ' - ' + h.to : ''}${h.label ? ' ' + h.label : ''}`).join('\n'));
     set('#recapForm', 'recapTo', (values.recapTo || []).map((n) => '0' + n.slice(2)).join(', '));
     set('#recapForm', 'recapAt', values.recapAt);
     set('#backupForm', 'backupDir', values.backupDir);
@@ -992,7 +1251,7 @@ async function saveForm(form, fields) {
   catch (err) { toast('Belum tersimpan: ' + err.message); }
   finally { btn.disabled = false; }
 }
-$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours']); };
+$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'holidays']); };
 $('#recapForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['recapTo', 'recapAt']); };
 $('#backupForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['backupDir']); };
 $('#backupNow').onclick = async (e) => {
@@ -1018,8 +1277,9 @@ async function refresh() {
     if (page === 'percakapan') await loadConvs();
     if (page === 'latih') await loadLatih();
     if (page === 'template' && !tplLoaded) await loadTemplates();
+    if (page === 'pola' && !polaLoaded) await loadPola();
     if (page === 'statistik') await loadStatistik();
-    if (page === 'media') await loadMedia();
+    if (page === 'media') { kwMeta ??= await api('/keywords'); await loadMedia(); }
     if (page === 'pengaturan') await loadPengaturan();
     $('#footInfo').textContent = `Versi ${info.version}${info.commit ? ' (' + info.commit + ')' : ''} · diperbarui ` + new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
   } catch (err) {

@@ -91,6 +91,13 @@ export const TEMPLATES = {
             'Tiktok: tiktok.com/premakonveksi\n' +
             'Telegram: t.me/portofolioprema',
     },
+    catalogLink: {
+        group: 'Alur pemesanan',
+        label: 'Link katalog WhatsApp',
+        when: 'Dikirim sebagai katalog untuk produk yang memakai link katalog WhatsApp Business (atur di halaman Media).',
+        vars: ['link', 'produk'],
+        text: '{link}',
+    },
     jerseyPromo: {
         group: 'Alur pemesanan',
         label: '[9] Promo jersey',
@@ -194,6 +201,16 @@ export function templateText(key) {
     return edited().get(key) ?? TEMPLATES[key].text;
 }
 
+/** Fills a team-written text: {bot} {cs} {nama}; an unknown name becomes "" ("Halo Kak {nama}" -> "Halo Kak"). */
+export function fillText(text, vars = {}) {
+    const values = { bot: config.bot.botName, cs: config.bot.csName, nama: '', ...vars };
+
+    return text
+        .replace(/\{(\w+)\}/g, (match, name) => (values[name] != null ? String(values[name]) : match))
+        .replace(/ +([,.!?])/g, '$1')
+        .replace(/[ \t]{2,}/g, ' ');
+}
+
 /** Fills {bot}, {cs}, {nama}, {produk}. Null for an empty optional template (step skipped). */
 export function render(key, vars = {}) {
     const text = templateText(key);
@@ -262,6 +279,7 @@ export const replies = {
     waitForCs: () => render('waitForCs'),
     socials: () => render('socials'),
     jerseyPromo: () => render('jerseyPromo'),
+    catalogLink: (link, produk) => render('catalogLink', { link, produk }),
     sizeChartWhich: () => render('sizeChartWhich'),
     sizeChartNote: () => render('sizeChartNote'),
     location: () => render('location'),

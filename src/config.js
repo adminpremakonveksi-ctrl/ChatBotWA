@@ -61,6 +61,9 @@ export const config = {
         // A conversation idle this long starts over from the greeting.
         resetHours: number('RESET_HOURS', 24),
 
+        // Dates the bot is on guard all day, set in the console: [{ from, to, label }].
+        holidays: [],
+
         // Text for step [9]. The spec has none yet; empty means skip the step.
         jerseyPromo: text('JERSEY_PROMO_TEXT').replace(/\\n/g, '\n'),
     },

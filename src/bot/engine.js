@@ -1,5 +1,6 @@
 import { hasCatalog, productName } from './products.js';
-import { replies } from './replies.js';
+import { textVersions } from './patterns.js';
+import { fillText, replies } from './replies.js';
 
 /**
  * The reply flow from SPEK-CHATBOT.md as a pure function.
@@ -22,9 +23,10 @@ import { replies } from './replies.js';
  *   handed_over                  CS takes it from here; bot stays silent
  */
 
-const FAQ = new Set(['size_chart', 'location', 'shipping', 'trust', 'design_reference', 'moq']);
+// Answered at any point, without moving the conversation; 'custom' = a team pattern.
+const FAQ = new Set(['size_chart', 'location', 'shipping', 'trust', 'design_reference', 'moq', 'custom']);
 
-export function decide(conversation, classified, media) {
+export function decide(conversation, classified, media, { random = Math.random } = {}) {
     const conv = { step: 'new', name: null, origin: null, product: null, return_step: null, ...conversation };
     const r = classified;
 
@@ -95,6 +97,25 @@ export function decide(conversation, classified, media) {
         const product = r.product ?? state().product;
 
         switch (intent) {
+            case 'custom': {
+                // The team's own answer, bubble by bubble, in their order.
+                const p = r.pattern;
+
+                for (const bubble of p.bubbles) {
+                    if (bubble.type === 'text') {
+                        // Several versions: one at random, so regulars do not get the same lines.
+                        const versions = textVersions(bubble.text);
+                        say(fillText(versions[Math.floor(random() * versions.length)] ?? '', { nama: state().name ?? '' }));
+                    }
+                    if (bubble.type === 'link') say(bubble.url);
+                    if (bubble.type === 'photos' && media.has('pola', String(p.id))) send('pola', String(p.id));
+                    if (bubble.type === 'catalog') for (const link of media.catalogItemLinks?.(bubble.items) ?? []) say(link);
+                }
+
+                if (p.after === 'handover') handover(`pola: ${p.name}`);
+                break;
+            }
+
             case 'size_chart':
                 if (!product) {
                     say(replies.sizeChartWhich());
@@ -134,7 +155,14 @@ export function decide(conversation, classified, media) {
     };
 
     // Every FAQ the message asked: the main one first, then the extras.
-    const faqs = [r.intent, ...(r.extras ?? [])].filter((intent, i, list) => FAQ.has(intent) && list.indexOf(intent) === i);
+    const faqs = [r.intent, ...(r.extras ?? [])].filter(
+        (intent, i, list) =>
+            FAQ.has(intent) &&
+            list.indexOf(intent) === i &&
+            // "belum ada desainnya" is one need, not two: its no_reference
+            // answer already carries the portfolio and the examples.
+            !(intent === 'design_reference' && r.intent === 'no_reference'),
+    );
     const wantsProduct = Boolean(r.product) && (r.intent === 'product' || (r.extras ?? []).includes('product'));
 
     /** Answers each FAQ; false when one of them had to hand over. */
@@ -203,6 +231,8 @@ export function decide(conversation, classified, media) {
                 if (r.intent === 'no_reference') {
                     say(replies.portfolio());
                     if (state().product === 'jersey') say(replies.jerseyTemplates());
+                    // [6B] examples: the product's WhatsApp catalog items ("Contoh Baju Osis", ...).
+                    if (state().product && media.links?.('katalog', state().product).length) send('katalog', state().product);
                     say(replies.askQuantity());
                     patch.step = 'awaiting_quantity';
 

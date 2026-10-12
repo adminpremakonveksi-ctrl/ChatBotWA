@@ -66,6 +66,15 @@ export function logMessage({ sessionKey, jid, direction, waMessageId = null, tex
     );
 }
 
+/** How often the bot sent exactly this bubble to this customer in the last `minutes`. */
+export function recentlySent(sessionKey, jid, text, minutes) {
+    return get(
+        `SELECT COUNT(*) AS n FROM message_log
+         WHERE session_key = ? AND jid = ? AND direction = 'out' AND text = ? AND created_at >= datetime('now', ?)`,
+        [sessionKey, jid, text, `-${Number(minutes)} minutes`],
+    ).n;
+}
+
 /** True when a message id was sent by the bot itself (not by CS on the phone). */
 export function isBotMessage(waMessageId) {
     return Boolean(get(`SELECT 1 FROM message_log WHERE wa_message_id = ? AND direction = 'out' LIMIT 1`, [waMessageId]));
@@ -109,7 +118,7 @@ export function listConversations(since) {
 export function messagesOf(sessionKey, jid, limit = 200) {
     return all(
         `SELECT direction, text, intent, created_at FROM message_log
-         WHERE session_key = ? AND jid = ? ORDER BY id DESC LIMIT ?`,
+         WHERE session_key = ? AND jid = ? AND direction <> 'step' ORDER BY id DESC LIMIT ?`,
         [sessionKey, jid, limit],
     ).reverse();
 }
@@ -143,6 +152,30 @@ export function unrecognised(days = 30) {
          LIMIT 100`,
         [`-${Number(days)} days`],
     );
+}
+
+/**
+ * How far customers got through the reply flow: distinct customers per stage,
+ * from the step changes the bot logs. A later stage implies the earlier ones.
+ */
+function funnel(since) {
+    const count = (sql, params = []) => get(sql, [since, ...params]).n;
+    const reached = (steps) =>
+        count(
+            `SELECT COUNT(DISTINCT jid) AS n FROM message_log
+             WHERE direction = 'step' AND created_at >= datetime('now', ?) AND text IN (${steps.map(() => '?').join(', ')})`,
+            steps,
+        );
+
+    return [
+        { stage: 'Menghubungi', n: count(`SELECT COUNT(DISTINCT jid) AS n FROM message_log WHERE direction = 'in' AND created_at >= datetime('now', ?)`) },
+        { stage: 'Menyebut produk', n: reached(['awaiting_design', 'awaiting_quantity']) },
+        { stage: 'Ditanya jumlah', n: reached(['awaiting_quantity']) },
+        {
+            stage: 'Alur selesai, menunggu CS',
+            n: count(`SELECT COUNT(DISTINCT jid) AS n FROM message_log WHERE direction = 'handover' AND text = 'alur selesai' AND created_at >= datetime('now', ?)`),
+        },
+    ];
 }
 
 /** Everything the Statistik page draws, in local time. */
@@ -189,6 +222,8 @@ export function analytics(days = 30) {
         intents,
         handovers,
         recognisedRate: labelled ? (labelled - other) / labelled : null,
+        funnel: funnel(since),
+        patterns: intents.filter((row) => row.intent.startsWith('pola: ')).map((row) => ({ name: row.intent.slice(6), n: row.n })),
         totals: {
             masuk: daily.reduce((sum, d) => sum + d.masuk, 0),
             pelanggan: get(

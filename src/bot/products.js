@@ -16,13 +16,13 @@ export const PRODUCTS = {
         name: 'Jersey',
         catalog: true,
         sizeChart: true,
-        keywords: ['jersey', 'jersy', 'jersi', 'jesrey', 'baju bola', 'baju futsal', 'kaos bola', 'kaos futsal', 'baju olahraga', 'seragam bola', 'seragam futsal', 'baju voli', 'baju volly', 'baju badminton', 'baju sepeda', 'baju esport', 'baju e-sport', 'baju basket'],
+        keywords: ['jersey', 'jersy', 'jersi', 'jesrey', 'baju bola', 'baju futsal', 'kaos bola', 'kaos futsal', 'baju olahraga', 'seragam bola', 'seragam futsal', 'baju voli', 'baju volly', 'baju badminton', 'baju sepeda', 'baju esport', 'baju e-sport', 'baju basket', 'jersey basket', 'jersey printing', 'bahan jersey', 'kerah jersey', 'jersey bola', 'jersey futsal'],
     },
     'id-card-lanyard': {
         name: 'ID Card & Lanyard',
         catalog: true,
         sizeChart: false,
-        keywords: ['id card', 'idcard', 'id-card', 'name tag', 'nametag', 'lanyard', 'lanyar', 'tali id', 'tali name tag', 'kartu nama peserta', 'kartu panitia'],
+        keywords: ['id card', 'idcard', 'id-card', 'name tag', 'nametag', 'lanyard', 'lanyar', 'tali id', 'tali name tag', 'kartu nama peserta', 'kartu panitia', 'cetak id card', 'paket idcard', 'paket id card'],
     },
     'gantungan-kunci': {
         name: 'Gantungan Kunci',
@@ -40,13 +40,13 @@ export const PRODUCTS = {
         name: 'Kaos',
         catalog: false,
         sizeChart: true,
-        keywords: ['kaos', 'kaus', 't-shirt', 'tshirt', 'tee', 'baju kaos', 'kaos komunitas', 'kaos sablon', 'sablon', 'kaos oblong', 'kaos polos', 'oversize', 'boxy'],
+        keywords: ['kaos', 'kaus', 't-shirt', 'tshirt', 'tee', 'baju kaos', 'kaos komunitas', 'kaos sablon', 'sablon', 'kaos oblong', 'kaos polos', 'oversize', 'boxy', 'kaos kelas', 'kaos angkatan', 'kaos sekolah', 'two tone', 'two-tone', 'twotone'],
     },
     pdl: {
         name: 'PDL',
         catalog: false,
         sizeChart: true,
-        keywords: ['pdl', 'pdh', 'baju lapangan', 'kemeja lapangan', 'seragam lapangan', 'baju dinas'],
+        keywords: ['pdl', 'pdh', 'baju lapangan', 'kemeja lapangan', 'seragam lapangan', 'baju dinas', 'kemeja pdl', 'pdl 2in1'],
     },
     kemeja: {
         name: 'Kemeja',
@@ -94,7 +94,7 @@ export const PRODUCTS = {
         name: 'Seragam',
         catalog: false,
         sizeChart: true,
-        keywords: ['seragam', 'wearpack', 'werpack', 'baju kerja', 'baju bengkel', 'seragam kerja', 'baju olahraga sekolah'],
+        keywords: ['seragam', 'wearpack', 'werpack', 'baju kerja', 'baju bengkel', 'seragam kerja', 'baju olahraga sekolah', 'osis', 'mpk', 'pramuka', 'paskibra', 'paskib', 'pks', 'pmr', 'seragam sekolah', 'baju sekolah', 'seragam osis', 'baju osis', 'baju pramuka'],
     },
 };
 

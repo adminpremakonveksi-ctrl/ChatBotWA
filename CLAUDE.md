@@ -38,6 +38,8 @@ src/bot/bot.js        debounce, per-customer queue, CS-reply detection, sending
 src/bot/engine.js     the flow as a pure function: decide(conv, intent, media)
 src/bot/classify*.js  intent: AI (optional) with keyword fallback; returns intent + extras (multi-question)
 src/bot/keywords.js   team-taught keywords (console "Latih bot"), merged into the rules at match time
+src/bot/patterns.js   team answer patterns ("Pola jawaban"): keywords + bubbles; matched before built-in answers
+src/bot/catalog.js    WhatsApp Business catalog sync (Baileys getCatalog), item->product mapping, wa.me/p links
 src/bot/store.js      conversation state, handover expiry, message log
 src/bot/simulator.js  "Coba bot" in the console: real classifier + flow, nothing sent
 media/                files the bot sends; uploaded from the console, type sniffed from bytes
@@ -51,6 +53,10 @@ bot's own messages back as `fromMe`, and any `fromMe` id it does not know is
 treated as CS typing on the phone, which hands the customer over.
 
 Clients never edit files: everything they need is in the console. Keep it that way.
+New columns on existing tables need an in-place migration (see patterns.js): client
+databases already exist and `CREATE TABLE IF NOT EXISTS` will not add them.
+Edit regex/escape-heavy code with the Edit tool: scripted edits have twice written
+invisible control characters () into regexes; scan for them before committing.
 Update must never overwrite `data/`, `media/`, `logs/` or `.env` on a client PC.
 
 ## Commands

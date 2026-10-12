@@ -4,6 +4,8 @@ import { config } from '../config.js';
 import { logger } from '../logger.js';
 import { classify as defaultClassify } from './classify.js';
 import { decide } from './engine.js';
+import { productName } from './products.js';
+import { replies } from './replies.js';
 import { media as defaultMedia } from './media.js';
 import { isBotActive } from './schedule.js';
 import * as defaultStore from './store.js';
@@ -16,6 +18,9 @@ import * as defaultStore from './store.js';
  * - Each customer is handled strictly one batch at a time.
  * - When CS types from the phone, the bot stops answering that customer.
  */
+const REPEAT_LIMIT = 2;
+const REPEAT_WINDOW_MINUTES = 10;
+
 export class Bot {
     constructor({
         classify = defaultClassify,
@@ -121,7 +126,8 @@ export class Bot {
             knownProduct: conversation.product,
         });
 
-        this.store.tagIncoming(sessionKey, jid, classified.intent);
+        // Team patterns show up by name in Statistik ("pola: Ukuran").
+        this.store.tagIncoming(sessionKey, jid, classified.intent === 'custom' ? `pola: ${classified.pattern.name}` : classified.intent);
 
         // CS may have replied while the classifier was thinking.
         if (this.store.loadConversation(sessionKey, jid).step === 'handed_over') return;
@@ -135,17 +141,45 @@ export class Bot {
 
         let handover = null;
 
-        const outgoing = actions.flatMap((action) =>
-            action.type === 'media'
-                ? this.media.files(action.kind, action.product, action.variant).map((file) => ({ ...action, type: 'file', file }))
-                : [action],
-        );
+        const outgoing = actions.flatMap((action) => {
+            if (action.type !== 'media') return [action];
+
+            // WhatsApp catalog links replace the pictures: the lead-in template
+            // carries the first link, the rest follow one per bubble so each
+            // shows as its own product card.
+            const links = this.media.links?.(action.kind, action.product) ?? [];
+            if (links.length) {
+                const [first, ...rest] = links;
+
+                return [
+                    { type: 'text', text: replies.catalogLink(first, action.product ? productName(action.product) : 'kami') },
+                    ...rest.map((link) => ({ type: 'text', text: link })),
+                ];
+            }
+
+            return this.media.files(action.kind, action.product, action.variant).map((file) => ({ ...action, type: 'file', file }));
+        });
+
+        let sentCount = 0;
+        let suppressed = 0;
 
         for (const action of outgoing) {
             if (action.type === 'handover') {
                 handover = action.reason;
                 continue;
             }
+
+            const logText = action.type === 'text' ? action.text : `[file] ${path.basename(action.file)}`;
+
+            // Anti-repeat: a bubble this customer already got twice in the last
+            // 10 minutes is not sent again. Stops spam answers, and two bots
+            // answering each other forever (a quick way to get a number banned).
+            if (this.store.recentlySent(sessionKey, jid, logText, REPEAT_WINDOW_MINUTES) >= REPEAT_LIMIT) {
+                suppressed++;
+                continue;
+            }
+
+            sentCount++;
 
             // Logged before sending: WhatsApp echoes our own message back, and
             // the echo must already be known as the bot's or it reads as CS.
@@ -156,17 +190,28 @@ export class Bot {
                 jid,
                 direction: 'out',
                 waMessageId: id,
-                text: action.type === 'text' ? action.text : `[file] ${path.basename(action.file)}`,
+                text: logText,
                 intent: classified.intent,
             });
 
             await transport.send(jid, action, id);
         }
 
+        // Everything was a repeat: the bot has nothing new to say, so a person should look.
+        if (suppressed && !sentCount && !handover) {
+            this.log.info({ jid }, 'pesan berulang, diserahkan ke CS');
+            handover = 'pesan berulang';
+        }
+
         // A handover is stored by markHandover, which also stamps the time.
         const { step, ...rest } = patch;
 
         this.store.saveConversation(sessionKey, jid, handover ? rest : patch);
+
+        // Where the customer got to, for the funnel in Statistik.
+        if (!handover && step && step !== conversation.step) {
+            this.store.logMessage({ sessionKey, jid, direction: 'step', text: step });
+        }
 
         if (handover) {
             this.store.markHandover(sessionKey, jid, handover);

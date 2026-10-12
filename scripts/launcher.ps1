@@ -634,6 +634,32 @@ function Show-Menu {
     }
 }
 
+# A click inside a console window starts "Quick Edit" selection, and Windows
+# then FREEZES the program until Esc is pressed (the title shows "Select ...").
+# Seen on a client PC during an update: turn it off for this window.
+function Disable-QuickEdit {
+    try {
+        if (-not ('ChatBotConsole' -as [type])) {
+            Add-Type -Name ChatBotConsole -Namespace '' -MemberDefinition @'
+[DllImport("kernel32.dll")] public static extern IntPtr GetStdHandle(int handle);
+[DllImport("kernel32.dll")] public static extern bool GetConsoleMode(IntPtr handle, out uint mode);
+[DllImport("kernel32.dll")] public static extern bool SetConsoleMode(IntPtr handle, uint mode);
+'@
+        }
+
+        $stdin = [ChatBotConsole]::GetStdHandle(-10)
+        $mode = 0
+        if ([ChatBotConsole]::GetConsoleMode($stdin, [ref]$mode)) {
+            # Clear ENABLE_QUICK_EDIT_MODE (0x40), keep ENABLE_EXTENDED_FLAGS (0x80) so it sticks.
+            [ChatBotConsole]::SetConsoleMode($stdin, (($mode -band (-bnot 0x40)) -bor 0x80)) | Out-Null
+        }
+    } catch {
+        # No console (the hidden service) or an old host: nothing to protect.
+    }
+}
+
+if ($Action -ne 'service') { Disable-QuickEdit }
+
 try {
     switch ($Action) {
         'menu' { Show-Menu }

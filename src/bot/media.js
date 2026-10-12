@@ -2,6 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { config } from '../config.js';
+import { getSetting, run, setSetting } from '../db.js';
+import { catalogLinksFor, productLink } from './catalog.js';
+import { all as allRows } from '../db.js';
 import { PRODUCTS, productKeys } from './products.js';
 
 /**
@@ -15,6 +18,10 @@ import { PRODUCTS, productKeys } from './products.js';
  *   size-chart/<produk>-oversize.jpg  oversize variant
  *   katalog-review.pdf|jpg            reviews (or a folder katalog-review/)
  *   promo/jersey.jpg                  jersey promo pamphlet, step [9]
+ *
+ * Catalog slots may also hold a WhatsApp Business catalog link (wa.me/c/...
+ * or wa.me/p/...), stored in the database. A product with neither files nor
+ * a link of its own falls back to the general catalog link (the whole shop).
  *
  * A name may point to a folder instead of a file; every file inside is sent,
  * sorted by name. Files are looked up on every call, so a new upload takes
@@ -44,6 +51,9 @@ function baseName(kind, product, variant) {
             return 'katalog-review';
         case 'promo':
             return path.join('promo', product ?? 'umum');
+        case 'pola':
+            // Photos of a team answer pattern ("Pola jawaban"), by pattern id.
+            return path.join('pola', String(product));
         default:
             throw Object.assign(new Error(`Jenis media tidak dikenal: ${kind}`), { statusCode: 422 });
     }
@@ -121,7 +131,38 @@ export function createMedia(dir = config.mediaDir) {
         return found ? [found] : [];
     };
 
-    const has = (kind, product = null, variant = null) => files(kind, product, variant).length > 0;
+    const slotId = (kind, product) => (product ? `${kind}:${product}` : kind);
+
+    /** The link stored on exactly this catalog slot. */
+    const ownLink = (kind, product = null) => (kind === 'katalog' ? getSetting(`link:${slotId(kind, product)}`) : null);
+
+    /**
+     * Links to send for a catalog; when there are any they replace its pictures.
+     * In order of preference:
+     *   1. the link the team set on this product,
+     *   2. the product's items in the WhatsApp Business catalog (synced),
+     *   3. none, so the uploaded pictures are sent,
+     *   4. the shop-wide catalog link, when there are no pictures either.
+     */
+    const links = (kind, product = null) => {
+        if (kind !== 'katalog') return [];
+
+        const own = ownLink(kind, product);
+        if (own) return [own];
+
+        const items = catalogLinksFor(product);
+        if (items.length) return items;
+
+        if (product && files(kind, product).length) return [];
+
+        const shop = ownLink(kind, null);
+
+        return shop ? [shop] : [];
+    };
+
+    const link = (kind, product = null) => links(kind, product)[0] ?? null;
+
+    const has = (kind, product = null, variant = null) => files(kind, product, variant).length > 0 || links(kind, product).length > 0;
 
     const relative = (file) => path.relative(dir, file).replace(/\\/g, '/');
 
@@ -132,7 +173,44 @@ export function createMedia(dir = config.mediaDir) {
     };
 
     /** All slots with the files currently in them. */
-    const slots = () => slotDefinitions().map((slot) => ({ ...slot, files: files(slot.kind, slot.product, slot.variant).map(describe) }));
+    const slots = () =>
+        slotDefinitions().map((slot) => ({
+            ...slot,
+            files: files(slot.kind, slot.product, slot.variant).map(describe),
+            linkable: slot.kind === 'katalog',
+            link: ownLink(slot.kind, slot.product),
+            // How many WhatsApp catalog items the bot sends for this product.
+            catalogItems: slot.kind === 'katalog' && slot.product && !ownLink(slot.kind, slot.product) ? catalogLinksFor(slot.product).length : 0,
+            // What the bot actually sends when this slot has nothing of its own.
+            fallbackLink: slot.kind === 'katalog' && slot.product && !ownLink(slot.kind, slot.product) && !catalogLinksFor(slot.product).length && files(slot.kind, slot.product).length === 0 ? ownLink('katalog', null) : null,
+        }));
+
+    /** Saves or clears a WhatsApp catalog link on a catalog slot. */
+    const setLink = (id, value) => {
+        const slot = findSlot(id);
+
+        if (slot.kind !== 'katalog') throw Object.assign(new Error('Link hanya untuk katalog'), { statusCode: 422 });
+
+        let url = String(value ?? '').trim();
+
+        if (!url) {
+            run(`DELETE FROM settings WHERE "key" = ?`, [`link:${slot.id}`]);
+
+            return null;
+        }
+
+        if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+        url = url.replace(/^http:\/\//i, 'https://');
+
+        // Only WhatsApp catalog/product links: the bot never sends customers anywhere else from here.
+        if (!/^https:\/\/(wa\.me\/(c|p)\/[\w/-]+|api\.whatsapp\.com\/[\w?=&/.-]+)$/i.test(url)) {
+            throw Object.assign(new Error('Tempel link katalog WhatsApp, mis. https://wa.me/c/6281234567890'), { statusCode: 422 });
+        }
+
+        setSetting(`link:${slot.id}`, url);
+
+        return url;
+    };
 
     const findSlot = (id) => {
         const slot = slotDefinitions().find((s) => s.id === id);
@@ -142,12 +220,23 @@ export function createMedia(dir = config.mediaDir) {
         return slot;
     };
 
+    /** Product links for chosen catalog items, in the chosen order; items gone from the catalog are skipped. */
+    const catalogItemLinks = (ids = []) => {
+        const byId = new Map(allRows('SELECT * FROM catalog_items').map((item) => [item.id, item]));
+
+        return ids.map((id) => byId.get(String(id))).filter(Boolean).map((item) => productLink(item)).filter(Boolean);
+    };
+
+    /** Adds a photo to a team answer pattern (always multi-page). */
+    const savePattern = (patternId, buffer) => saveInto({ kind: 'pola', product: String(patternId), variant: null, multi: true }, buffer);
+
     /**
      * Stores an upload. Multi-page slots (catalogs) gain a page; single slots
      * (size charts) are replaced.
      */
-    const save = (id, buffer) => {
-        const slot = findSlot(id);
+    const save = (id, buffer) => saveInto(findSlot(id), buffer);
+
+    const saveInto = (slot, buffer) => {
         const ext = sniffType(buffer);
 
         if (!ext) throw Object.assign(new Error('Hanya gambar JPG, PNG, WEBP, atau PDF'), { statusCode: 415 });
@@ -211,11 +300,11 @@ export function createMedia(dir = config.mediaDir) {
             .map((slot) => ({
                 label: slot.group === 'Katalog' && slot.product ? `Katalog ${slot.label}` : slot.group === 'Size chart' ? `Size chart ${slot.label}` : slot.label,
                 expected: `${baseName(slot.kind, slot.product, slot.variant).replace(/\\/g, '/')}.pdf|jpg|png`,
-                ok: slot.files.length > 0,
+                ok: slot.files.length > 0 || Boolean(slot.link || slot.fallbackLink || slot.catalogItems),
                 effect: slot.effect,
             }));
 
-    return { files, has, slots, save, resolve, remove, checklist };
+    return { files, has, link, links, catalogItemLinks, slots, setLink, save, savePattern, resolve, remove, checklist };
 }
 
 export const media = createMedia();

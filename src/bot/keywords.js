@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS custom_keywords (
 `);
 
 // Intents a phrase may be taught. Greeting/other/introduction are not keyword-shaped.
-export const TEACHABLE = INTENTS.filter((intent) => !['greeting', 'introduction', 'other'].includes(intent));
+export const TEACHABLE = INTENTS.filter((intent) => !['greeting', 'introduction', 'other', 'custom'].includes(intent));
 
 let cache = null;
 

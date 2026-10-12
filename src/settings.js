@@ -72,6 +72,31 @@ const folder = (value) => {
     return path.resolve(dir);
 };
 
+/**
+ * "2027-03-08 - 2027-03-14 Lebaran", "2026-12-25 Natal", one per line.
+ * A range may also be written with "s/d" or "sampai".
+ */
+export function parseHolidays(value) {
+    const lines = Array.isArray(value) ? value.map((h) => (typeof h === 'string' ? h : `${h.from} - ${h.to} ${h.label ?? ''}`)) : String(value ?? '').split('\n');
+    const holidays = [];
+
+    for (const raw of lines) {
+        const line = raw.trim();
+        if (!line) continue;
+
+        const m = line.match(/^(\d{4}-\d{2}-\d{2})(?:\s*(?:-|–|s\/d|sd|sampai)\s*(\d{4}-\d{2}-\d{2}))?\s*(.*)$/i);
+        if (!m) fail(`Baris libur tidak dimengerti: "${line}". Contoh: 2027-03-08 - 2027-03-14 Lebaran`);
+
+        const [, from, to = from, label] = m;
+        for (const d of [from, to]) if (Number.isNaN(Date.parse(`${d}T00:00:00Z`))) fail(`Tanggal tidak valid: ${d}`);
+        if (to < from) fail(`Tanggal selesai sebelum tanggal mulai: "${line}"`);
+
+        holidays.push({ from, to, label: label.trim().slice(0, 40) });
+    }
+
+    return holidays.sort((a, b) => a.from.localeCompare(b.from)).slice(0, 50);
+}
+
 /** key -> how to validate it and where it lives in config. */
 const FIELDS = {
     botName: { validate: name('Nama bot'), get: () => config.bot.botName, set: (v) => (config.bot.botName = v) },
@@ -97,6 +122,7 @@ const FIELDS = {
         set: (v) => (config.bot.jerseyPromo = v),
     },
     recapTo: { validate: phones, get: () => config.recap.to, set: (v) => (config.recap.to = v) },
+    holidays: { validate: parseHolidays, get: () => config.bot.holidays, set: (v) => (config.bot.holidays = v) },
     recapAt: {
         validate: (v) => (String(v ?? '').trim() ? time('Jam rekap')(v) : ''),
         get: () => config.recap.atSetting ?? '',

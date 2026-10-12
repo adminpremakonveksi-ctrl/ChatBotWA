@@ -66,10 +66,11 @@ Buka **http://127.0.0.1:3001/** di PC bot (menu "Buka halaman QR"). Ada mode ter
 | Percakapan | daftar chat (cari, filter "perlu CS"), isi chat ala WhatsApp, posisi di alur, tombol "CS ambil alih" / "Kembalikan ke bot" |
 | Template balasan | semua kalimat bot (bawaan = naskah klien), bisa diubah dengan pratinjau WhatsApp, isian `{nama}` `{produk}` `{cs}`, dan tombol kembalikan ke naskah asli |
 | Coba bot | simulator berbentuk HP: ketik seperti pelanggan, lihat balasan dan maksud yang dikenali. Tidak ada yang terkirim |
-| Latih bot | pesan pelanggan yang tidak dimengerti bot, dengan tombol **Ajarkan**; kata kunci dari tim langsung berlaku |
-| Statistik | pesan per hari, jam ramai, pertanyaan terbanyak, alasan diserahkan ke CS |
-| Media | **unggah** katalog (bisa beberapa halaman), size chart, katalog review, pamflet promo jersey; pratinjau & hapus |
-| Pengaturan | nama bot/CS, jam aktif, teks promo, nomor rekap + tombol "Kirim rekap uji", folder backup (Google Drive/OneDrive terdeteksi otomatis) + "Backup sekarang" |
+| Pola jawaban | pola buatan tim (mis. "Ukuran"): kata kunci + jawaban bergelembung (teks dengan variasi `---`, foto, produk katalog WA, link), jadwal berlaku, lanjut atau serahkan ke CS |
+| Latih bot | pesan pelanggan yang tidak dimengerti bot, dengan tombol **Ajarkan** (ke jawaban bawaan atau ke pola); kata kunci dari tim langsung berlaku |
+| Statistik | pesan per hari, jam ramai, pertanyaan terbanyak, corong percakapan, pola terpakai, alasan diserahkan ke CS |
+| Media | katalog WhatsApp Business (sinkron otomatis, pemetaan item ke produk), link katalog, **unggah** gambar katalog/size chart/review/pamflet promo |
+| Pengaturan | nama bot/CS, jam aktif, **mode libur** (tanggal bot berjaga 24 jam), nomor rekap + tombol "Kirim rekap uji", folder backup (Google Drive/OneDrive terdeteksi otomatis) + "Backup sekarang" |
 
 ## Seberapa pintar bot ini
 
@@ -78,7 +79,10 @@ Balasan **selalu** naskah tetap dari spesifikasi; yang pintar hanya bagian menge
 - **Beberapa pertanyaan sekaligus**: "mau bikin jersey, minimal berapa? lokasinya di mana?"
   dijawab semuanya, dan pertanyaan lanjutan bot ("mau bikin berapa?") selalu di akhir.
 - **Tahan typo**: "hoddie", "lanyrd", "lokais", "portopolio" tetap dikenali (kata pendek tetap harus tepat).
-- **Bisa diajari tim** lewat halaman Latih bot, tanpa mengubah kode.
+- **Paham singkatan chat**: brp, gmn, dmn, bs, gk, blm, pesen, klo, sz, dst.
+- **Bisa diajari tim** lewat halaman Latih bot, dan **pola jawaban** buatan tim dipakai sebelum jawaban bawaan.
+- **Katalog WhatsApp Business**: produk yang cocok dikirim sebagai link produk (maks. 3, promo didahulukan).
+- **Anti-ulang**: kalimat yang sama paling banyak 2x per pelanggan dalam 10 menit; lebih dari itu diserahkan ke CS.
 - **AI opsional** (`ANTHROPIC_API_KEY`) untuk bahasa yang tidak tertangkap kata kunci; kalau AI gagal, kembali ke kata kunci.
 
 ## Tugas harian otomatis

@@ -15,6 +15,7 @@ export const INTENTS = [
     'no_reference', //     answering "what design?": has none yet
     'has_reference', //    answering "what design?": describes it or sends a picture
     'quantity', //         states how many pieces
+    'custom', //           matches an answer pattern the team built (carries `pattern`)
     'other', //            anything else - handed to CS
 ];
 
@@ -62,7 +63,10 @@ export function cleanOrigin(value) {
 
 /** Normalises whatever a classifier returned into the shape the engine expects. */
 export function normaliseResult(result, productKeys) {
-    const intent = INTENTS.includes(result?.intent) ? result.intent : 'other';
+    let intent = INTENTS.includes(result?.intent) ? result.intent : 'other';
+
+    // A pattern answer without its pattern cannot be sent.
+    if (intent === 'custom' && !result?.pattern) intent = 'other';
     const product = productKeys.includes(result?.product) ? result.product : null;
     const sizeVariant = SIZE_VARIANTS.includes(result?.sizeVariant) ? result.sizeVariant : 'reguler';
 
@@ -78,6 +82,7 @@ export function normaliseResult(result, productKeys) {
         name: cleanName(result?.name),
         origin: cleanOrigin(result?.origin),
         sizeVariant,
+        pattern: intent === 'custom' ? result?.pattern ?? null : null,
         source: result?.source ?? 'rules',
     };
 }
