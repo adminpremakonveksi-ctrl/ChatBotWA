@@ -40,7 +40,7 @@ tanpa perlu login. Kalau crash, hidup lagi dalam 10 detik. Bot hanya
 ## Untuk developer: merilis fitur baru
 
 1. Isi `scripts/repo.txt` sekali dengan alamat repo GitHub publik
-   (mis. `https://github.com/pemilik/chatbot-prema main`).
+   (sekarang: `https://github.com/adminpremakonveksi-ctrl/ChatBotWA main`).
 2. Kerjakan fiturnya, `npm test`, lalu push ke branch itu.
 3. Minta klien klik **`Update ChatBot Prema.bat`**.
 
