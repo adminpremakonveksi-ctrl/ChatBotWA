@@ -81,23 +81,67 @@ function Update-PathFromRegistry {
     $env:Path = ($machine, $user | Where-Object { $_ }) -join ';'
 }
 
+function Get-NodeMajor {
+    param($node)
+
+    try { return [int]((& $node.Source -v).TrimStart('v').Split('.')[0]) } catch { return 0 }
+}
+
+# The official Node.js LTS installer, straight from nodejs.org. Fallback for
+# PCs without winget (older Windows 10) or where winget fails.
+function Install-NodeFromNodejsOrg {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+    $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } elseif ([Environment]::Is64BitOperatingSystem) { 'x64' } else { 'x86' }
+    $lts = (Invoke-RestMethod -Uri 'https://nodejs.org/dist/index.json' -TimeoutSec 30) |
+        Where-Object { $_.lts -and $_.files -contains "win-$arch-msi" } |
+        Select-Object -First 1
+
+    if (-not $lts) { throw 'Versi Node.js LTS tidak ditemukan di nodejs.org.' }
+
+    $msi = Join-Path $env:TEMP "node-$($lts.version)-$arch.msi"
+    Write-Info "mengunduh Node.js $($lts.version) dari nodejs.org..."
+    Invoke-WebRequest -Uri "https://nodejs.org/dist/$($lts.version)/node-$($lts.version)-$arch.msi" -OutFile $msi -UseBasicParsing -TimeoutSec 600
+
+    Write-Info 'memasang Node.js...'
+    $p = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait -PassThru
+    Remove-Item $msi -Force -ErrorAction SilentlyContinue
+
+    # 3010 = installed, restart suggested; node works without it.
+    if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { throw "Pemasang Node.js gagal (kode $($p.ExitCode))." }
+}
+
 function Get-Node {
     param([switch]$InstallIfMissing)
 
     $node = Get-Command node -ErrorAction SilentlyContinue
 
-    if (-not $node -and $InstallIfMissing -and (Get-Command winget -ErrorAction SilentlyContinue)) {
-        Write-Info 'Node.js belum ada, memasang (butuh internet, beberapa menit)...'
-        winget install --id OpenJS.NodeJS.LTS --exact --silent --scope machine --accept-package-agreements --accept-source-agreements | Out-Null
-        Update-PathFromRegistry
-        $node = Get-Command node -ErrorAction SilentlyContinue
+    # Missing, or too old for this bot: install the current LTS.
+    if ($InstallIfMissing -and (-not $node -or (Get-NodeMajor $node) -lt 20)) {
+        Write-Info $(if ($node) { 'Node.js terlalu lama, memperbarui (butuh internet, beberapa menit)...' } else { 'Node.js belum ada, memasang (butuh internet, beberapa menit)...' })
+
+        if (Get-Command winget -ErrorAction SilentlyContinue) {
+            winget install --id OpenJS.NodeJS.LTS --exact --silent --scope machine --accept-package-agreements --accept-source-agreements | Out-Null
+            Update-PathFromRegistry
+            $node = Get-Command node -ErrorAction SilentlyContinue
+        }
+
+        if (-not $node -or (Get-NodeMajor $node) -lt 20) {
+            Install-NodeFromNodejsOrg
+            Update-PathFromRegistry
+            $node = Get-Command node -ErrorAction SilentlyContinue
+
+            # The MSI's PATH entry may not be visible yet in this session.
+            $default = Join-Path $env:ProgramFiles 'nodejs\node.exe'
+            if (-not $node -and (Test-Path $default)) { $node = Get-Command $default }
+        }
     }
 
     if (-not $node) {
-        throw 'Node.js belum terpasang. Pasang Node.js LTS dari https://nodejs.org, lalu jalankan lagi.'
+        throw 'Node.js belum terpasang dan pemasangan otomatis gagal. Pastikan PC terhubung ke internet, lalu klik Mulai ChatBot Prema.bat lagi.'
     }
 
-    $major = [int]((& $node.Source -v).TrimStart('v').Split('.')[0])
+    $major = Get-NodeMajor $node
     if ($major -lt 20) { throw "Node.js terlalu lama (v$major). Butuh minimal v20." }
 
     return $node.Source
