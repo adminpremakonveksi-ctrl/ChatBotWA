@@ -1,0 +1,1034 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ChatBot Prema</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg:#f4f3ef; --panel:#ffffff; --panel-2:#f9f8f5; --ink:#1b1c1a; --ink-2:#55574f; --ink-3:#8a8c83;
+  --line:#e6e4dd; --line-2:#efede7; --accent:#1f6f5c; --accent-ink:#ffffff; --accent-soft:#e2efe9;
+  --series:#2a78d6; --series-wash:rgba(42,120,214,.10); --grid:#ecebe6; --surface:#ffffff;
+  --good:#0f8a3c; --good-soft:#e3f4e8; --warn:#9a6400; --warn-soft:#fbf0d9; --bad:#c23434; --bad-soft:#fbe5e3;
+  --chat-bg:#efeae2; --bubble-me:#d9fdd3; --bubble-them:#ffffff; --shadow:0 1px 2px rgba(20,20,10,.05), 0 4px 16px rgba(20,20,10,.04);
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --bg:#111211; --panel:#1a1a19; --panel-2:#20201e; --ink:#f1f1ec; --ink-2:#c3c2b7; --ink-3:#8d8c84;
+    --line:#2d2d2a; --line-2:#262624; --accent:#5cc6a6; --accent-ink:#0b1d17; --accent-soft:#1b2f28;
+    --series:#3987e5; --series-wash:rgba(57,135,229,.14); --grid:#2a2a27; --surface:#1a1a19;
+    --good:#4ccd7c; --good-soft:#173322; --warn:#f0b35a; --warn-soft:#3a2c12; --bad:#ff8a80; --bad-soft:#3d1c1a;
+    --chat-bg:#0e1512; --bubble-me:#005c4b; --bubble-them:#202c33; --shadow:none;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg:#111211; --panel:#1a1a19; --panel-2:#20201e; --ink:#f1f1ec; --ink-2:#c3c2b7; --ink-3:#8d8c84;
+  --line:#2d2d2a; --line-2:#262624; --accent:#5cc6a6; --accent-ink:#0b1d17; --accent-soft:#1b2f28;
+  --series:#3987e5; --series-wash:rgba(57,135,229,.14); --grid:#2a2a27; --surface:#1a1a19;
+  --good:#4ccd7c; --good-soft:#173322; --warn:#f0b35a; --warn-soft:#3a2c12; --bad:#ff8a80; --bad-soft:#3d1c1a;
+  --chat-bg:#0e1512; --bubble-me:#005c4b; --bubble-them:#202c33; --shadow:none;
+}
+* { box-sizing:border-box }
+html, body { margin:0; height:100% }
+body { font:14px/1.5 ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif; background:var(--bg); color:var(--ink); -webkit-font-smoothing:antialiased }
+button, input, select, textarea { font:inherit; color:inherit }
+code { font:12px ui-monospace,Consolas,monospace; background:var(--panel-2); border:1px solid var(--line); padding:1px 5px; border-radius:5px }
+svg.i { width:18px; height:18px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round }
+
+/* shell */
+.app { display:grid; grid-template-columns:236px 1fr; min-height:100% }
+aside { background:var(--panel); border-right:1px solid var(--line); padding:18px 14px; display:flex; flex-direction:column; gap:4px; position:sticky; top:0; height:100vh }
+.brand { display:flex; align-items:center; gap:10px; padding:4px 8px 18px }
+.logo { width:36px; height:36px; border-radius:11px; background:var(--accent); color:var(--accent-ink); display:grid; place-items:center; font-weight:700; font-size:17px }
+.brand b { display:block; font-size:15px } .brand small { color:var(--ink-3); font-size:12px }
+.nav { display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:9px; border:0; background:none; color:var(--ink-2); cursor:pointer; text-align:left; width:100% }
+.nav:hover { background:var(--panel-2); color:var(--ink) }
+.nav.on { background:var(--accent-soft); color:var(--accent); font-weight:600 }
+.nav .count { margin-left:auto; font-size:11px; font-weight:600; background:var(--warn-soft); color:var(--warn); border-radius:99px; padding:0 7px }
+.aside-foot { margin-top:auto; padding:10px; font-size:12px; color:var(--ink-3) }
+.main { min-width:0 }
+.topbar { position:sticky; top:0; z-index:5; display:flex; align-items:center; gap:12px; padding:14px 28px; background:color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter:blur(8px); border-bottom:1px solid var(--line-2) }
+.topbar h1 { font-size:18px; margin:0; font-weight:650 }
+.topbar .sp { flex:1 }
+.content { padding:22px 28px 48px; max-width:1240px }
+.iconbtn { border:1px solid var(--line); background:var(--panel); border-radius:9px; width:34px; height:34px; display:grid; place-items:center; cursor:pointer; color:var(--ink-2) }
+
+/* atoms */
+.card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:var(--shadow) }
+.card h3 { margin:0 0 4px; font-size:14px; font-weight:650 }
+.card .hint { color:var(--ink-3); font-size:12.5px; margin:0 0 12px }
+.grid { display:grid; gap:16px }
+.g4 { grid-template-columns:repeat(4,minmax(0,1fr)) } .g3 { grid-template-columns:repeat(3,minmax(0,1fr)) } .g2 { grid-template-columns:repeat(2,minmax(0,1fr)) }
+.g-main { grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) }
+.stack { display:flex; flex-direction:column; gap:16px }
+.row { display:flex; align-items:center; gap:8px; flex-wrap:wrap }
+.muted { color:var(--ink-3) } .small { font-size:12.5px }
+.pill { display:inline-flex; align-items:center; gap:6px; padding:3px 10px; border-radius:99px; font-size:12.5px; font-weight:550; border:1px solid var(--line); background:var(--panel); white-space:nowrap }
+.pill .dot { width:8px; height:8px; border-radius:50% }
+.pill.good { background:var(--good-soft); color:var(--good); border-color:transparent } .pill.good .dot { background:var(--good) }
+.pill.warn { background:var(--warn-soft); color:var(--warn); border-color:transparent } .pill.warn .dot { background:var(--warn) }
+.pill.bad { background:var(--bad-soft); color:var(--bad); border-color:transparent } .pill.bad .dot { background:var(--bad) }
+.pill.quiet { color:var(--ink-2) } .pill.quiet .dot { background:var(--ink-3) }
+.pulse .dot { animation:pulse 1.8s infinite }
+@keyframes pulse { 0%{ box-shadow:0 0 0 0 color-mix(in srgb, currentColor 45%, transparent) } 70%{ box-shadow:0 0 0 7px transparent } 100%{ box-shadow:0 0 0 0 transparent } }
+.btn { display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border-radius:9px; border:1px solid var(--line); background:var(--panel); cursor:pointer; font-weight:550 }
+.btn:hover { background:var(--panel-2) }
+.btn.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-ink) }
+.btn.primary:hover { filter:brightness(1.05) }
+.btn.danger { color:var(--bad) }
+.btn.sm { padding:4px 10px; font-size:12.5px }
+.btn:disabled { opacity:.5; cursor:default }
+input.f, select.f, textarea.f { padding:8px 11px; border-radius:9px; border:1px solid var(--line); background:var(--panel); min-width:0 }
+input.f:focus, select.f:focus { outline:2px solid color-mix(in srgb, var(--accent) 40%, transparent); outline-offset:1px }
+.chip { padding:5px 11px; border-radius:99px; border:1px solid var(--line); background:var(--panel); cursor:pointer; font-size:12.5px; color:var(--ink-2) }
+.chip.on { background:var(--ink); color:var(--bg); border-color:var(--ink) }
+table.t { width:100%; border-collapse:collapse }
+table.t th, table.t td { text-align:left; padding:9px 8px; border-bottom:1px solid var(--line-2); vertical-align:top }
+table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--ink-3); font-weight:600 }
+.empty { padding:28px; text-align:center; color:var(--ink-3) }
+.hidden { display:none !important }
+
+/* hero */
+.hero { display:grid; grid-template-columns:auto 1fr; gap:20px; align-items:center }
+.avatar { width:64px; height:64px; border-radius:20px; display:grid; place-items:center; font-size:28px; background:var(--accent-soft); color:var(--accent); position:relative }
+.avatar .badge { position:absolute; right:-3px; bottom:-3px; width:18px; height:18px; border-radius:50%; border:3px solid var(--panel) }
+.hero h2 { margin:0; font-size:20px; font-weight:650 }
+.hero p { margin:2px 0 0; color:var(--ink-2) }
+.timeline { margin-top:16px }
+.timeline svg { width:100%; height:30px; display:block }
+.timeline .ticks { position:relative; height:16px; font-size:11px; color:var(--ink-3) }
+.timeline .ticks span { position:absolute; transform:translateX(-50%) } .timeline .ticks span:first-child { transform:none } .timeline .ticks span:last-child { transform:translateX(-100%) }
+
+/* kpi */
+.kpi .label { color:var(--ink-3); font-size:12px; font-weight:550; text-transform:uppercase; letter-spacing:.04em }
+.kpi .value { font-size:28px; font-weight:680; letter-spacing:-.01em; margin-top:4px; font-variant-numeric:tabular-nums }
+.kpi .foot { color:var(--ink-3); font-size:12px }
+.kpi svg { width:100%; height:36px; display:block; margin-top:8px }
+
+/* checklist */
+.check { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--line-2) }
+.check:last-child { border-bottom:0 }
+.check .mark { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; flex:none; font-size:12px; font-weight:700 }
+.check .mark.ok { background:var(--good-soft); color:var(--good) } .check .mark.no { background:var(--warn-soft); color:var(--warn) }
+.progress { height:6px; background:var(--line-2); border-radius:99px; overflow:hidden; margin:6px 0 10px }
+.progress > i { display:block; height:100%; background:var(--accent); border-radius:99px }
+
+/* conversations */
+.split { display:grid; grid-template-columns:360px 1fr; gap:0; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel); height:calc(100vh - 150px); min-height:480px; box-shadow:var(--shadow) }
+.list { border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0 }
+.list-head { padding:12px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:10px }
+.list-body { overflow-y:auto; flex:1 }
+.conv { display:flex; gap:11px; padding:12px; border-bottom:1px solid var(--line-2); cursor:pointer }
+.conv:hover { background:var(--panel-2) } .conv.on { background:var(--accent-soft) }
+.ava { width:40px; height:40px; border-radius:50%; display:grid; place-items:center; font-weight:650; flex:none; color:#fff; font-size:15px }
+.conv .top { display:flex; gap:6px; align-items:baseline } .conv .name { font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.conv .time { font-size:11.5px; color:var(--ink-3) }
+.conv .last { color:var(--ink-2); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.pane { display:flex; flex-direction:column; min-width:0; min-height:0 }
+.pane-head { padding:12px 16px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:center }
+.chatwall { flex:1; overflow-y:auto; padding:18px 6%; background:var(--chat-bg); display:flex; flex-direction:column; gap:6px;
+  background-image:radial-gradient(color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px); background-size:18px 18px }
+.bub { max-width:72%; padding:7px 10px 18px; border-radius:9px; white-space:pre-wrap; word-wrap:break-word; position:relative; box-shadow:0 1px .5px rgba(0,0,0,.13); font-size:13.5px }
+.bub .t { position:absolute; right:8px; bottom:3px; font-size:10.5px; color:var(--ink-3) }
+.bub.them { align-self:flex-start; background:var(--bubble-them); border-top-left-radius:2px }
+.bub.me { align-self:flex-end; background:var(--bubble-me); border-top-right-radius:2px }
+.bub.file { font-style:italic }
+.sys { align-self:center; font-size:12px; background:var(--panel); color:var(--ink-2); padding:4px 12px; border-radius:8px; box-shadow:0 1px .5px rgba(0,0,0,.1); text-align:center; max-width:85% }
+.day { align-self:center; font-size:11.5px; background:var(--panel); color:var(--ink-3); padding:3px 10px; border-radius:7px; margin:8px 0 }
+.pane-foot { padding:12px 16px; border-top:1px solid var(--line); display:flex; gap:10px; align-items:center; flex-wrap:wrap }
+
+/* stepper */
+.steps { display:flex; align-items:center; gap:0; margin:2px 0 }
+.steps .s { display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-3); white-space:nowrap }
+.steps .s .c { width:18px; height:18px; border-radius:50%; border:1.5px solid var(--line); display:grid; place-items:center; font-size:10px; font-weight:700; background:var(--panel) }
+.steps .s.done { color:var(--ink-2) } .steps .s.done .c { background:var(--accent); border-color:var(--accent); color:var(--accent-ink) }
+.steps .s.now { color:var(--accent); font-weight:650 } .steps .s.now .c { border-color:var(--accent); color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft) }
+.steps .bar { width:18px; height:1.5px; background:var(--line); margin:0 4px } .steps .bar.done { background:var(--accent) }
+
+/* simulator */
+.sim { display:grid; grid-template-columns:minmax(320px,400px) 1fr; gap:24px; align-items:start }
+.phone { border-radius:34px; background:#111; padding:10px; box-shadow:0 20px 50px rgba(0,0,0,.18) }
+.screen { border-radius:26px; overflow:hidden; background:var(--chat-bg); height:min(680px, calc(100vh - 170px)); display:flex; flex-direction:column }
+.wa-head { background:#075e54; color:#fff; padding:14px 14px 12px; display:flex; gap:10px; align-items:center }
+:root[data-theme="dark"] .wa-head { background:#1f2c34 }
+@media (prefers-color-scheme: dark) { :root:where(:not([data-theme="light"])) .wa-head { background:#1f2c34 } }
+.wa-head .ava { width:36px; height:36px; background:#25d366; font-size:16px }
+.wa-head small { opacity:.8; font-size:11.5px; display:block }
+.screen .chatwall { padding:14px 12px }
+.screen .bub { max-width:84% }
+.compose { display:flex; gap:6px; padding:8px; background:var(--panel-2); align-items:center }
+.compose input[type=text] { flex:1; border:0; border-radius:99px; padding:10px 14px; background:var(--panel); outline:none }
+.send { width:40px; height:40px; border-radius:50%; border:0; background:#25d366; color:#fff; display:grid; place-items:center; cursor:pointer; flex:none }
+.attach { width:36px; height:36px; border-radius:50%; border:0; background:none; color:var(--ink-3); display:grid; place-items:center; cursor:pointer }
+.attach.on { color:#25d366; background:var(--accent-soft) }
+.tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:6px; background:var(--series-wash); color:var(--ink-2); margin:2px 3px 0 0 }
+.quick { display:flex; flex-wrap:wrap; gap:6px }
+
+/* charts */
+.chart { position:relative }
+.chart svg { display:block; width:100%; overflow:visible }
+.chart .axis { fill:var(--ink-3); font-size:11px }
+.chart .gridline { stroke:var(--grid); stroke-width:1 }
+.chart .bar { fill:var(--series) }
+.chart .bar:hover, .chart .hit:hover + .bar { filter:brightness(1.12) }
+.tip { position:fixed; pointer-events:none; z-index:50; background:var(--ink); color:var(--bg); padding:6px 10px; border-radius:8px; font-size:12px; line-height:1.35; transform:translate(-50%, calc(-100% - 10px)); white-space:nowrap; box-shadow:0 4px 14px rgba(0,0,0,.2) }
+.hbar { display:grid; grid-template-columns:150px 1fr 44px; align-items:center; gap:10px; padding:5px 0; font-size:13px }
+.hbar .track { height:14px; position:relative }
+.hbar .fill { height:100%; background:var(--series); border-radius:0 4px 4px 0; min-width:2px }
+.hbar .num { text-align:right; font-variant-numeric:tabular-nums; color:var(--ink-2) }
+details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin-top:10px }
+
+/* teach */
+.teach-item { padding:12px 0; border-bottom:1px solid var(--line-2) }
+.teach-item:last-child { border-bottom:0 }
+.teach-item .q { font-size:13.5px; background:var(--panel-2); border:1px solid var(--line-2); border-radius:9px; padding:7px 10px; white-space:pre-wrap; word-break:break-word }
+.teach-form { display:grid; grid-template-columns:1fr 170px 170px auto; gap:8px; margin-top:8px }
+
+/* qr */
+.qrbox { display:flex; gap:18px; align-items:center; flex-wrap:wrap }
+.qrbox img { width:220px; height:220px; background:#fff; padding:10px; border-radius:12px; border:1px solid var(--line) }
+.qrbox ol { margin:0; padding-left:18px; color:var(--ink-2) } .qrbox li { margin:3px 0 }
+
+/* media upload */
+.slots { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px }
+.slot { border:1px solid var(--line); border-radius:12px; padding:14px; background:var(--panel); display:flex; flex-direction:column; gap:10px; transition:border-color .15s, background .15s }
+.slot.drag { border-color:var(--accent); background:var(--accent-soft) }
+.slot .head { display:flex; align-items:center; gap:8px }
+.slot .head b { flex:1 }
+.thumbs { display:flex; gap:8px; flex-wrap:wrap }
+.thumb { position:relative; width:76px; height:96px; border-radius:8px; overflow:hidden; border:1px solid var(--line); background:var(--panel-2); display:grid; place-items:center; font-size:11px; color:var(--ink-3); text-align:center }
+.thumb img { width:100%; height:100%; object-fit:cover; display:block; cursor:zoom-in }
+.thumb .x { position:absolute; top:3px; right:3px; width:22px; height:22px; border-radius:50%; border:0; background:rgba(0,0,0,.6); color:#fff; cursor:pointer; font-size:13px; line-height:22px; padding:0 }
+.thumb .n { position:absolute; left:4px; bottom:3px; font-size:10px; font-weight:700; color:#fff; text-shadow:0 1px 2px rgba(0,0,0,.6) }
+.drop { border:1.5px dashed var(--line); border-radius:10px; padding:12px; text-align:center; color:var(--ink-3); font-size:12.5px; cursor:pointer }
+.drop:hover { border-color:var(--accent); color:var(--accent) }
+.viewer { position:fixed; inset:0; background:rgba(0,0,0,.8); display:grid; place-items:center; z-index:70; cursor:zoom-out }
+.viewer img { max-width:92vw; max-height:92vh; border-radius:8px }
+
+/* settings form */
+.form { display:grid; grid-template-columns:220px 1fr; gap:14px 18px; align-items:start }
+.form label { font-weight:600; padding-top:8px }
+.form label small { display:block; font-weight:400; color:var(--ink-3); font-size:12px; margin-top:2px }
+.form .f { width:100% }
+.form textarea.f { min-height:90px; resize:vertical; font-family:inherit }
+.inline { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
+.inline .f { width:auto }
+@media (max-width: 760px) { .form { grid-template-columns:1fr } .form label { padding-top:0 } }
+
+/* templates */
+.tpl-tabs { display:flex; gap:6px; flex-wrap:wrap }
+.tpl { display:grid; grid-template-columns:minmax(0,1fr) minmax(260px,380px); gap:18px }
+.tpl textarea.f { width:100%; min-height:150px; resize:vertical; font:13.5px/1.5 inherit; font-family:inherit }
+.tpl .vars { display:flex; gap:6px; flex-wrap:wrap; margin:8px 0 }
+.tpl .vars button { font:12px ui-monospace,Consolas,monospace; padding:3px 8px; border-radius:7px; border:1px solid var(--line); background:var(--panel-2); cursor:pointer; color:var(--ink-2) }
+.tpl .vars button:hover { border-color:var(--accent); color:var(--accent) }
+.tpl .preview { background:var(--chat-bg); border-radius:12px; padding:14px; display:flex; flex-direction:column; min-height:100%;
+  background-image:radial-gradient(color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px); background-size:18px 18px }
+.tpl .preview .bub { max-width:100% }
+.tpl .warnline { font-size:12.5px; color:var(--warn); margin-top:6px }
+@media (max-width: 1100px) { .tpl { grid-template-columns:1fr } }
+
+/* toast */
+.toasts { position:fixed; right:20px; bottom:20px; display:flex; flex-direction:column; gap:8px; z-index:60 }
+.toast { background:var(--ink); color:var(--bg); padding:10px 14px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,.2); animation:rise .2s ease-out }
+@keyframes rise { from { transform:translateY(8px); opacity:0 } }
+
+@media (max-width: 1100px) { .g4 { grid-template-columns:repeat(2,minmax(0,1fr)) } .g-main, .sim { grid-template-columns:1fr } .teach-form { grid-template-columns:1fr 1fr } }
+@media (max-width: 760px) {
+  .app { grid-template-columns:minmax(0,1fr) } aside { position:static; height:auto; flex-direction:row; overflow-x:auto; padding:10px; gap:2px; border-right:0; border-bottom:1px solid var(--line) }
+  .brand, .aside-foot { display:none } .nav { width:auto; white-space:nowrap } .nav .count { display:none }
+  .topbar, .content { padding-left:16px; padding-right:16px } .topbar { flex-wrap:wrap; gap:8px } .topbar h1 { width:100% } .topbar .sp { display:none }
+  .hero { grid-template-columns:1fr } .pane-head { flex-wrap:wrap } .steps { overflow-x:auto; max-width:100% } .teach-form { grid-template-columns:1fr } .g4, .g3, .g2 { grid-template-columns:1fr }
+  .split { grid-template-columns:1fr; height:auto } .list { border-right:0; max-height:50vh } .pane { min-height:70vh }
+  .hbar { grid-template-columns:110px 1fr 36px }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <div class="brand"><div class="logo">M</div><div><b>ChatBot Prema</b><small id="brandSub">Mawar · penjaga malam</small></div></div>
+    <button class="nav on" data-page="ringkasan"><svg class="i" viewBox="0 0 24 24"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg>Ringkasan</button>
+    <button class="nav" data-page="percakapan"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Percakapan<span class="count hidden" id="navFollow"></span></button>
+    <button class="nav" data-page="coba"><svg class="i" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Coba bot</button>
+    <button class="nav" data-page="template"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>Template balasan<span class="count hidden" id="navTpl"></span></button>
+    <button class="nav" data-page="latih"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8l5.5-.8z"/></svg>Latih bot<span class="count hidden" id="navTeach"></span></button>
+    <button class="nav" data-page="statistik"><svg class="i" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistik</button>
+    <button class="nav" data-page="media"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>Media<span class="count hidden" id="navMedia"></span></button>
+    <button class="nav" data-page="pengaturan"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Pengaturan</button>
+    <div class="aside-foot" id="footInfo">Hanya bisa dibuka dari PC ini.</div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <h1 id="pageTitle">Ringkasan</h1>
+      <div class="sp"></div>
+      <span class="pill quiet" id="waPill"><span class="dot"></span>WhatsApp</span>
+      <span class="pill quiet" id="botPill"><span class="dot"></span>memuat…</span>
+      <button class="iconbtn" id="themeBtn" title="Ganti terang/gelap"><svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    </div>
+
+    <div class="content">
+      <!-- RINGKASAN -->
+      <section data-page="ringkasan" class="stack">
+        <div class="card">
+          <div class="hero">
+            <div class="avatar" id="heroAva">🌹<span class="badge" id="heroBadge"></span></div>
+            <div><h2 id="heroTitle">…</h2><p id="heroText"></p></div>
+          </div>
+          <div class="timeline"><svg id="timeline" viewBox="0 0 1000 30" preserveAspectRatio="none" role="img" aria-label="Jam aktif bot hari ini"></svg>
+            <div class="ticks"><span style="left:0">00.00</span><span style="left:25%">06.00</span><span style="left:50%">12.00</span><span style="left:75%">18.00</span><span style="left:100%">24.00</span></div></div>
+        </div>
+        <div class="grid g4" id="kpis"></div>
+        <div class="grid g-main">
+          <div class="stack">
+            <div class="card" id="waCard"></div>
+            <div class="card">
+              <div class="row"><h3 style="flex:1">Perlu ditindaklanjuti CS</h3><button class="btn sm" data-goto="percakapan">Semua percakapan</button></div>
+              <p class="hint">Pelanggan 24 jam terakhir yang sudah diserahkan bot dan belum dibalas CS.</p>
+              <div id="followList"></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Kesiapan</h3>
+            <p class="hint" id="readyText"></p>
+            <div class="progress"><i id="readyBar" style="width:0"></i></div>
+            <div id="readyList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- PERCAKAPAN -->
+      <section data-page="percakapan" class="hidden">
+        <div class="split">
+          <div class="list">
+            <div class="list-head">
+              <input class="f" id="convSearch" placeholder="Cari nama, nomor, atau isi chat…">
+              <div class="row" id="convFilters">
+                <button class="chip on" data-f="all">Semua</button>
+                <button class="chip" data-f="follow">Perlu CS</button>
+                <button class="chip" data-f="open">Berjalan</button>
+                <button class="chip" data-f="cs">Dibalas CS</button>
+                <select class="f" id="hours" style="margin-left:auto;padding:4px 8px"><option value="24">24 jam</option><option value="72">3 hari</option><option value="168">7 hari</option><option value="720">30 hari</option></select>
+              </div>
+            </div>
+            <div class="list-body" id="convList"></div>
+          </div>
+          <div class="pane" id="convPane"><div class="empty" style="margin:auto">Pilih percakapan di sebelah kiri.</div></div>
+        </div>
+      </section>
+
+      <!-- COBA BOT -->
+      <section data-page="coba" class="hidden">
+        <div class="sim">
+          <div class="phone"><div class="screen">
+            <div class="wa-head"><div class="ava">P</div><div style="flex:1"><b>Prema Konveksi</b><small id="simStatus">online</small></div>
+              <button class="attach" id="simReset" title="Mulai ulang" style="color:#fff"><svg class="i" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5"/></svg></button></div>
+            <div class="chatwall" id="sim"><div class="sys">Ketik seperti pelanggan. Tidak ada yang dikirim ke WhatsApp, dan jam aktif diabaikan.</div></div>
+            <form class="compose" id="simForm">
+              <button type="button" class="attach" id="simImg" title="Lampirkan gambar (pura-pura)"><svg class="i" viewBox="0 0 24 24"><path d="M21 11l-8.6 8.6a5 5 0 0 1-7-7L14 4a3.5 3.5 0 0 1 5 5l-8.6 8.6a2 2 0 0 1-2.8-2.8L15.5 7"/></svg></button>
+              <input type="text" id="simText" placeholder="Ketik pesan" autocomplete="off">
+              <button class="send" title="Kirim"><svg class="i" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z"/></svg></button>
+            </form>
+          </div></div>
+          <div class="stack">
+            <div class="card"><h3>Posisi percakapan</h3><p class="hint">Tahap alur sesuai flowchart spesifikasi.</p><div id="simSteps"></div><div id="simLast" class="small muted" style="margin-top:12px"></div></div>
+            <div class="card"><h3>Coba pesan ini</h3><p class="hint">Klik untuk mengirim. Campur pertanyaan, typo, dan bahasa sehari-hari.</p><div class="quick" id="quick"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TEMPLATE BALASAN -->
+      <section data-page="template" class="hidden stack">
+        <div class="card">
+          <div class="row"><h3 style="flex:1">Template balasan</h3><input class="f" id="tplSearch" placeholder="Cari kalimat…" style="width:240px"></div>
+          <p class="hint">Semua kalimat yang dikirim bot. Isi bawaan diambil dari naskah klien. Ubah seperlunya lalu <b>Simpan</b>; langsung berlaku tanpa restart. Isian seperti <code>{nama}</code> diganti otomatis. Format WhatsApp: <code>*tebal*</code>, <code>_miring_</code>, <code>~coret~</code>.</p>
+          <div class="tpl-tabs" id="tplGroups"></div>
+        </div>
+        <div class="stack" id="tplList"></div>
+      </section>
+
+      <!-- LATIH BOT -->
+      <section data-page="latih" class="hidden">
+        <div class="grid g-main">
+          <div class="card">
+            <h3>Pesan yang belum dikenali</h3>
+            <p class="hint">Pesan pelanggan 30 hari terakhir yang tidak dimengerti bot, sehingga langsung diserahkan ke CS. Ajarkan kata kuncinya, lalu bot mengenali pesan serupa berikutnya. Balasannya tetap naskah dari spesifikasi.</p>
+            <div id="teachList"></div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h3>Tambah kata kunci</h3>
+              <p class="hint">Contoh: <i>rekber</i> → ragu/takut ditipu, <i>kaos panitia</i> → produk Kaos.</p>
+              <form id="kwForm" class="stack" style="gap:8px">
+                <input class="f" name="phrase" placeholder="kata atau frasa" required>
+                <select class="f" name="intent" id="kwIntent"></select>
+                <select class="f hidden" name="product" id="kwProduct"></select>
+                <button class="btn primary">Simpan kata kunci</button>
+              </form>
+            </div>
+            <div class="card"><h3>Kata kunci dari tim</h3><p class="hint">Tambahan untuk daftar bawaan. Langsung berlaku, tanpa restart.</p><div id="kwList"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- STATISTIK -->
+      <section data-page="statistik" class="hidden stack">
+        <div class="row"><span class="muted">Rentang</span>
+          <div class="row" id="rangeChips"><button class="chip" data-d="7">7 hari</button><button class="chip on" data-d="30">30 hari</button><button class="chip" data-d="90">90 hari</button></div></div>
+        <div class="grid g4" id="statTiles"></div>
+        <div class="card"><h3>Pesan masuk per hari</h3><p class="hint">Jumlah pesan pelanggan yang diterima bot, semua jam.</p><div class="chart" id="chDaily"></div><details class="tbl"><summary>Lihat sebagai tabel</summary><div id="tbDaily"></div></details></div>
+        <div class="grid g2">
+          <div class="card"><h3>Jam ramai</h3><p class="hint">Pesan masuk per jam (WIB). Area gelap = jam bot diam.</p><div class="chart" id="chHours"></div><details class="tbl"><summary>Lihat sebagai tabel</summary><div id="tbHours"></div></details></div>
+          <div class="card"><h3>Yang paling sering ditanyakan</h3><p class="hint">Maksud pesan yang dikenali bot.</p><div id="chIntents"></div></div>
+        </div>
+        <div class="card"><h3>Kenapa diserahkan ke CS</h3><p class="hint">Alasan bot berhenti membalas.</p><div id="chHandover"></div></div>
+      </section>
+
+      <!-- MEDIA -->
+      <section data-page="media" class="hidden stack">
+        <div class="card"><h3>Gambar & file yang dikirim bot</h3>
+          <p class="hint">Klik kotak unggah atau seret file ke sana. Gambar (JPG/PNG/WEBP) dikirim sebagai foto, PDF sebagai dokumen. Maksimal 15 MB per file. Langsung berlaku, tidak perlu restart.</p>
+          <div class="progress"><i id="mediaBar" style="width:0"></i></div><div id="mediaText" class="small muted"></div></div>
+        <div id="mediaGroups" class="stack"></div>
+      </section>
+
+      <!-- PENGATURAN -->
+      <section data-page="pengaturan" class="hidden stack">
+        <form class="card" id="settingsForm">
+          <div class="row"><h3 style="flex:1">Pengaturan</h3><button class="btn primary" id="saveSettings">Simpan</button></div>
+          <p class="hint">Langsung berlaku setelah disimpan. Tidak perlu restart.</p>
+          <div class="form">
+            <label>Nama bot<small>Muncul di sapaan: "izinkan saya … selaku AI Agent"</small></label><input class="f" name="botName" required>
+            <label>Nama CS<small>"sembari menunggu CS … online"</small></label><input class="f" name="csName" required>
+            <label>Jam bot aktif<small>Senin–Sabtu. Minggu selalu 24 jam.</small></label>
+            <div class="inline"><span>dari</span><input class="f" type="time" name="activeFrom" required><span>sampai</span><input class="f" type="time" name="activeUntil" required><span class="muted small">(melewati tengah malam)</span></div>
+            <label>Bot diam setelah diserahkan ke CS<small>Setelah itu pelanggan disapa bot lagi.</small></label>
+            <div class="inline"><input class="f" type="number" name="handoverHours" min="1" max="168" style="width:90px" required><span>jam</span></div>
+            <label>Kalimat balasan bot<small>Termasuk teks promo jersey [9].</small></label>
+            <div style="padding-top:8px">Diatur di halaman <a href="#template" data-goto="template">Template balasan</a>.</div>
+          </div>
+        </form>
+
+        <form class="card" id="recapForm">
+          <div class="row"><h3 style="flex:1">Rekap pagi untuk CS</h3><button type="button" class="btn" id="testRecap">Kirim rekap uji</button><button class="btn primary">Simpan</button></div>
+          <p class="hint">Setiap Senin–Sabtu, bot mengirim daftar pelanggan semalam ke WhatsApp CS. Senin mencakup Sabtu malam dan Minggu.</p>
+          <div class="form">
+            <label>Nomor WhatsApp penerima<small>Bisa lebih dari satu, pisahkan dengan koma. Kosongkan untuk mematikan rekap.</small></label><input class="f" name="recapTo" placeholder="0812xxxxxxxx">
+            <label>Jam kirim<small>Kosong = saat bot selesai berjaga.</small></label><div class="inline"><input class="f" type="time" name="recapAt"><span class="muted small" id="recapAtHint"></span></div>
+          </div>
+          <div class="chatwall" style="border-radius:10px;max-height:340px;margin-top:14px"><div class="bub me" id="recapPreview">…</div></div>
+        </form>
+
+        <form class="card" id="backupForm">
+          <div class="row"><h3 style="flex:1">Backup harian</h3><button type="button" class="btn" id="backupNow">Backup sekarang</button><button class="btn primary">Simpan</button></div>
+          <p class="hint">Setiap jam 03.00, salinan database (tautan nomor WhatsApp & riwayat chat) disimpan 14 hari. Pilih folder yang ikut tersinkron ke internet supaya aman kalau PC rusak.</p>
+          <div class="form">
+            <label>Folder backup<small id="lastBackup"></small></label>
+            <div class="stack" style="gap:8px"><input class="f" name="backupDir" placeholder="G:\My Drive\Backup ChatBot Prema"><div class="quick" id="backupSuggest"></div></div>
+          </div>
+        </form>
+      </section>
+    </div>
+  </div>
+</div>
+<div class="tip hidden" id="tip"></div>
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ------------------------------------------------------------ basics --- */
+const key = new URLSearchParams(location.search).get('key');
+const headers = { 'Content-Type': 'application/json', ...(key ? { 'X-Api-Key': key } : {}) };
+const api = async (url, options = {}) => {
+  const r = await fetch(url, { headers, ...options });
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.error || r.statusText);
+  return body;
+};
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const utc = (s) => s ? new Date(s.replace(' ', 'T') + 'Z') : null;
+const fmtTime = (s) => { const d = utc(s); if (!d) return ''; const today = new Date().toDateString() === d.toDateString(); return d.toLocaleString('id-ID', today ? { hour:'2-digit', minute:'2-digit' } : { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }); };
+const fmtDay = (d) => d.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long' });
+const num = (n) => Number(n || 0).toLocaleString('id-ID');
+const toast = (text) => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('#toasts').append(t); setTimeout(() => t.remove(), 3200); };
+const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
+
+const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', other:'Tidak dikenali' };
+const STEPS = [['new','Sapa'], ['awaiting_intro','Kenalan'], ['awaiting_product','Produk'], ['awaiting_design','Desain'], ['awaiting_quantity','Jumlah'], ['handed_over','Ke CS']];
+const STEP_INDEX = { new:0, awaiting_intro:1, awaiting_product:2, awaiting_size_chart_product:2, awaiting_design:3, awaiting_quantity:4, handed_over:5 };
+const STEP_LABEL = { new:'baru menyapa', awaiting_intro:'ditanya nama', awaiting_product:'ditanya produk', awaiting_size_chart_product:'ditanya produk size chart', awaiting_design:'ditanya desain', awaiting_quantity:'ditanya jumlah', handed_over:'di CS' };
+const AVA = ['#2f7d6d', '#3d6fb6', '#b0623b', '#7a5aa6', '#4f8a3c', '#a2486a', '#5e6b7a'];
+const avaColor = (s) => AVA[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVA.length];
+const initials = (name) => name ? name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() : '?';
+
+function stepper(step) {
+  const at = STEP_INDEX[step] ?? 0;
+  return '<div class="steps">' + STEPS.map(([, label], i) =>
+    (i ? `<span class="bar ${i <= at ? 'done' : ''}"></span>` : '') +
+    `<span class="s ${i < at || (i === at && at === 5) ? 'done' : i === at ? 'now' : ''}"><span class="c">${i < at || (at === 5 && i === 5) ? '✓' : i + 1}</span>${label}</span>`).join('') + '</div>';
+}
+
+/* theme */
+function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
+applyTheme(new URLSearchParams(location.search).get('theme') || store.get('theme'));
+$('#themeBtn').onclick = () => {
+  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+  const next = dark ? 'light' : 'dark'; applyTheme(next); store.set('theme', next); rerenderCharts();
+};
+
+/* tooltip */
+const tip = $('#tip');
+function showTip(e, html) { tip.innerHTML = html; tip.classList.remove('hidden'); tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; }
+function hideTip() { tip.classList.add('hidden'); }
+
+/* ------------------------------------------------------------ routing --- */
+const TITLES = { ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan' };
+let page = 'ringkasan';
+function go(p) {
+  page = TITLES[p] ? p : 'ringkasan';
+  $$('.nav').forEach((b) => b.classList.toggle('on', b.dataset.page === page));
+  $$('section[data-page]').forEach((s) => s.classList.toggle('hidden', s.dataset.page !== page));
+  $('#pageTitle').textContent = TITLES[page];
+  if (location.hash !== '#' + page) history.replaceState(null, '', location.pathname + location.search + '#' + page);
+  refresh();
+}
+$$('.nav').forEach((b) => b.onclick = () => go(b.dataset.page));
+document.addEventListener('click', (e) => { const g = e.target.closest('[data-goto]'); if (g) go(g.dataset.goto); });
+
+/* ------------------------------------------------------------ status --- */
+let info = null, sessions = [];
+function countdown(iso) {
+  if (!iso) return '';
+  const m = Math.max(0, Math.round((new Date(iso) - Date.now()) / 60000));
+  const h = Math.floor(m / 60), r = m % 60;
+  return h ? `${h} jam ${r} menit` : `${r} menit`;
+}
+async function loadStatus() {
+  [info, { sessions }] = await Promise.all([api('/info'), api('/sessions')]);
+  const main = sessions[0];
+  const wa = $('#waPill');
+  if (!main) { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Belum ada nomor'; }
+  else if (main.connected) { wa.className = 'pill good'; wa.innerHTML = `<span class="dot"></span>WhatsApp tersambung`; }
+  else if (main.state === 'qr') { wa.className = 'pill warn pulse'; wa.innerHTML = '<span class="dot"></span>Perlu scan QR'; }
+  else { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>WhatsApp terputus'; }
+  const bp = $('#botPill');
+  if (info.botActive) { bp.className = 'pill good pulse'; bp.innerHTML = `<span class="dot"></span>Bot aktif${info.nextChange ? ' · diam dalam ' + countdown(info.nextChange) : ''}`; }
+  else { bp.className = 'pill quiet'; bp.innerHTML = `<span class="dot"></span>Bot diam${info.nextChange ? ' · aktif dalam ' + countdown(info.nextChange) : ''}`; }
+  $('#brandSub').textContent = `${info.botName} · CS ${info.csName}`;
+  const missing = info.mediaMissing; const nm = $('#navMedia'); nm.textContent = missing; nm.classList.toggle('hidden', !missing);
+}
+
+/* ---------------------------------------------------------- ringkasan --- */
+function drawTimeline() {
+  if (!info) return;
+  const svg = $('#timeline'); const W = 1000;
+  const toMin = (s) => { const [h, m] = s.split(/[:.]/).map(Number); return h * 60 + (m || 0); };
+  const from = toMin(info.activeFrom), until = toMin(info.activeUntil);
+  const sunday = info.clock.day === 0;
+  const x = (min) => (min / 1440) * W;
+  const seg = sunday ? [[0, 1440]] : [[0, until], [from, 1440]];
+  let s = `<rect x="0" y="8" width="${W}" height="16" rx="8" fill="var(--line-2)"/>`;
+  s += seg.map(([a, b]) => `<rect x="${x(a)}" y="8" width="${x(b) - x(a)}" height="16" rx="${a === 0 || b === 1440 ? 8 : 3}" fill="var(--accent)" opacity=".85"/>`).join('');
+  const now = x(info.clock.minutes);
+  s += `<line x1="${now}" x2="${now}" y1="2" y2="30" stroke="var(--ink)" stroke-width="2" vector-effect="non-scaling-stroke"/>`;
+  svg.innerHTML = s;
+}
+
+function sparkline(values) {
+  const W = 200, H = 36, max = Math.max(1, ...values);
+  const pts = values.map((v, i) => [values.length === 1 ? W : (i / (values.length - 1)) * W, H - 4 - (v / max) * (H - 10)]);
+  const line = pts.map((p) => p.join(',')).join(' ');
+  const last = pts[pts.length - 1];
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,${H} ${line} ${W},${H}" fill="var(--series-wash)"/><polyline points="${line}" fill="none" stroke="var(--series)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/><circle cx="${last[0]}" cy="${last[1]}" r="4" fill="var(--series)" stroke="var(--panel)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+}
+
+async function loadRingkasan() {
+  const [a, { conversations }] = await Promise.all([api('/analytics?days=14'), api('/conversations?hours=24')]);
+  drawTimeline();
+  const main = sessions[0];
+  const active = info.botActive;
+  $('#heroTitle').textContent = active ? `${info.botName} sedang berjaga` : `${info.botName} sedang istirahat`;
+  $('#heroText').textContent = active
+    ? `Membalas pelanggan sembari menunggu CS ${info.csName}. Berhenti ${info.nextChange ? 'dalam ' + countdown(info.nextChange) : ''}.`
+    : `Jam kerja: CS ${info.csName} yang menangani. ${info.botName} mulai lagi ${info.nextChange ? 'dalam ' + countdown(info.nextChange) : ''}.`;
+  $('#heroBadge').style.background = main?.connected ? 'var(--good)' : 'var(--warn)';
+  if (info.forceMode) $('#heroText').textContent += ` (BOT_FORCE=${info.forceMode})`;
+
+  const today = a.daily[a.daily.length - 1];
+  const rate = a.recognisedRate;
+  $('#kpis').innerHTML = [
+    ['Pelanggan hari ini', num(today.pelanggan), `${num(a.totals.pelanggan)} dalam 14 hari`, a.daily.map((d) => d.pelanggan)],
+    ['Pesan masuk hari ini', num(today.masuk), `${num(a.totals.masuk)} dalam 14 hari`, a.daily.map((d) => d.masuk)],
+    ['Dikenali bot', rate == null ? '–' : Math.round(rate * 100) + '%', 'pesan yang dimengerti, 14 hari', null],
+    ['Diserahkan ke CS', num(today.handover), `${num(a.totals.handover)} dalam 14 hari`, a.daily.map((d) => d.handover)],
+  ].map(([l, v, f, series]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="foot">${f}</div>${series ? sparkline(series) : `<div class="progress" style="margin-top:20px"><i style="width:${Math.round((rate || 0) * 100)}%"></i></div>`}</div>`).join('');
+
+  // WhatsApp card
+  const wc = $('#waCard');
+  if (!main) wc.innerHTML = '<h3>Nomor WhatsApp</h3><p class="hint">Belum ada nomor terdaftar.</p>';
+  else if (main.connected) wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp</h3><span class="pill good"><span class="dot"></span>tersambung</span></div>
+      <p style="margin:6px 0 2px;font-size:18px;font-weight:650">+${esc(main.phoneNumber)}</p><p class="hint">${esc(main.pushName || main.label)} · tidak perlu scan ulang setelah PC restart.</p>
+      <button class="btn sm" onclick="rescan('${esc(main.key)}')">Ganti nomor</button>`;
+  else {
+    let qr = '';
+    if (main.hasQr) { try { qr = (await api(`/sessions/${main.key}/qr`)).qr; } catch {} }
+    wc.innerHTML = `<div class="row"><h3 style="flex:1">Tautkan nomor WhatsApp bot</h3><span class="pill warn"><span class="dot"></span>${main.state === 'qr' ? 'menunggu scan' : 'menyambung…'}</span></div>
+      <div class="qrbox" style="margin-top:10px">${qr ? `<img src="${qr}" alt="QR WhatsApp">` : '<div class="empty" style="width:220px">QR sedang disiapkan…</div>'}
+      <ol><li>Buka WhatsApp di HP nomor bot</li><li>Ketuk <b>⋮</b> → <b>Perangkat tertaut</b></li><li>Ketuk <b>Tautkan perangkat</b></li><li>Arahkan kamera ke kode ini</li><li class="muted small">QR berganti tiap ±20 detik; halaman ini memperbaruinya sendiri.</li></ol></div>
+      ${main.lastError ? `<p class="small muted">${esc(main.lastError)}</p>` : ''}`;
+  }
+
+  // follow-up
+  const follow = conversations.filter((c) => c.step === 'handed_over' && c.handover_reason !== 'CS membalas');
+  const nf = $('#navFollow'); nf.textContent = follow.length; nf.classList.toggle('hidden', !follow.length);
+  $('#followList').innerHTML = follow.length ? follow.slice(0, 6).map((c) => `
+    <div class="conv" style="padding:10px 0" onclick='openConvFrom(${JSON.stringify(c.session_key)}, ${JSON.stringify(c.jid)})'>
+      <div class="ava" style="background:${avaColor(c.jid)}">${esc(initials(c.name))}</div>
+      <div style="min-width:0;flex:1"><div class="top"><span class="name">${esc(c.name ? 'Kak ' + c.name : 'Tanpa nama')}${c.origin ? ' <span class="muted small">· ' + esc(c.origin) + '</span>' : ''}</span><span class="time">${fmtTime(c.last_message_at)}</span></div>
+      <div class="last">${c.product_name ? '<b>' + esc(c.product_name) + '</b> · ' : ''}${esc(c.last_text || '')}</div></div></div>`).join('')
+    : '<div class="empty">Tidak ada yang menunggu. 🎉</div>';
+
+  // readiness
+  const checks = [
+    [main?.connected, 'Nomor WhatsApp tersambung', main?.connected ? '+' + esc(main.phoneNumber) : 'Scan QR di kartu sebelah'],
+    [!info.mediaMissing, 'File katalog & size chart lengkap', info.mediaMissing ? `${info.mediaMissing} file belum ada · <a href="#media" data-goto="media">lihat</a>` : 'semua ada'],
+    [info.recapTo.length > 0, 'Rekap pagi ke CS', info.recapTo.length ? `jam ${esc(info.recapAt)} ke ${info.recapTo.map(esc).join(', ')}` : 'isi nomor penerima · <a href="#pengaturan" data-goto="pengaturan">atur</a>'],
+    [info.backupOutside, 'Backup keluar dari PC ini', info.backupOutside ? esc(info.backupDir) : 'pilih folder Google Drive/OneDrive · <a href="#pengaturan" data-goto="pengaturan">atur</a>'],
+    [info.jerseyPromo || info.promoPamphlet, 'Promo jersey [9]', info.jerseyPromo || info.promoPamphlet ? [info.promoPamphlet && 'pamflet', info.jerseyPromo && 'teks'].filter(Boolean).join(' + ') + ' terpasang' : 'opsional · pamflet di <a href="#media" data-goto="media">Media</a>, teks di <a href="#template" data-goto="template">Template</a>'],
+  ];
+  const done = checks.filter((c) => c[0]).length;
+  $('#readyText').textContent = `${done} dari ${checks.length} siap`;
+  $('#readyBar').style.width = (done / checks.length * 100) + '%';
+  $('#readyList').innerHTML = checks.map(([ok, t, d]) => `<div class="check"><span class="mark ${ok ? 'ok' : 'no'}">${ok ? '✓' : '!'}</span><div><div>${t}</div><div class="small muted">${d}</div></div></div>`).join('');
+}
+async function rescan(k) {
+  if (!confirm('Lepas nomor ini dan tampilkan QR baru? Bot berhenti membalas sampai QR di-scan lagi.')) return;
+  await api(`/sessions/${k}/rescan`, { method:'POST' }); toast('QR baru sedang disiapkan'); refresh();
+}
+
+/* --------------------------------------------------------- percakapan --- */
+let convs = [], convFilter = 'all', openKey = null;
+async function loadConvs() {
+  ({ conversations: convs } = await api('/conversations?hours=' + $('#hours').value));
+  renderConvs();
+  if (openKey) openConv(...openKey, true);
+}
+function renderConvs() {
+  const q = $('#convSearch').value.trim().toLowerCase();
+  const list = convs.filter((c) => {
+    if (convFilter === 'follow' && !(c.step === 'handed_over' && c.handover_reason !== 'CS membalas')) return false;
+    if (convFilter === 'open' && c.step === 'handed_over') return false;
+    if (convFilter === 'cs' && c.handover_reason !== 'CS membalas') return false;
+    return !q || [c.name, c.origin, c.phone, c.last_text, c.product_name].some((v) => String(v || '').toLowerCase().includes(q));
+  });
+  $('#convList').innerHTML = list.length ? list.map((c) => {
+    const k = JSON.stringify([c.session_key, c.jid]);
+    const on = openKey && openKey[1] === c.jid;
+    const state = c.step === 'handed_over'
+      ? (c.handover_reason === 'CS membalas' ? '<span class="pill quiet">dibalas CS</span>' : '<span class="pill warn">perlu CS</span>')
+      : `<span class="pill good">${esc(STEP_LABEL[c.step] || c.step)}</span>`;
+    return `<div class="conv ${on ? 'on' : ''}" onclick='openConv(...${k})'>
+      <div class="ava" style="background:${avaColor(c.jid)}">${esc(initials(c.name))}</div>
+      <div style="min-width:0;flex:1"><div class="top"><span class="name">${esc(c.name ? 'Kak ' + c.name : (c.phone ? '+' + c.phone : 'Tanpa nama'))}</span><span class="time">${fmtTime(c.last_message_at)}</span></div>
+        <div class="last">${esc(c.last_text || '—')}</div><div class="row" style="margin-top:5px;gap:5px">${state}${c.product_name ? `<span class="pill quiet">${esc(c.product_name)}</span>` : ''}</div></div></div>`;
+  }).join('') : '<div class="empty">Tidak ada percakapan.</div>';
+}
+$('#convSearch').oninput = renderConvs;
+$$('#convFilters .chip').forEach((b) => b.onclick = () => { convFilter = b.dataset.f; $$('#convFilters .chip').forEach((x) => x.classList.toggle('on', x === b)); renderConvs(); });
+$('#hours').onchange = loadConvs;
+function openConvFrom(session, jid) { openKey = [session, jid]; go('percakapan'); }
+
+async function openConv(session, jid, quiet) {
+  openKey = [session, jid];
+  if (!quiet) renderConvs();
+  const pane = $('#convPane');
+  const wall = $('.chatwall', pane); const atBottom = !wall || wall.scrollHeight - wall.scrollTop - wall.clientHeight < 40;
+  const { messages, conversation: c } = await api(`/conversations/${encodeURIComponent(session)}/${encodeURIComponent(jid)}`);
+  const row = convs.find((x) => x.jid === jid) || {};
+  let lastDay = '';
+  const bubbles = messages.map((m) => {
+    const d = utc(m.created_at); const day = d.toDateString();
+    const sep = day !== lastDay ? `<div class="day">${esc(fmtDay(d))}</div>` : ''; lastDay = day;
+    const t = d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+    if (m.direction === 'handover') return sep + `<div class="sys">🤝 Diserahkan ke CS · ${esc(m.text)} · ${t}</div>`;
+    const file = (m.text || '').startsWith('[file]');
+    const tag = m.direction === 'in' && m.intent ? `<div><span class="tag">${esc(INTENT[m.intent] || m.intent)}</span></div>` : '';
+    return sep + `<div class="bub ${m.direction === 'in' ? 'them' : 'me'} ${file ? 'file' : ''}">${file ? '📎 ' + esc(m.text.slice(7)) : esc(m.text || '(pesan tanpa teks: suara, stiker, atau lampiran)')}${tag}<span class="t">${t}</span></div>`;
+  }).join('');
+  const handed = c.step === 'handed_over';
+  const phone = row.phone || (jid.endsWith('@s.whatsapp.net') ? jid.split('@')[0] : null);
+  pane.innerHTML = `
+    <div class="pane-head"><div class="ava" style="background:${avaColor(jid)}">${esc(initials(c.name))}</div>
+      <div style="flex:1;min-width:0"><b>${esc(c.name ? 'Kak ' + c.name : 'Tanpa nama')}</b>${c.origin ? ' <span class="muted">· ' + esc(c.origin) + '</span>' : ''}
+      <div class="small muted">${phone ? `<a href="https://wa.me/${esc(phone)}" target="_blank" rel="noopener">+${esc(phone)}</a>` : 'nomor disembunyikan WhatsApp'}${c.product ? ' · ' + esc(row.product_name || c.product) : ''}</div></div>
+      ${stepper(c.step)}</div>
+    <div class="chatwall">${bubbles || '<div class="sys">Belum ada pesan.</div>'}</div>
+    <div class="pane-foot">${handed
+      ? `<span class="pill ${c.handover_reason === 'CS membalas' ? 'quiet' : 'warn'}"><span class="dot"></span>${esc(c.handover_reason || 'di CS')}</span><span class="muted small" style="flex:1">Bot diam di nomor ini.</span><button class="btn" onclick='act(${JSON.stringify(session)}, ${JSON.stringify(jid)}, "reset")'>Kembalikan ke bot</button>`
+      : `<span class="muted small" style="flex:1">Bot sedang menangani · ${esc(STEP_LABEL[c.step] || c.step)}</span><button class="btn primary" onclick='act(${JSON.stringify(session)}, ${JSON.stringify(jid)}, "handover")'>CS ambil alih</button>`}</div>`;
+  const nw = $('.chatwall', pane); if (atBottom || !quiet) nw.scrollTop = nw.scrollHeight;
+}
+async function act(session, jid, what) {
+  await api(`/conversations/${encodeURIComponent(session)}/${encodeURIComponent(jid)}/${what}`, { method:'POST' });
+  toast(what === 'reset' ? 'Dikembalikan ke bot' : 'CS mengambil alih; bot berhenti di nomor ini');
+  loadConvs();
+}
+
+/* ------------------------------------------------------------- coba ---- */
+const simId = 'sim-' + Math.random().toString(36).slice(2);
+let simImage = false;
+const QUICK = ['halo kak', 'saya Budi dari Jogja', 'mau bikin jersey futsal, minimal order berapa?', 'bikin hoddie angkatan bisa?', 'belum ada desainnya', 'sekitar 40 pcs', 'lokasinya dimana? bisa kirim ke makassar?', 'size chart kaos oversize ada?', 'amanah ga nih kak', 'bisa bayar paylater?'];
+$('#quick').innerHTML = QUICK.map((q) => `<button class="chip" type="button">${esc(q)}</button>`).join('');
+$$('#quick .chip').forEach((b) => b.onclick = () => { $('#simText').value = b.textContent; $('#simForm').requestSubmit(); });
+const sim = $('#sim');
+const simAdd = (html) => { sim.insertAdjacentHTML('beforeend', html); sim.scrollTop = sim.scrollHeight; };
+const now = () => new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+$('#simImg').onclick = () => { simImage = !simImage; $('#simImg').classList.toggle('on', simImage); };
+$('#simSteps').innerHTML = stepper('new');
+$('#simForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const text = $('#simText').value.trim();
+  if (!text && !simImage) return;
+  const hasImage = simImage; simImage = false; $('#simImg').classList.remove('on'); $('#simText').value = '';
+  simAdd(`<div class="bub me">${hasImage ? '🖼️ <i>gambar</i>\n' : ''}${esc(text)}<span class="t">${now()}</span></div>`);
+  $('#simStatus').textContent = 'mengetik…';
+  try {
+    const r = await api('/simulate', { method:'POST', body: JSON.stringify({ id: simId, text, hasImage }) });
+    const tags = [r.intent, ...(r.extras || [])].map((i) => `<span class="tag">${esc(INTENT[i] || i)}</span>`).join('') + (r.product ? `<span class="tag">${esc(r.product)}</span>` : '') + (r.name ? `<span class="tag">nama: ${esc(r.name)}</span>` : '');
+    simAdd(`<div class="sys" style="align-self:flex-end">dikenali ${r.via === 'ai' ? 'AI' : 'kata kunci'}: ${tags}</div>`);
+    if (!r.replies.length) simAdd('<div class="sys">bot tidak membalas</div>');
+    for (const m of r.replies) {
+      await new Promise((res) => setTimeout(res, 280));
+      if (m.type === 'text') simAdd(`<div class="bub them">${esc(m.text)}<span class="t">${now()}</span></div>`);
+      else if (m.type === 'file') simAdd(m.image
+        ? `<div class="bub them" style="padding:4px 4px 18px"><img src="${withKey('/media/file?path=' + encodeURIComponent(m.path))}" alt="" style="display:block;max-width:220px;max-height:280px;border-radius:7px"><div class="small muted" style="padding:3px 4px 0">${esc(m.text)}</div><span class="t">${now()}</span></div>`
+        : `<div class="bub them file">📄 ${esc(m.text)} (PDF)<span class="t">${now()}</span></div>`);
+      else if (m.type === 'handover') simAdd(`<div class="sys">🤝 ${esc(m.text)}</div>`);
+      else simAdd(`<div class="sys">⚠️ ${esc(m.text)}</div>`);
+    }
+    $('#simSteps').innerHTML = stepper(r.step);
+    $('#simLast').textContent = `Posisi sekarang: ${STEP_LABEL[r.step] || r.step}.`;
+  } catch (err) { simAdd(`<div class="sys">Gagal: ${esc(err.message)}</div>`); }
+  $('#simStatus').textContent = 'online';
+};
+$('#simReset').onclick = async () => {
+  await api('/simulate/reset', { method:'POST', body: JSON.stringify({ id: simId }) });
+  sim.innerHTML = '<div class="sys">Percakapan baru.</div>'; $('#simSteps').innerHTML = stepper('new'); $('#simLast').textContent = '';
+};
+
+/* ---------------------------------------------------------- template --- */
+let templates = [], tplGroup = null, tplLoaded = false;
+const SAMPLE = { nama: 'Budi', produk: 'Jersey' };
+
+/** WhatsApp-style preview: escape first, then *bold* _italic_ ~strike~ and line breaks. */
+function waFormat(text) {
+  return esc(text)
+    .replace(/\*([^*\n]+)\*/g, '<b>$1</b>')
+    .replace(/(^|[\s(])_([^_\n]+)_(?=$|[\s).,!?])/g, '$1<i>$2</i>')
+    .replace(/~([^~\n]+)~/g, '<s>$1</s>');
+}
+const fill = (text) => text.replace(/\{(\w+)\}/g, (m, k) => ({ bot: info?.botName, cs: info?.csName, ...SAMPLE })[k] ?? m);
+
+async function loadTemplates() {
+  ({ templates } = await api('/templates'));
+  tplLoaded = true;
+  renderTemplates();
+}
+function renderTemplates() {
+  const groups = [...new Set(templates.map((t) => t.group))];
+  tplGroup ??= groups[0];
+  const changed = templates.filter((t) => t.changed).length;
+  const nt = $('#navTpl'); nt.textContent = changed ? changed + ' diubah' : ''; nt.classList.toggle('hidden', !changed);
+  $('#tplGroups').innerHTML = groups.map((g) => {
+    const n = templates.filter((t) => t.group === g).length, c = templates.filter((t) => t.group === g && t.changed).length;
+    return `<button class="chip ${g === tplGroup ? 'on' : ''}" data-g="${esc(g)}">${esc(g)} · ${n}${c ? ` <b>(${c} diubah)</b>` : ''}</button>`;
+  }).join('');
+  $$('#tplGroups .chip').forEach((b) => b.onclick = () => { tplGroup = b.dataset.g; $('#tplSearch').value = ''; renderTemplates(); });
+
+  const q = $('#tplSearch').value.trim().toLowerCase();
+  const list = templates.filter((t) => q ? (t.text + ' ' + t.label).toLowerCase().includes(q) : t.group === tplGroup);
+  $('#tplList').innerHTML = list.length ? list.map((t) => `
+    <div class="card" data-key="${esc(t.key)}">
+      <div class="row" style="margin-bottom:4px"><h3 style="flex:1">${esc(t.label)}</h3>
+        ${t.changed ? '<span class="pill warn"><span class="dot"></span>diubah</span>' : '<span class="pill quiet">naskah asli</span>'}${t.optional ? '<span class="pill quiet">opsional</span>' : ''}</div>
+      <p class="hint">${esc(t.when)}</p>
+      <div class="tpl">
+        <div>
+          <textarea class="f" spellcheck="false" placeholder="${t.optional ? 'Kosong = langkah ini dilewati' : ''}">${esc(t.text)}</textarea>
+          <div class="vars"><span class="small muted" style="align-self:center">Sisipkan:</span>${t.vars.map((v) => `<button type="button" data-var="${v}" title="${esc({ bot:'nama bot', cs:'nama CS', nama:'nama pelanggan', produk:'nama produk' }[v] || v)}">{${v}}</button>`).join('')}</div>
+          <div class="warnline hidden"></div>
+          <div class="row" style="margin-top:8px"><button class="btn primary sm" data-save>Simpan</button>
+            ${t.changed ? '<button class="btn sm" data-reset>Kembalikan ke naskah asli</button>' : ''}<span class="small muted" data-count style="margin-left:auto"></span></div>
+        </div>
+        <div class="preview"><div class="small muted" style="margin-bottom:8px">Pratinjau (contoh: Kak Budi, Jersey)</div><div class="bub me" data-prev></div></div>
+      </div>
+    </div>`).join('') : '<div class="card empty">Tidak ada kalimat yang cocok.</div>';
+
+  $$('#tplList [data-key]').forEach((card) => {
+    const key = card.dataset.key, t = templates.find((x) => x.key === key);
+    const ta = $('textarea', card), prev = $('[data-prev]', card), count = $('[data-count]', card), warn = $('.warnline', card);
+    const update = () => {
+      const v = ta.value;
+      prev.innerHTML = v.trim() ? waFormat(fill(v)) : '<i class="muted">(tidak dikirim)</i>';
+      count.textContent = v.length + ' huruf';
+      const bad = [...v.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).filter((n) => !t.vars.includes(n));
+      // The bot never quotes computed prices; flag new rupiah amounts for a second look.
+      const priceNew = (v.match(/Rp\s?[\d.,]+/gi) || []).filter((p) => !t.default.includes(p));
+      const msgs = [];
+      if (bad.length) msgs.push(`{${bad[0]}} tidak dikenal di sini; yang tersedia ${t.vars.map((x) => '{' + x + '}').join(' ')}`);
+      if (priceNew.length) msgs.push(`Ada harga (${priceNew[0]}). Bot sebaiknya tidak menyebut harga; pastikan ini memang disengaja.`);
+      if (!v.trim() && !t.optional) msgs.push('Tidak boleh kosong.');
+      warn.textContent = msgs.join(' · '); warn.classList.toggle('hidden', !msgs.length);
+    };
+    ta.oninput = update; update();
+    $$('[data-var]', card).forEach((b) => b.onclick = () => {
+      const s = ta.selectionStart, e = ta.selectionEnd, ins = '{' + b.dataset.var + '}';
+      ta.value = ta.value.slice(0, s) + ins + ta.value.slice(e); ta.focus(); ta.selectionStart = ta.selectionEnd = s + ins.length; update();
+    });
+    $('[data-save]', card).onclick = async () => {
+      try { ({ templates } = await api('/templates/' + key, { method:'PUT', body: JSON.stringify({ text: ta.value }) })); toast('Tersimpan. Bot langsung memakai kalimat ini.'); renderTemplates(); loadStatus(); }
+      catch (err) { toast('Belum tersimpan: ' + err.message); }
+    };
+    const reset = $('[data-reset]', card);
+    if (reset) reset.onclick = async () => {
+      if (!confirm('Kembalikan kalimat ini ke naskah asli dari klien?')) return;
+      ({ templates } = await api('/templates/' + key, { method:'DELETE' })); toast('Dikembalikan ke naskah asli'); renderTemplates(); loadStatus();
+    };
+  });
+}
+$('#tplSearch').oninput = () => renderTemplates();
+
+/* ------------------------------------------------------------- latih --- */
+let kwMeta = null;
+const intentOptions = (sel) => (sel ? '' : '<option value="" selected disabled>pilih maksudnya…</option>') + kwMeta.intents.map((i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${esc(INTENT[i] || i)}</option>`).join('');
+const productOptions = (sel) => kwMeta.products.map((p) => `<option value="${p.key}" ${p.key === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+async function loadLatih() {
+  const [{ messages }, meta] = await Promise.all([api('/unrecognised'), api('/keywords')]);
+  kwMeta = meta;
+  const pending = messages.filter((m) => m.nowIntent === 'other');
+  const nt = $('#navTeach'); nt.textContent = pending.length; nt.classList.toggle('hidden', !pending.length);
+  $('#kwIntent').innerHTML = intentOptions('product'); $('#kwProduct').innerHTML = productOptions(); $('#kwProduct').classList.remove('hidden');
+  $('#teachList').innerHTML = messages.length ? messages.map((m, i) => `
+    <div class="teach-item" data-i="${i}">
+      <div class="row" style="margin-bottom:6px"><span class="small muted" style="flex:1">${m.times > 1 ? m.times + '× · ' : ''}terakhir ${fmtTime(m.last_at)}</span>
+        ${m.nowIntent !== 'other' ? `<span class="pill good"><span class="dot"></span>sekarang dikenali: ${esc(INTENT[m.nowIntent] || m.nowIntent)}</span>` : '<span class="pill warn"><span class="dot"></span>belum dikenali</span>'}</div>
+      <div class="q">${esc(m.text)}</div>
+      ${m.nowIntent === 'other' ? `<form class="teach-form"><input class="f" name="phrase" value="${esc(m.text.slice(0, 60))}" title="Sisakan kata kuncinya saja, mis. 'rekber'"><select class="f" name="intent" required>${intentOptions()}</select><select class="f" name="product">${productOptions()}</select><button class="btn primary">Ajarkan</button></form>` : ''}
+    </div>`).join('') : `<div class="empty" style="padding:18px 0 8px">Belum ada pesan pelanggan yang gagal dikenali. 👍<br><span class="small">Begitu ada, muncul di sini seperti contoh di bawah.</span></div>
+      <div class="teach-item" style="opacity:.75">
+        <div class="row" style="margin-bottom:6px"><span class="pill quiet">contoh</span><span class="small muted" style="flex:1">3× · terakhir semalam</span><span class="pill warn"><span class="dot"></span>belum dikenali</span></div>
+        <div class="q">kak bisa pakai rekber ga? takut soalnya</div>
+        <div class="small muted" style="margin-top:8px">Ketik <b>rekber</b> → pilih <b>Ragu / takut ditipu</b> → <b>Ajarkan</b>. Pesan serupa berikutnya dijawab dengan naskah "Aman kakk, kami sudah vendor nasional…", bukan langsung dilempar ke CS.</div>
+      </div>`;
+  $$('#teachList .teach-form').forEach((f) => { wireIntent(f); f.onsubmit = (e) => { e.preventDefault(); teach(f); }; });
+  $('#kwList').innerHTML = meta.keywords.length ? `<table class="t"><tbody>${meta.keywords.map((k) => `<tr><td><b>${esc(k.phrase)}</b></td><td class="muted">${esc(INTENT[k.intent] || k.intent)}${k.product ? ' · ' + esc((meta.products.find((p) => p.key === k.product) || {}).name || k.product) : ''}</td><td style="text-align:right"><button class="btn sm danger" onclick="removeKw(${k.id})">Hapus</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Belum ada. Kata kunci bawaan tetap berlaku.</div>';
+}
+function wireIntent(form) {
+  const i = $('[name=intent]', form), p = $('[name=product]', form);
+  const sync = () => p.classList.toggle('hidden', i.value !== 'product'); i.onchange = sync; sync();
+}
+wireIntent($('#kwForm'));
+async function teach(form) {
+  const data = Object.fromEntries(new FormData(form));
+  try { const r = await api('/keywords', { method:'POST', body: JSON.stringify(data) }); toast(`Kata kunci "${r.phrase}" diajarkan`); form.reset?.(); loadLatih(); }
+  catch (err) { toast('Gagal: ' + err.message); }
+}
+$('#kwForm').onsubmit = (e) => { e.preventDefault(); teach(e.target); };
+async function removeKw(id) { await api('/keywords/' + id, { method:'DELETE' }); toast('Kata kunci dihapus'); loadLatih(); }
+
+/* --------------------------------------------------------- statistik --- */
+let statDays = 30, lastStats = null;
+$$('#rangeChips .chip').forEach((b) => b.onclick = () => { statDays = Number(b.dataset.d); $$('#rangeChips .chip').forEach((x) => x.classList.toggle('on', x === b)); loadStatistik(); });
+
+/** Single-series column chart: thin bars, 4px rounded tops, square at the baseline, hairline grid, hover tooltip. */
+function columnChart(el, data, { height = 220, label, value, tooltip, shade } = {}) {
+  const W = Math.max(280, el.clientWidth || 600), H = height, padL = 34, padB = 26, padT = 10;
+  const max = Math.max(1, ...data.map(value));
+  // About four gridlines: the smallest 1/2/5 step that covers max in <= 4 steps.
+  const raw = max / 4, mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const nice = Math.max(1, [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw));
+  const top = Math.ceil(max / nice) * nice;
+  const iw = W - padL, ih = H - padB - padT, band = iw / data.length, bw = Math.min(24, Math.max(3, band * 0.62));
+  const y = (v) => padT + ih - (v / top) * ih;
+  let s = '';
+  data.forEach((d, i) => { if (shade && shade(d)) s += `<rect x="${padL + i * band}" y="${padT}" width="${band}" height="${ih}" fill="var(--line-2)"/>`; });
+  for (let v = 0; v <= top; v += nice) s += `<line class="gridline" x1="${padL}" x2="${W}" y1="${y(v)}" y2="${y(v)}"/><text class="axis" x="${padL - 6}" y="${y(v) + 4}" text-anchor="end">${num(v)}</text>`;
+  const every = Math.ceil(data.length / Math.max(2, Math.floor(iw / 46)));
+  data.forEach((d, i) => {
+    const v = value(d), x = padL + i * band + (band - bw) / 2, yy = y(v), h = padT + ih - yy, r = Math.min(4, h, bw / 2);
+    if (v > 0) s += `<path class="bar" d="M${x},${padT + ih} V${yy + r} Q${x},${yy} ${x + r},${yy} H${x + bw - r} Q${x + bw},${yy} ${x + bw},${yy + r} V${padT + ih} Z"/>`;
+    s += `<rect class="hit" data-i="${i}" x="${padL + i * band}" y="${padT}" width="${band}" height="${ih}" fill="transparent"/>`;
+    if (i % every === 0) s += `<text class="axis" x="${padL + i * band + band / 2}" y="${H - 6}" text-anchor="middle">${esc(label(d))}</text>`;
+  });
+  s += `<line x1="${padL}" x2="${W}" y1="${padT + ih}" y2="${padT + ih}" stroke="var(--ink-3)" stroke-width="1"/>`;
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img">${s}</svg>`;
+  $$('.hit', el).forEach((h) => { h.onmousemove = (e) => showTip(e, tooltip(data[h.dataset.i])); h.onmouseleave = hideTip; });
+}
+function hbars(el, rows, { label, value }) {
+  const max = Math.max(1, ...rows.map(value));
+  el.innerHTML = rows.length ? rows.map((r) => `<div class="hbar"><span>${esc(label(r))}</span><div class="track"><div class="fill" style="width:${(value(r) / max) * 100}%"></div></div><span class="num">${num(value(r))}</span></div>`).join('') : '<div class="empty">Belum ada data.</div>';
+}
+const table = (head, rows) => `<table class="t"><thead><tr>${head.map((h) => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+
+async function loadStatistik() {
+  lastStats = await api('/analytics?days=' + statDays);
+  renderStatistik();
+}
+function renderStatistik() {
+  const a = lastStats; if (!a || page !== 'statistik') return;
+  const rate = a.recognisedRate;
+  const busiest = a.hours.reduce((m, h) => h.n > m.n ? h : m, { n: -1 });
+  $('#statTiles').innerHTML = [
+    ['Pelanggan', num(a.totals.pelanggan), `${statDays} hari terakhir`],
+    ['Pesan masuk', num(a.totals.masuk), `rata-rata ${num(Math.round(a.totals.masuk / statDays))}/hari`],
+    ['Dikenali bot', rate == null ? '–' : Math.round(rate * 100) + '%', 'sisanya langsung ke CS'],
+    ['Jam paling ramai', busiest.n > 0 ? String(busiest.hour).padStart(2, '0') + '.00' : '–', busiest.n > 0 ? `${num(busiest.n)} pesan` : 'belum ada data'],
+  ].map(([l, v, f]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="foot">${f}</div></div>`).join('');
+
+  const dayLabel = (d) => new Date(d.date + 'T00:00:00').toLocaleDateString('id-ID', { day:'numeric', month:'short' });
+  columnChart($('#chDaily'), a.daily, { label: dayLabel, value: (d) => d.masuk,
+    tooltip: (d) => `<b>${esc(new Date(d.date + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long' }))}</b><br>${num(d.masuk)} pesan · ${num(d.pelanggan)} pelanggan · ${num(d.handover)} ke CS` });
+  $('#tbDaily').innerHTML = table(['Tanggal', 'Pesan', 'Pelanggan', 'Ke CS'], a.daily.slice().reverse().map((d) => [dayLabel(d), d.masuk, d.pelanggan, d.handover]));
+
+  const toMin = (s) => { const [h, m] = s.split(/[:.]/).map(Number); return h * 60 + (m || 0); };
+  const from = info ? toMin(info.activeFrom) : 1050, until = info ? toMin(info.activeUntil) : 450;
+  columnChart($('#chHours'), a.hours, { height: 200, label: (h) => String(h.hour).padStart(2, '0'), value: (h) => h.n,
+    shade: (h) => { const m = h.hour * 60 + 30; return !(m >= from || m < until); },
+    tooltip: (h) => `<b>${String(h.hour).padStart(2, '0')}.00–${String(h.hour).padStart(2, '0')}.59</b><br>${num(h.n)} pesan` });
+  $('#tbHours').innerHTML = table(['Jam', 'Pesan'], a.hours.map((h) => [String(h.hour).padStart(2, '0') + '.00', h.n]));
+
+  hbars($('#chIntents'), a.intents, { label: (r) => INTENT[r.intent] || r.intent, value: (r) => r.n });
+  hbars($('#chHandover'), a.handovers, { label: (r) => r.reason, value: (r) => r.n });
+}
+function rerenderCharts() { renderStatistik(); }
+let resizeTimer; addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(rerenderCharts, 150); });
+
+/* -------------------------------------------------------------- media --- */
+const withKey = (url) => key ? url + (url.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key) : url;
+const kb = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
+let mediaSlots = [];
+
+async function loadMedia() {
+  ({ slots: mediaSlots } = await api('/media'));
+  renderMedia();
+}
+function renderMedia() {
+  const required = mediaSlots.filter((s) => !s.optional);
+  const ok = required.filter((s) => s.files.length).length;
+  $('#mediaBar').style.width = (ok / required.length * 100) + '%';
+  $('#mediaText').textContent = `${ok} dari ${required.length} file wajib sudah ada`;
+  const groups = [...new Set(mediaSlots.map((s) => s.group))];
+  $('#mediaGroups').innerHTML = groups.map((g) => `<div><h3 style="margin:6px 0 10px">${esc(g)}</h3><div class="slots">${mediaSlots.filter((s) => s.group === g).map((s) => `
+    <div class="slot" data-slot="${esc(s.id)}">
+      <div class="head"><b>${esc(s.label)}</b>${s.files.length ? `<span class="pill good"><span class="dot"></span>${s.files.length > 1 ? s.files.length + ' file' : 'ada'}</span>` : s.optional ? '<span class="pill quiet">opsional</span>' : '<span class="pill warn"><span class="dot"></span>belum ada</span>'}</div>
+      <div class="small muted">${esc(s.effect)}</div>
+      ${s.files.length ? `<div class="thumbs">${s.files.map((f, i) => `<div class="thumb" title="${esc(f.name)} · ${kb(f.size)}">${f.type === 'image' ? `<img src="${withKey('/media/file?path=' + encodeURIComponent(f.path) + '&v=' + f.size)}" alt="" data-full="${esc(f.path)}">` : `<div>📄<br>PDF<br>${kb(f.size)}</div>`}${s.files.length > 1 ? `<span class="n">${i + 1}</span>` : ''}<button class="x" data-del="${esc(f.path)}" title="Hapus">×</button></div>`).join('')}</div>` : ''}
+      <div class="drop">${s.multi ? (s.files.length ? '+ tambah halaman' : 'Klik atau seret file ke sini') : (s.files.length ? 'Ganti file' : 'Klik atau seret file ke sini')}</div>
+      <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" ${s.multi ? 'multiple' : ''} hidden>
+    </div>`).join('')}</div></div>`).join('');
+
+  $$('.slot').forEach((el) => {
+    const input = $('input[type=file]', el);
+    $('.drop', el).onclick = () => input.click();
+    input.onchange = () => upload(el.dataset.slot, [...input.files]);
+    el.ondragover = (e) => { e.preventDefault(); el.classList.add('drag'); };
+    el.ondragleave = () => el.classList.remove('drag');
+    el.ondrop = (e) => { e.preventDefault(); el.classList.remove('drag'); upload(el.dataset.slot, [...e.dataTransfer.files]); };
+  });
+  $$('[data-del]').forEach((b) => b.onclick = async () => {
+    if (!confirm('Hapus file ini? Bot tidak akan mengirimnya lagi.')) return;
+    try { ({ slots: mediaSlots } = await api('/media/file?path=' + encodeURIComponent(b.dataset.del), { method:'DELETE' })); renderMedia(); toast('File dihapus'); loadStatus(); }
+    catch (err) { toast('Gagal: ' + err.message); }
+  });
+  $$('.thumb img').forEach((img) => img.onclick = () => {
+    const v = document.createElement('div'); v.className = 'viewer'; v.innerHTML = `<img src="${img.src}" alt="">`; v.onclick = () => v.remove(); document.body.append(v);
+  });
+}
+async function upload(slot, files) {
+  const okTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+  for (const file of files) {
+    if (file.type && !okTypes.includes(file.type)) { toast(`${file.name}: hanya JPG, PNG, WEBP, atau PDF`); continue; }
+    if (file.size > 15 * 1048576) { toast(`${file.name}: lebih dari 15 MB`); continue; }
+    try {
+      const r = await fetch('/media/' + encodeURIComponent(slot), { method:'POST', headers: { 'Content-Type':'application/octet-stream', ...(key ? { 'X-Api-Key': key } : {}) }, body: file });
+      const body = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(body.error || r.statusText);
+      mediaSlots = body.slots; renderMedia(); toast(`${file.name} terunggah`);
+    } catch (err) { toast(`${file.name}: ${err.message}`); }
+  }
+  loadStatus();
+}
+
+/* --------------------------------------------------------- pengaturan --- */
+let settingsLoaded = false;
+async function loadPengaturan() {
+  const [{ values, backupSuggestions, lastBackup }, { text }] = await Promise.all([api('/settings'), api('/recap/preview')]);
+  $('#recapPreview').textContent = text || 'Belum ada pelanggan sejak rekap terakhir. Rekap akan berisi daftar pelanggan semalam.';
+  $('#recapAtHint').textContent = values.recapAt ? '' : `sekarang: ${values.activeUntil}`;
+  $('#lastBackup').textContent = 'Backup terakhir: ' + (lastBackup || 'belum pernah');
+  $('#backupSuggest').innerHTML = backupSuggestions.length
+    ? '<span class="small muted" style="align-self:center">Folder yang ditemukan:</span>' + backupSuggestions.map((b) => `<button type="button" class="chip" data-dir="${esc(b.dir)}">☁️ ${esc(b.label)}</button>`).join('')
+    : '<span class="small muted">Tidak ditemukan folder Google Drive/OneDrive di PC ini. Pasang Google Drive untuk desktop, atau ketik folder flashdisk/NAS.</span>';
+  $$('#backupSuggest [data-dir]').forEach((b) => b.onclick = () => { $('#backupForm [name=backupDir]').value = b.dataset.dir; });
+  // Do not overwrite what someone is typing when the page refreshes.
+  if (!settingsLoaded || !document.activeElement?.closest('form')) {
+    const set = (form, name, v) => { const el = $(`${form} [name=${name}]`); if (el) el.value = v ?? ''; };
+    for (const n of ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours']) set('#settingsForm', n, values[n]);
+    set('#recapForm', 'recapTo', (values.recapTo || []).map((n) => '0' + n.slice(2)).join(', '));
+    set('#recapForm', 'recapAt', values.recapAt);
+    set('#backupForm', 'backupDir', values.backupDir);
+    settingsLoaded = true;
+  }
+}
+async function saveForm(form, fields) {
+  const data = Object.fromEntries(fields.map((f) => [f, $(`[name=${f}]`, form).value]));
+  const btn = $('button.primary', form); btn.disabled = true;
+  try { await api('/settings', { method:'PUT', body: JSON.stringify(data) }); toast('Tersimpan dan langsung berlaku'); settingsLoaded = false; document.activeElement?.blur(); await refresh(); }
+  catch (err) { toast('Belum tersimpan: ' + err.message); }
+  finally { btn.disabled = false; }
+}
+$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours']); };
+$('#recapForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['recapTo', 'recapAt']); };
+$('#backupForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['backupDir']); };
+$('#backupNow').onclick = async (e) => {
+  e.target.disabled = true;
+  try { const r = await api('/backup/now', { method:'POST' }); toast('Backup tersimpan: ' + r.file); }
+  catch (err) { toast('Backup gagal: ' + err.message); }
+  finally { e.target.disabled = false; }
+};
+$('#testRecap').onclick = async (e) => {
+  e.target.disabled = true;
+  try { const r = await api('/recap/test', { method:'POST' }); toast(`Rekap uji terkirim ke ${r.sent} nomor. Cek WhatsApp-nya.`); }
+  catch (err) { toast('Rekap uji gagal: ' + err.message); }
+  finally { e.target.disabled = false; }
+};
+
+/* ------------------------------------------------------------ refresh --- */
+let busy = false;
+async function refresh() {
+  if (busy) return; busy = true;
+  try {
+    await loadStatus();
+    if (page === 'ringkasan') await loadRingkasan();
+    if (page === 'percakapan') await loadConvs();
+    if (page === 'latih') await loadLatih();
+    if (page === 'template' && !tplLoaded) await loadTemplates();
+    if (page === 'statistik') await loadStatistik();
+    if (page === 'media') await loadMedia();
+    if (page === 'pengaturan') await loadPengaturan();
+    $('#footInfo').textContent = `Versi ${info.version}${info.commit ? ' (' + info.commit + ')' : ''} · diperbarui ` + new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+  } catch (err) {
+    const bp = $('#botPill'); bp.className = 'pill bad'; bp.innerHTML = `<span class="dot"></span>Bot tidak menjawab`;
+    $('#footInfo').textContent = err.message;
+  } finally { busy = false; }
+}
+go(location.hash.slice(1) || 'ringkasan');
+setInterval(() => { if (['ringkasan', 'percakapan'].includes(page) && !document.hidden) refresh(); else loadStatus().catch(() => {}); }, 5000);
+</script>
+</body>
+</html>

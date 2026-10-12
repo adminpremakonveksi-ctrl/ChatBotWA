@@ -1,0 +1,3 @@
+# Sumber update untuk "Update ChatBot Prema.bat" (diisi developer, bukan klien).
+# Satu baris: alamat repo GitHub publik, opsional diikuti nama branch.
+# Contoh: https://github.com/pemilik/chatbot-prema main

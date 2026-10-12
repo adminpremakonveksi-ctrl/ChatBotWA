@@ -1,0 +1,11 @@
+node_modules/
+.env
+# Pairing credentials and conversations. Back these up off the machine; never commit.
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+logs/
+# Files the client uploads from the console stay on their PC.
+media/**
+!media/README.md
