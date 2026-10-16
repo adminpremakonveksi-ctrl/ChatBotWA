@@ -2,8 +2,9 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { config } from '../config.js';
-import { all, db, get, now, run } from '../db.js';
-import { cleanPhrase } from './keywords.js';
+import { all, get, now, run } from '../db.js';
+import { SEED_PATTERNS } from '../seeds.js';
+import { cleanPhrase } from '../text.js';
 import { localDateString } from './schedule.js';
 
 /**
@@ -15,33 +16,17 @@ import { localDateString } from './schedule.js';
  *   { type: 'photos' }            every photo uploaded to the pattern, in order
  *   { type: 'catalog', items }    WhatsApp Business catalog items, as product links
  *   { type: 'link', url }         any https link
+ *   { type: 'slot', slot }        the files of a Media slot, e.g. 'katalog-review'
  *
  * It is still fixed text: the team writes it, the bot only picks it. A
  * matching pattern wins over the built-in answers, so the team can replace
  * one ("Ukuran" instead of the built-in size chart reply).
+ *
+ * Seeded "bawaan" patterns (Lokasi, Pengiriman, Ragu, Minimal order) carry
+ * `builtin`, the AI label of the same meaning; they are edited and deleted
+ * like any other, and "Kembalikan ke bawaan" restores the seed.
+ * The table is created by src/migrations.js.
  */
-
-db.exec(`
-CREATE TABLE IF NOT EXISTS patterns (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    keywords TEXT NOT NULL DEFAULT '[]',
-    bubbles TEXT NOT NULL DEFAULT '[]',
-    after TEXT NOT NULL DEFAULT 'stay',
-    enabled INTEGER NOT NULL DEFAULT 1,
-    starts_on TEXT,
-    ends_on TEXT,
-    created_at TEXT,
-    updated_at TEXT
-);
-`);
-
-// Databases created by an earlier version lack the date columns: add them in place.
-for (const column of ['starts_on', 'ends_on']) {
-    if (!all('PRAGMA table_info(patterns)').some((c) => c.name === column)) {
-        db.exec(`ALTER TABLE patterns ADD COLUMN ${column} TEXT`);
-    }
-}
 
 const MAX_BUBBLES = 10;
 const MAX_KEYWORDS = 100;
@@ -62,6 +47,7 @@ const parse = (row) => ({
     enabled: Boolean(row.enabled),
     startsOn: row.starts_on || '',
     endsOn: row.ends_on || '',
+    builtin: row.builtin || null,
     created_at: row.created_at,
     updated_at: row.updated_at,
 });
@@ -126,6 +112,13 @@ function validBubble(bubble) {
 
             return { type: 'link', url };
         }
+        case 'slot': {
+            // A Media slot id: "katalog-review", "katalog:jersey", "size-chart:kaos:reguler".
+            const slot = String(bubble.slot ?? '').trim();
+            if (!/^[a-z-]+(:[a-z0-9-]+){0,2}$/.test(slot)) fail('Pilih file dari halaman Media');
+
+            return { type: 'slot', slot };
+        }
         default:
             return fail('Jenis gelembung tidak dikenal');
     }
@@ -184,6 +177,41 @@ export function deletePattern(id) {
 
     fs.rmSync(path.join(config.mediaDir, 'pola', String(pattern.id)), { recursive: true, force: true });
 }
+
+/** The seed of a built-in pattern ("Lokasi", ...), for "Kembalikan ke bawaan". */
+export const seedFor = (builtin) => SEED_PATTERNS.find((s) => s.builtin === builtin) ?? null;
+
+/** Puts a built-in pattern back to its seed: name, keywords, answer, switched on, no dates. */
+export function resetPattern(id) {
+    const pattern = getPattern(id);
+    const seed = seedFor(pattern.builtin) ?? fail('Pola ini buatan tim, tidak punya versi bawaan');
+
+    return updatePattern(pattern.id, { name: seed.name, keywords: seed.keywords, bubbles: seed.bubbles, after: 'stay', enabled: true, startsOn: '', endsOn: '' });
+}
+
+/**
+ * Brings back a built-in pattern the team deleted, from its seed.
+ * Returns the new pattern, or null when it still exists.
+ */
+export function restoreBuiltin(builtin) {
+    const seed = seedFor(builtin) ?? fail('Pola bawaan tidak dikenal', 404);
+    if (listPatterns().some((p) => p.builtin === builtin)) return null;
+
+    const stamp = now();
+    const { lastInsertRowid } = run(
+        `INSERT INTO patterns (name, keywords, bubbles, after, enabled, builtin, created_at, updated_at) VALUES (?, ?, ?, 'stay', 1, ?, ?, ?)`,
+        [seed.name, JSON.stringify(seed.keywords), JSON.stringify(seed.bubbles), builtin, stamp, stamp],
+    );
+    cache = null;
+
+    return getPattern(Number(lastInsertRowid));
+}
+
+/** Built-in patterns that were deleted and can be brought back. */
+export const missingBuiltins = () => SEED_PATTERNS.filter((s) => !listPatterns().some((p) => p.builtin === s.builtin)).map((s) => ({ builtin: s.builtin, name: s.name }));
+
+/** The active pattern for an AI label (location, shipping, trust, moq), if the team kept it. */
+export const patternForBuiltin = (builtin) => activePatterns().find((p) => p.builtin === builtin) ?? null;
 
 /** Lets an override test in the same process see edits made through SQL. */
 export const forgetPatterns = () => {

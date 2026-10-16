@@ -37,10 +37,12 @@ test('products by many names', () => {
 
 test('FAQ questions in different wordings', () => {
     for (const text of ['size chart nya ada kak?', 'ukurannya gimana', 'minta sizechart']) assert.equal(c(text).intent, 'size_chart', text);
-    for (const text of ['lokasinya dimana kak', 'minta serlok', 'shareloc dong', 'alamatnya di mana ya']) assert.equal(c(text).intent, 'location', text);
-    for (const text of ['ini kirim dari mana ya', 'bisa kirim ke makassar?', 'ongkirnya berapa']) assert.equal(c(text).intent, 'shipping', text);
-    for (const text of ['amanah gak nih', 'takut ditipu kak', 'ada testimoni?']) assert.equal(c(text).intent, 'trust', text);
-    for (const text of ['min order brp?', 'minimal pesen berapa ya', 'bisa satuan ga']) assert.equal(c(text).intent, 'moq', text);
+    // These four are seeded answer patterns now (editable, deletable in the console).
+    const pattern = (text) => (c(text).intent === 'custom' ? c(text).pattern.name : c(text).intent);
+    for (const text of ['lokasinya dimana kak', 'minta serlok', 'shareloc dong', 'alamatnya di mana ya']) assert.equal(pattern(text), 'Lokasi', text);
+    for (const text of ['ini kirim dari mana ya', 'bisa kirim ke makassar?', 'ongkirnya berapa']) assert.equal(pattern(text), 'Pengiriman', text);
+    for (const text of ['amanah gak nih', 'takut ditipu kak', 'ada testimoni?']) assert.equal(pattern(text), 'Ragu / takut ditipu', text);
+    for (const text of ['min order brp?', 'minimal pesen berapa ya', 'bisa satuan ga']) assert.equal(pattern(text), 'Minimal order', text);
     for (const text of ['ada contoh desain?', 'minta katalog kak', 'lihat portofolio']) assert.equal(c(text).intent, 'design_reference', text);
 });
 

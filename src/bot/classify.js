@@ -3,6 +3,29 @@ import Anthropic from '@anthropic-ai/sdk';
 import { logger } from '../logger.js';
 import { aiEnabled, classifyWithAi } from './classify-ai.js';
 import { classifyWithRules } from './classify-rules.js';
+import { patternForBuiltin } from './patterns.js';
+
+// AI labels whose answers are seeded answer patterns (Lokasi, Pengiriman, Ragu, Minimal order).
+const PATTERN_LABELS = ['location', 'shipping', 'trust', 'moq'];
+
+const pack = (p) => ({ id: p.id, name: p.name, bubbles: p.bubbles, after: p.after, builtin: p.builtin });
+
+/**
+ * The AI still says "location" or "moq"; those answers are now patterns the
+ * team edits or deletes. Point each label at its pattern. A label whose
+ * pattern was deleted becomes "other", so CS takes the question.
+ */
+function toPatterns(result) {
+    const labels = [result.intent, ...result.extras].filter((label) => PATTERN_LABELS.includes(label));
+    const patterns = labels.map(patternForBuiltin).filter(Boolean).map(pack);
+    const extras = result.extras.filter((label) => !PATTERN_LABELS.includes(label));
+
+    if (!PATTERN_LABELS.includes(result.intent)) return { ...result, extras, patterns: [...(result.patterns ?? []), ...patterns] };
+
+    return patterns.length
+        ? { ...result, intent: 'custom', extras, patterns, pattern: patterns[0] }
+        : { ...result, intent: 'other', extras, patterns: [], pattern: null };
+}
 
 /**
  * AI first when configured, keywords otherwise. Any AI failure (no network,
@@ -18,7 +41,7 @@ export async function classify(input) {
     }
 
     try {
-        return await classifyWithAi(input);
+        return toPatterns(await classifyWithAi(input));
     } catch (error) {
         const reason =
             error instanceof Anthropic.RateLimitError ? 'rate limit' :

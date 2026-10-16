@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { decide } from '../src/bot/engine.js';
+import { activePatterns } from '../src/bot/patterns.js';
 import { replies } from '../src/bot/replies.js';
+import { seedText } from './helpers.js';
 
 // What exists in media/ for these tests.
 const available = new Set(['katalog/jersey', 'katalog/umum', 'size-chart/kaos/reguler', 'size-chart/kaos/oversize', 'katalog-review']);
@@ -125,19 +127,26 @@ test('size chart file missing: hand to CS instead of sending nothing', () => {
     assert.equal(patch.step, 'handed_over');
 });
 
-test('FAQ answers keep the conversation where it was', () => {
-    const location = decide({ step: 'awaiting_design', product: 'kaos' }, r('location'), media);
-    assert.deepEqual(texts(location.actions), [replies.location(), replies.locationMap()]);
+test('seeded answer patterns keep the conversation where it was', () => {
+    const seeded = (builtin) => {
+        const p = activePatterns().find((x) => x.builtin === builtin);
+
+        return r('custom', { patterns: [p], pattern: p });
+    };
+
+    const location = decide({ step: 'awaiting_design', product: 'kaos' }, seeded('location'), media);
+    assert.deepEqual(texts(location.actions), [seedText('location', 0), seedText('location', 1)]);
     assert.equal(location.patch.step, undefined);
 
-    const moq = decide({ step: 'awaiting_product' }, r('moq'), media);
-    assert.deepEqual(texts(moq.actions), [replies.moq1(), replies.moq2()]);
+    const moq = decide({ step: 'awaiting_product' }, seeded('moq'), media);
+    assert.deepEqual(texts(moq.actions), [seedText('moq', 0), seedText('moq', 1)]);
 
-    const trust = decide({ step: 'awaiting_product' }, r('trust'), media);
+    // Ragu: text, then the files of the Media slot "katalog-review".
+    const trust = decide({ step: 'awaiting_product' }, seeded('trust'), media);
     assert.deepEqual(kinds(trust.actions), ['text', 'media:katalog-review']);
 
-    const shipping = decide({ step: 'awaiting_product' }, r('shipping'), media);
-    assert.deepEqual(texts(shipping.actions), [replies.shipping()]);
+    const shipping = decide({ step: 'awaiting_product' }, seeded('shipping'), media);
+    assert.deepEqual(texts(shipping.actions), [seedText('shipping', 0)]);
 });
 
 test('design reference for jersey: catalog + both [6] bubbles', () => {
@@ -175,6 +184,8 @@ test('bot and CS names come from config', async () => {
 
 test('replies never contain a price', () => {
     const all = Object.values(replies).map((fn) => fn('X') ?? '').join('\n');
-    // The only rupiah amount in the spec is the shipping "mulai dari Rp 1.000/piece".
-    assert.deepEqual(all.match(/Rp\s?[\d.]+/g), ['Rp 1.000']);
+    assert.equal(all.match(/Rp\s?[\d.]+/g), null);
+
+    // The only rupiah amount in the spec, the shipping "mulai dari Rp 1.000/piece", is in the Pengiriman pattern.
+    assert.deepEqual(seedText('shipping', 0).match(/Rp\s?[\d.]+/g), ['Rp 1.000']);
 });

@@ -16,6 +16,7 @@ import { holidayOn, isBotActive, nextChange } from '../src/bot/schedule.js';
 import * as store from '../src/bot/store.js';
 import { run } from '../src/db.js';
 import { parseHolidays } from '../src/settings.js';
+import { patternNames, seedText } from './helpers.js';
 
 const c = (text, step = 'awaiting_product') => classifyWithRules({ text, step });
 const media = () => createMedia(fs.mkdtempSync(path.join(os.tmpdir(), 'chatbot-adv-')));
@@ -23,9 +24,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 test('chat shorthand is understood', () => {
     assert.equal(normalise('min order brp kak??'), ' min order berapa kak ');
-    assert.equal(c('min order brp kak').intent, 'moq');
-    assert.equal(c('lok nya dmn ya').intent, 'location');
-    assert.equal(c('bs kirim ke medan gk').intent, 'shipping');
+    assert.deepEqual(patternNames(c('min order brp kak')), ['Minimal order']);
+    assert.deepEqual(patternNames(c('lok nya dmn ya')), ['Lokasi']);
+    assert.deepEqual(patternNames(c('bs kirim ke medan gk')), ['Pengiriman']);
     assert.equal(c('blm ada kak', 'awaiting_design').intent, 'no_reference');
     assert.equal(c('sz chart kaos ada?').intent, 'size_chart');
     assert.equal(c('hrg jersey brp').product, 'jersey');
@@ -43,7 +44,7 @@ test('anti-repeat: a bubble already sent twice in 10 minutes is not sent a third
     await ask('halo saya Budi dari Jogja');
     for (let i = 0; i < 4; i++) await ask('minimal order berapa?');
 
-    assert.equal(sent.filter((a) => a.text === replies.moq1()).length, 2, 'sent twice, then held back');
+    assert.equal(sent.filter((a) => a.text === seedText('moq', 0)).length, 2, 'sent twice, then held back');
     assert.equal(store.loadConversation('utama', jid).step, 'handed_over', 'nothing new to say: a person takes over');
 });
 

@@ -1,3 +1,4 @@
+import { config } from '../config.js';
 import { all, db, get, getSetting, now, run, setSetting } from '../db.js';
 import { logger } from '../logger.js';
 import { findProduct, normalise } from './classify-rules.js';
@@ -45,28 +46,53 @@ const effectiveProduct = (item) => {
 
     if (chosen === 'none') return null;
 
-    return chosen && productKeys.includes(chosen) ? chosen : autoProduct(item);
+    return chosen && productKeys().includes(chosen) ? chosen : autoProduct(item);
 };
 
 /**
  * Reads the whole catalog through a connected Baileys socket and replaces the
  * stored copy. Hidden items are left out. Returns how many items were stored.
  */
-export async function syncCatalog(socket) {
-    const me = socket?.user?.id;
+/**
+ * Whose catalog to read. The bot's number need not be the shop's WhatsApp
+ * Business number that owns the catalog (a client linked 0813..., the
+ * catalog lives on 0819...). In order: the number set in the console, the
+ * number in the shop catalog link (wa.me/c/<number>), the bot's own number.
+ */
+export function catalogOwner(socket = null) {
+    if (config.catalog?.phone) return { phone: config.catalog.phone, source: 'pengaturan' };
 
-    if (!me) throw new Error('WhatsApp belum tersambung');
+    const fromLink = String(getSetting('link:katalog') ?? '').match(/wa\.me\/c\/(\d{8,15})/);
+    if (fromLink) return { phone: fromLink[1], source: 'link katalog toko' };
+
+    const own = socket?.user?.id ? socket.user.id.split(':')[0].split('@')[0] : getSetting('catalog:phone');
+
+    return own ? { phone: own, source: 'nomor bot' } : null;
+}
+
+export async function syncCatalog(socket) {
+    if (!socket?.user?.id) throw new Error('WhatsApp belum tersambung');
+
+    const owner = catalogOwner(socket);
+    const jid = `${owner.phone}@s.whatsapp.net`;
 
     const items = [];
     let cursor;
 
-    for (let page = 0; page < 20; page++) {
-        const { products, nextPageCursor } = await socket.getCatalog({ limit: 50, cursor });
+    try {
+        for (let page = 0; page < 20; page++) {
+            const { products, nextPageCursor } = await socket.getCatalog({ jid, limit: 50, cursor });
 
-        items.push(...products.filter((p) => !p.isHidden));
+            items.push(...products.filter((p) => !p.isHidden));
 
-        if (!nextPageCursor || !products.length) break;
-        cursor = nextPageCursor;
+            if (!nextPageCursor || !products.length) break;
+            cursor = nextPageCursor;
+        }
+    } catch (error) {
+        throw new Error(
+            `Katalog nomor +${owner.phone} (${owner.source}) tidak terbaca: ${error.message}. ` +
+            'Pastikan nomor itu WhatsApp Business, katalognya berisi produk, dan nomornya benar (Media > Katalog WhatsApp Business).',
+        );
     }
 
     const stamp = now();
@@ -81,7 +107,7 @@ export async function syncCatalog(socket) {
     });
     save();
 
-    setSetting('catalog:phone', me.split(':')[0].split('@')[0]);
+    setSetting('catalog:phone', owner.phone);
     setSetting('catalog:synced_at', stamp);
     setSetting('catalog:error', '');
     log.info({ items: items.length }, 'katalog WhatsApp disinkronkan');
@@ -138,7 +164,7 @@ export function setItemProduct(id, product) {
         return;
     }
 
-    if (product !== 'none' && !productKeys.includes(product)) {
+    if (product !== 'none' && !productKeys().includes(product)) {
         throw Object.assign(new Error('Produk tidak dikenal'), { statusCode: 422 });
     }
 

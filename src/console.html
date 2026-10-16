@@ -217,6 +217,12 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 .catrow .ds { font-size:12px; color:var(--ink-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 @media (max-width: 760px) { .catrow { grid-template-columns:44px 1fr; } .catrow select, .catrow .sendflag { grid-column:2 } }
 
+.kwgroup { border-bottom:1px solid var(--line-2); padding:6px 0 }
+.kwgroup summary { cursor:pointer; padding:4px 0 }
+.kwrows { display:flex; flex-direction:column; gap:2px; max-height:300px; overflow:auto; margin:6px 0 }
+.kwrow { display:flex; gap:6px; align-items:center; font-size:13px; padding:2px 0 }
+.kwrow .kwp { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+
 /* settings form */
 .form { display:grid; grid-template-columns:220px 1fr; gap:14px 18px; align-items:start }
 .form label { font-weight:600; padding-top:8px }
@@ -287,6 +293,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
     <button class="nav" data-page="coba"><svg class="i" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Coba bot</button>
     <button class="nav" data-page="template"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>Template balasan<span class="count hidden" id="navTpl"></span></button>
     <button class="nav" data-page="pola"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/><circle cx="12" cy="12" r="3"/></svg>Pola jawaban<span class="count hidden" id="navPola"></span></button>
+    <button class="nav" data-page="produk"><svg class="i" viewBox="0 0 24 24"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Produk</button>
     <button class="nav" data-page="latih"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8l5.5-.8z"/></svg>Latih bot<span class="count hidden" id="navTeach"></span></button>
     <button class="nav" data-page="statistik"><svg class="i" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistik</button>
     <button class="nav" data-page="media"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>Media<span class="count hidden" id="navMedia"></span></button>
@@ -386,11 +393,20 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
       <!-- POLA JAWABAN -->
       <section data-page="pola" class="hidden stack">
         <div class="card">
-          <div class="pola-head"><h3 style="flex:1">Pola jawaban buatan tim</h3><button class="btn primary" id="polaNew">+ Pola baru</button></div>
+          <div class="pola-head"><h3 style="flex:1">Pola jawaban</h3><button class="btn primary" id="polaNew">+ Pola baru</button></div>
           <p class="hint">Buat jawaban sendiri untuk pertanyaan yang sering muncul, mis. <b>Ukuran</b>, <b>Cara bayar</b>, <b>Lama pengerjaan</b>. Isi kata kunci yang biasa diketik pelanggan, lalu susun jawabannya: teks, foto, produk katalog WhatsApp, atau link. Kalau kata kuncinya cocok, pola ini dipakai <b>sebelum</b> jawaban bawaan.</p>
           <div class="row"><input class="f" id="polaTest" placeholder="Coba kalimat pelanggan, mis. ukurannya ada apa aja kak" style="flex:1"><button class="btn" id="polaTestBtn">Coba</button><span class="small" id="polaTestOut"></span></div>
         </div>
         <div class="stack" id="polaList"></div>
+      </section>
+
+      <!-- PRODUK -->
+      <section data-page="produk" class="hidden stack">
+        <div class="card">
+          <div class="pola-head"><h3 style="flex:1">Produk</h3><input class="f" id="prodSearch" placeholder="Cari produk…" style="width:200px"><button class="btn primary" id="prodNew">+ Produk baru</button></div>
+          <p class="hint">Daftar produk yang dikenali bot. <b>Punya price list</b>: bot mengirim katalognya. <b>Harga tergantung desain</b>: bot menanyakan referensi desain. Semua bisa diubah atau dihapus; perubahan langsung berlaku.</p>
+        </div>
+        <div class="stack" id="prodList"></div>
       </section>
 
       <!-- LATIH BOT -->
@@ -404,7 +420,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
           <div class="stack">
             <div class="card">
               <h3>Tambah kata kunci</h3>
-              <p class="hint">Contoh: <i>rekber</i> → ragu/takut ditipu, <i>kaos panitia</i> → produk Kaos.</p>
+              <p class="hint">Contoh: <i>mockup</i> → contoh desain, <i>rekber</i> → Pola: Ragu / takut ditipu.</p>
               <form id="kwForm" class="stack" style="gap:8px">
                 <input class="f" name="phrase" placeholder="kata atau frasa" required>
                 <select class="f" name="intent" id="kwIntent"></select>
@@ -412,7 +428,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
                 <button class="btn primary">Simpan kata kunci</button>
               </form>
             </div>
-            <div class="card"><h3>Kata kunci dari tim</h3><p class="hint">Tambahan untuk daftar bawaan. Langsung berlaku, tanpa restart.</p><div id="kwList"></div></div>
+            <div class="card"><div class="row"><h3 style="flex:1">Semua kata kunci</h3><input class="f" id="kwSearch" placeholder="Cari…" style="width:140px" oninput="renderKwList()"></div><p class="hint">Bawaan dan buatan tim, semuanya bisa diubah (✎) atau dihapus (✕). Langsung berlaku, tanpa restart.</p><div id="kwList"></div></div>
           </div>
         </div>
       </section>
@@ -507,7 +523,7 @@ const num = (n) => Number(n || 0).toLocaleString('id-ID');
 const toast = (text) => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('#toasts').append(t); setTimeout(() => t.remove(), 3200); };
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
-const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', custom:'Pola buatan tim', other:'Tidak dikenali' };
+const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', custom:'Pola jawaban', other:'Tidak dikenali' };
 const STEPS = [['new','Sapa'], ['awaiting_intro','Kenalan'], ['awaiting_product','Produk'], ['awaiting_design','Desain'], ['awaiting_quantity','Jumlah'], ['handed_over','Ke CS']];
 const STEP_INDEX = { new:0, awaiting_intro:1, awaiting_product:2, awaiting_size_chart_product:2, awaiting_design:3, awaiting_quantity:4, handed_over:5 };
 const STEP_LABEL = { new:'baru menyapa', awaiting_intro:'ditanya nama', awaiting_product:'ditanya produk', awaiting_size_chart_product:'ditanya produk size chart', awaiting_design:'ditanya desain', awaiting_quantity:'ditanya jumlah', handed_over:'di CS' };
@@ -536,7 +552,7 @@ function showTip(e, html) { tip.innerHTML = html; tip.classList.remove('hidden')
 function hideTip() { tip.classList.add('hidden'); }
 
 /* ------------------------------------------------------------ routing --- */
-const TITLES = { ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', pola:'Pola jawaban', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan' };
+const TITLES = { ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', pola:'Pola jawaban', produk:'Produk', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan' };
 let page = 'ringkasan';
 function go(p) {
   page = TITLES[p] ? p : 'ringkasan';
@@ -854,16 +870,83 @@ function renderTemplates() {
 }
 $('#tplSearch').oninput = () => renderTemplates();
 
+/* ------------------------------------------------------------ produk --- */
+let products = [], prodLoaded = false, prodOpen = null;
+
+async function loadProduk() {
+  ({ products } = await api('/products'));
+  prodLoaded = true;
+  renderProduk();
+}
+function renderProduk() {
+  const q = $('#prodSearch').value.trim().toLowerCase();
+  const list = products.filter((p) => !q || (p.name + ' ' + p.keywords.join(' ')).toLowerCase().includes(q));
+  $('#prodList').innerHTML = list.length ? list.map((p) => {
+    const open = prodOpen === p.key;
+    return `<div class="card pola-card" data-prod="${esc(p.key)}">
+      <div class="pola-sum" data-toggle><b style="flex:1">${esc(p.name)}</b>
+        <span class="pill ${p.catalog ? 'good' : 'quiet'}">${p.catalog ? 'punya price list' : 'harga tergantung desain'}</span>
+        ${p.sizeChart ? '<span class="pill quiet">size chart</span>' : ''}
+        <span class="small muted">${p.keywords.length} kata kunci</span>${p.builtin ? '<span class="pill quiet">bawaan</span>' : ''}
+        <span class="muted">${open ? '▴' : '▾'}</span></div>
+      ${open ? `<div class="pola-body">
+        <div>
+          <label class="lb">Nama produk</label><input class="f" data-name value="${esc(p.name)}" maxlength="40">
+          <label class="lb">Jenis</label>
+          <select class="f" data-kind><option value="catalog" ${p.catalog ? 'selected' : ''}>Punya price list (bot mengirim katalog)</option><option value="design" ${!p.catalog ? 'selected' : ''}>Harga tergantung desain (bot menanyakan referensi desain)</option></select>
+          <label class="row lb" style="gap:6px"><input type="checkbox" data-size ${p.sizeChart ? 'checked' : ''}> Punya size chart (muncul di halaman Media)</label>
+          <label class="lb">Kata kunci <span class="small muted" style="font-weight:400">· satu per baris atau pisahkan dengan koma; tahan typo</span></label>
+          <textarea class="f" data-kw rows="6">${esc(p.keywords.join('\n'))}</textarea>
+          <div class="row" style="margin-top:14px"><button class="btn primary" data-save>Simpan</button><button class="btn danger" data-delete>Hapus produk</button></div>
+        </div>
+        <div class="small muted">
+          <p><b>Yang terjadi kalau dihapus:</b> bot tidak lagi mengenali produk ini; kata kuncinya ikut terhapus; tempat katalog/size chart-nya hilang dari halaman Media (file yang sudah diunggah tetap tersimpan); item katalog WA yang dipetakan ke produk ini kembali ke pemetaan otomatis.</p>
+          <p>Pelanggan yang menyebut kata kunci produk ini akan diproses sebagai pertanyaan yang tidak dikenali (diserahkan ke CS), kecuali ada pola jawaban yang cocok.</p>
+        </div>
+      </div>` : ''}
+    </div>`;
+  }).join('') : '<div class="card empty">Tidak ada produk.</div>';
+
+  $$('#prodList [data-prod]').forEach((card) => {
+    const key = card.dataset.prod, p = products.find((x) => x.key === key);
+    $('[data-toggle]', card).onclick = () => { prodOpen = prodOpen === key ? null : key; renderProduk(); };
+    if (prodOpen !== key) return;
+    $('[data-save]', card).onclick = async () => {
+      try {
+        const r = await api('/products/' + encodeURIComponent(key), { method:'PUT', body: JSON.stringify({ name: $('[data-name]', card).value, catalog: $('[data-kind]', card).value === 'catalog', sizeChart: $('[data-size]', card).checked, keywords: $('[data-kw]', card).value }) });
+        Object.assign(p, r.product);
+        toast(r.taken.length ? `Tersimpan. Dilewati: ${r.taken.join(', ')}` : 'Tersimpan. Bot langsung memakainya.');
+        kwMeta = null; renderProduk(); loadStatus();
+      } catch (err) { toast('Belum tersimpan: ' + err.message); }
+    };
+    $('[data-delete]', card).onclick = async () => {
+      if (!confirm(`Hapus produk "${p.name}" beserta kata kuncinya?`)) return;
+      try { await api('/products/' + encodeURIComponent(key), { method:'DELETE' }); toast('Produk dihapus'); prodOpen = null; kwMeta = null; loadProduk(); loadStatus(); }
+      catch (err) { toast('Gagal: ' + err.message); }
+    };
+  });
+}
+$('#prodSearch').oninput = () => renderProduk();
+$('#prodNew').onclick = async () => {
+  const name = prompt('Nama produk baru (mis. Kaos Polo Anak):'); if (!name) return;
+  try {
+    const r = await api('/products', { method:'POST', body: JSON.stringify({ name, catalog: false, sizeChart: false, keywords: name }) });
+    prodOpen = r.product.key; kwMeta = null; toast('Produk ditambahkan. Lengkapi kata kuncinya lalu Simpan.'); loadProduk();
+  } catch (err) { toast('Gagal: ' + err.message); }
+};
+
 /* -------------------------------------------------------------- pola --- */
 let polas = [], polaLoaded = false, polaOpen = Number(new URLSearchParams(location.search).get('pola')) || null, polaCatalog = [];
 const drafts = {};
-const BUBBLE = { text: '💬 Teks', photos: '🖼️ Foto', catalog: '🛍️ Produk katalog WA', link: '🔗 Link' };
+const BUBBLE = { text: '💬 Teks', photos: '🖼️ Foto', catalog: '🛍️ Produk katalog WA', link: '🔗 Link', slot: '📎 File dari Media' };
+const slotLabel = (id) => { const s = polaSlots.find((x) => x.id === id); return s ? `${s.group}: ${s.label}` : id; };
 // The console runs on the bot PC, so its local date is the shop's date.
 const today = () => new Date().toLocaleDateString('en-CA');
 
+let polaSlots = [], polaMissing = [];
 async function loadPola() {
-  const [{ patterns }, cat] = await Promise.all([api('/patterns'), api('/catalog').catch(() => ({ items: [] }))]);
-  polas = patterns; polaCatalog = cat.items || []; polaLoaded = true;
+  const [{ patterns, missingBuiltins }, cat, med] = await Promise.all([api('/patterns'), api('/catalog').catch(() => ({ items: [] })), api('/media').catch(() => ({ slots: [] }))]);
+  polas = patterns; polaCatalog = cat.items || []; polaSlots = med.slots || []; polaMissing = missingBuiltins || []; polaLoaded = true;
   for (const p of polas) drafts[p.id] ??= JSON.parse(JSON.stringify({ name: p.name, keywords: p.keywords.join('\n'), bubbles: p.bubbles, after: p.after, enabled: p.enabled, startsOn: p.startsOn, endsOn: p.endsOn }));
   const nb = $('#navPola'); nb.textContent = polas.length; nb.classList.toggle('hidden', !polas.length);
   renderPola();
@@ -876,6 +959,10 @@ function polaPreview(p, d) {
       out.push(`<div class="bub them">${waFormat(fill(versions[0] || ''))}${versions.length > 1 ? `<div><span class="tag">+${versions.length - 1} versi lain, dipilih acak</span></div>` : ''}</div>`);
     }
     if (b.type === 'link') out.push(`<div class="bub them" style="color:#027eb5;text-decoration:underline">${esc(b.url || 'https://…')}</div>`);
+    if (b.type === 'slot') {
+      const s = polaSlots.find((x) => x.id === b.slot);
+      out.push(s && s.files.length ? `<div class="bub them file">📎 ${esc(slotLabel(b.slot))} · ${s.files.length} file</div>` : `<div class="sys">📎 ${esc(b.slot ? slotLabel(b.slot) : 'pilih file')}: belum ada file di Media, dilewati</div>`);
+    }
     if (b.type === 'photos') out.push(p.photos.length ? p.photos.map((ph) => `<div class="bub them" style="padding:4px"><img src="${withKey('/media/file?path=' + encodeURIComponent(ph))}" style="display:block;max-width:200px;max-height:220px;border-radius:7px"></div>`).join('') : '<div class="sys">(belum ada foto)</div>');
     if (b.type === 'catalog') out.push((b.items || []).map((id) => { const it = polaCatalog.find((x) => x.id === id); return `<div class="bub them">🛍️ ${esc(it ? it.name : 'produk tidak ada lagi di katalog')}<br><span class="small" style="color:#027eb5">${esc(it?.link || '')}</span></div>`; }).join('') || '<div class="sys">(pilih produk katalog)</div>');
   }
@@ -889,6 +976,8 @@ function bubbleEditor(p, b, i) {
     <div class="small muted" style="margin-top:4px">Tip: tulis beberapa versi dipisah baris <code>---</code> supaya jawabannya tidak selalu sama.</div>
     <div class="vars" style="margin-top:6px">${['nama', 'bot', 'cs'].map((v) => `<button class="mini" data-var="${v}" data-i="${i}">{${v}}</button>`).join(' ')}</div>`;
   if (b.type === 'link') body = `<input class="f" data-url="${i}" value="${esc(b.url || '')}" placeholder="https://…">`;
+  if (b.type === 'slot') body = `<select class="f" data-slot="${i}"><option value="" ${!b.slot ? 'selected' : ''} disabled>pilih file dari halaman Media…</option>${polaSlots.map((s) => `<option value="${esc(s.id)}" ${s.id === b.slot ? 'selected' : ''}>${esc(s.group)}: ${esc(s.label)}${s.files.length ? ` (${s.files.length} file)` : ' (kosong)'}</option>`).join('')}</select>
+    <div class="small muted" style="margin-top:4px">Mengirim file yang diunggah di halaman Media, mis. katalog review atau size chart.</div>`;
   if (b.type === 'photos') body = `<div class="thumbs">${p.photos.map((ph, n) => `<div class="thumb"><img src="${withKey('/media/file?path=' + encodeURIComponent(ph))}"><span class="n">${n + 1}</span><button class="x" data-delphoto="${esc(ph)}">×</button></div>`).join('')}</div>
     <div class="drop" data-upload style="margin-top:8px">+ tambah foto (klik atau seret)</div><input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple hidden data-file>`;
   if (b.type === 'catalog') body = polaCatalog.length ? `<div class="catpick">${polaCatalog.map((it) => `<label><input type="checkbox" data-cat="${i}" value="${esc(it.id)}" ${(b.items || []).includes(it.id) ? 'checked' : ''}> ${esc(it.name)}</label>`).join('')}</div><div class="small muted" style="margin-top:4px">Maks. 5 produk, dikirim berurutan sesuai daftar.</div>`
@@ -900,7 +989,7 @@ function renderPola() {
     const d = drafts[p.id], open = polaOpen === p.id;
     const kws = d.keywords.split(/[\n,]/).map((k) => k.trim()).filter(Boolean);
     return `<div class="card pola-card" data-pola="${p.id}">
-      <div class="pola-sum" data-toggle><b style="flex:1">${esc(d.name || 'Tanpa nama')}</b>
+      <div class="pola-sum" data-toggle><b style="flex:1">${esc(d.name || 'Tanpa nama')}${p.builtin ? ' <span class="pill quiet" style="font-weight:500">bawaan</span>' : ''}</b>
         <span class="small muted">${kws.length} kata kunci · ${d.bubbles.length} gelembung</span>
         ${!(p.enabled && p.keywords.length && p.bubbles.length) ? '<span class="pill quiet">belum aktif</span>'
           : (p.startsOn && today() < p.startsOn) ? `<span class="pill quiet">mulai ${esc(p.startsOn)}</span>`
@@ -921,12 +1010,21 @@ function renderPola() {
           <label class="lb">Setelah menjawab</label>
           <select class="f" data-after><option value="stay" ${d.after !== 'handover' ? 'selected' : ''}>Lanjutkan percakapan (bot tetap membalas)</option><option value="handover" ${d.after === 'handover' ? 'selected' : ''}>Serahkan ke CS (bot diam di nomor itu)</option></select>
           <label class="row" style="margin-top:12px;gap:6px"><input type="checkbox" data-enabled ${d.enabled ? 'checked' : ''}> Aktif</label>
-          <div class="row" style="margin-top:14px"><button class="btn primary" data-save>Simpan</button><button class="btn danger" data-delete>Hapus pola</button></div>
+          <div class="row" style="margin-top:14px"><button class="btn primary" data-save>Simpan</button>${p.builtin ? '<button class="btn" data-reset>Kembalikan ke bawaan</button>' : ''}<button class="btn danger" data-delete>Hapus pola</button></div>
         </div>
         <div><div class="small muted" style="margin-bottom:6px">Pratinjau (contoh: Kak Budi)</div><div class="chatwall" style="border-radius:12px;min-height:200px">${polaPreview(p, d)}</div></div>
       </div>` : ''}
     </div>`;
   }).join('') : '<div class="card empty">Belum ada pola. Klik <b>+ Pola baru</b>, misalnya untuk pertanyaan "Ukuran".</div>';
+
+  // Seeded patterns the team deleted can be brought back.
+  if (polaMissing.length) {
+    $('#polaList').insertAdjacentHTML('beforeend', `<div class="card"><div class="small muted" style="margin-bottom:8px">Pola bawaan yang sudah dihapus (pertanyaan ini sekarang diserahkan ke CS):</div><div class="row">${polaMissing.map((m) => `<button class="btn sm" data-restore="${esc(m.builtin)}">↺ Pulihkan ${esc(m.name)}</button>`).join('')}</div></div>`);
+    $$('[data-restore]').forEach((b) => b.onclick = async () => {
+      await api('/patterns/restore/' + encodeURIComponent(b.dataset.restore), { method:'POST' });
+      toast('Pola dipulihkan'); kwMeta = null; polaLoaded = false; loadPola();
+    });
+  }
 
   $$('#polaList [data-pola]').forEach((card) => {
     const id = Number(card.dataset.pola), p = polas.find((x) => x.id === id), d = drafts[id];
@@ -943,6 +1041,17 @@ function renderPola() {
     $('[data-end]', card).onchange = (e) => { d.endsOn = e.target.value; };
     $$('[data-text]', card).forEach((ta) => ta.oninput = () => { d.bubbles[ta.dataset.text].text = ta.value; preview(); });
     $$('[data-url]', card).forEach((inp) => inp.oninput = () => { d.bubbles[inp.dataset.url].url = inp.value.trim(); preview(); });
+    $$('[data-slot]', card).forEach((sel) => sel.onchange = () => { d.bubbles[sel.dataset.slot].slot = sel.value; preview(); });
+    const reset = $('[data-reset]', card);
+    if (reset) reset.onclick = async () => {
+      if (!confirm(`Kembalikan "${d.name}" ke jawaban dan kata kunci bawaan? Perubahan tim pada pola ini hilang.`)) return;
+      try {
+        const { pattern } = await api('/patterns/' + id + '/reset', { method:'POST' });
+        Object.assign(p, pattern);
+        drafts[id] = JSON.parse(JSON.stringify({ name: pattern.name, keywords: pattern.keywords.join('\n'), bubbles: pattern.bubbles, after: pattern.after, enabled: pattern.enabled, startsOn: pattern.startsOn, endsOn: pattern.endsOn }));
+        toast('Dikembalikan ke bawaan'); rerender();
+      } catch (err) { toast('Gagal: ' + err.message); }
+    };
     $$('[data-var]', card).forEach((b) => b.onclick = () => {
       const ta = $(`[data-text="${b.dataset.i}"]`, card), s0 = ta.selectionStart, ins = '{' + b.dataset.var + '}';
       ta.value = ta.value.slice(0, s0) + ins + ta.value.slice(ta.selectionEnd); d.bubbles[b.dataset.i].text = ta.value; ta.focus(); ta.selectionStart = ta.selectionEnd = s0 + ins.length; preview();
@@ -1027,10 +1136,10 @@ async function loadLatih() {
       <div class="teach-item" style="opacity:.75">
         <div class="row" style="margin-bottom:6px"><span class="pill quiet">contoh</span><span class="small muted" style="flex:1">3× · terakhir semalam</span><span class="pill warn"><span class="dot"></span>belum dikenali</span></div>
         <div class="q">kak bisa pakai rekber ga? takut soalnya</div>
-        <div class="small muted" style="margin-top:8px">Ketik <b>rekber</b> → pilih <b>Ragu / takut ditipu</b> → <b>Ajarkan</b>. Pesan serupa berikutnya dijawab dengan naskah "Aman kakk, kami sudah vendor nasional…", bukan langsung dilempar ke CS.</div>
+        <div class="small muted" style="margin-top:8px">Ketik <b>rekber</b> → pilih <b>Pola: Ragu / takut ditipu</b> → <b>Ajarkan</b>. Pesan serupa berikutnya dijawab dengan naskah "Aman kakk, kami sudah vendor nasional…", bukan langsung dilempar ke CS.</div>
       </div>`;
   $$('#teachList .teach-form').forEach((f) => { wireIntent(f); f.onsubmit = (e) => { e.preventDefault(); teach(f); }; });
-  $('#kwList').innerHTML = meta.keywords.length ? `<table class="t"><tbody>${meta.keywords.map((k) => `<tr><td><b>${esc(k.phrase)}</b></td><td class="muted">${esc(INTENT[k.intent] || k.intent)}${k.product ? ' · ' + esc((meta.products.find((p) => p.key === k.product) || {}).name || k.product) : ''}</td><td style="text-align:right"><button class="btn sm danger" onclick="removeKw(${k.id})">Hapus</button></td></tr>`).join('')}</tbody></table>` : '<div class="empty">Belum ada. Kata kunci bawaan tetap berlaku.</div>';
+  renderKwList();
 }
 function wireIntent(form) {
   const i = $('[name=intent]', form), p = $('[name=product]', form);
@@ -1044,6 +1153,27 @@ async function teach(form) {
 }
 $('#kwForm').onsubmit = (e) => { e.preventDefault(); teach(e.target); };
 async function removeKw(id) { await api('/keywords/' + id, { method:'DELETE' }); toast('Kata kunci dihapus'); loadLatih(); }
+
+/** Every keyword (bawaan and tim) by what it means; product keywords live on the Produk page. */
+function renderKwList() {
+  const q = ($('#kwSearch')?.value || '').trim().toLowerCase();
+  const all = kwMeta.keywords.filter((k) => k.intent !== 'product' && (!q || k.phrase.includes(q)));
+  const groups = kwMeta.intents.filter((i) => i !== 'product');
+  const productCount = kwMeta.keywords.filter((k) => k.intent === 'product').length;
+  $('#kwList').innerHTML = groups.map((intent) => {
+    const list = all.filter((k) => k.intent === intent);
+    if (!list.length && q) return '';
+    return `<details class="kwgroup" ${q ? 'open' : ''}><summary><b>${esc(INTENT[intent] || intent)}</b> <span class="small muted">${list.length} kata kunci</span></summary>
+      <div class="kwrows">${list.map((k) => `<div class="kwrow"><span class="kwp">${esc(k.phrase)}</span>${k.source === 'tim' ? '<span class="pill good" style="padding:0 7px">tim</span>' : '<span class="pill quiet" style="padding:0 7px">bawaan</span>'}
+        <button class="mini" onclick="editKw(${k.id})" title="Ubah">✎</button><button class="mini" onclick="removeKw(${k.id})" title="Hapus">✕</button></div>`).join('') || '<div class="small muted">Kosong. Tambah lewat formulir di atas.</div>'}</div></details>`;
+  }).join('') + `<div class="small muted" style="margin-top:10px">${productCount} kata kunci produk diatur di halaman <a href="#produk" data-goto="produk">Produk</a>. Kata kunci Lokasi, Pengiriman, Ragu, Minimal order ada di <a href="#pola" data-goto="pola">Pola jawaban</a>.</div>`;
+}
+async function editKw(id) {
+  const k = kwMeta.keywords.find((x) => x.id === id); if (!k) return;
+  const phrase = prompt('Ubah kata kunci:', k.phrase); if (phrase === null || phrase.trim() === k.phrase) return;
+  try { const r = await api('/keywords/' + id, { method:'PUT', body: JSON.stringify({ phrase }) }); toast(`Diubah jadi "${r.phrase}"`); loadLatih(); }
+  catch (err) { toast('Gagal: ' + err.message); }
+}
 
 /* --------------------------------------------------------- statistik --- */
 let statDays = 30, lastStats = null;
@@ -1278,6 +1408,7 @@ async function refresh() {
     if (page === 'latih') await loadLatih();
     if (page === 'template' && !tplLoaded) await loadTemplates();
     if (page === 'pola' && !polaLoaded) await loadPola();
+    if (page === 'produk' && !prodLoaded) await loadProduk();
     if (page === 'statistik') await loadStatistik();
     if (page === 'media') { kwMeta ??= await api('/keywords'); await loadMedia(); }
     if (page === 'pengaturan') await loadPengaturan();

@@ -1,105 +1,136 @@
+import { all, get, now, run } from '../db.js';
+import { cleanPhrase, slugify } from '../text.js';
+
 /**
- * Products the bot recognises.
+ * Products the bot recognises, stored in the database (seeded from
+ * src/seeds.js by the migrations) and fully editable in the console:
+ * add, rename, change kind, delete.
  *
- * `sizeChart: true` marks garments that need a size chart file in media/.
+ * kind 'catalog' = has a fixed price list, so the bot sends the catalog.
+ * kind 'design'  = priced by quantity and design, so the bot asks for a
+ *                  design reference instead (SPEK-CHATBOT.md, main flow).
+ * sizeChart      = needs a size chart file in Media.
  *
- * `catalog: true` means the product has a fixed price list in the catalog, so
- * the bot sends the catalog file. The rest are priced by quantity and design,
- * so the bot asks for a design reference instead (SPEK-CHATBOT.md, main flow).
- *
- * `keywords` feed the offline keyword classifier only; the AI classifier is
- * given the names and decides on its own. Keywords are matched against
- * normalised text (lowercase, punctuation stripped, repeated letters squashed).
+ * A product's keywords live with all other keywords (custom_keywords,
+ * intent 'product'), so "Latih bot" and the classifier see one list.
  */
-export const PRODUCTS = {
-    jersey: {
-        name: 'Jersey',
-        catalog: true,
-        sizeChart: true,
-        keywords: ['jersey', 'jersy', 'jersi', 'jesrey', 'baju bola', 'baju futsal', 'kaos bola', 'kaos futsal', 'baju olahraga', 'seragam bola', 'seragam futsal', 'baju voli', 'baju volly', 'baju badminton', 'baju sepeda', 'baju esport', 'baju e-sport', 'baju basket', 'jersey basket', 'jersey printing', 'bahan jersey', 'kerah jersey', 'jersey bola', 'jersey futsal'],
-    },
-    'id-card-lanyard': {
-        name: 'ID Card & Lanyard',
-        catalog: true,
-        sizeChart: false,
-        keywords: ['id card', 'idcard', 'id-card', 'name tag', 'nametag', 'lanyard', 'lanyar', 'tali id', 'tali name tag', 'kartu nama peserta', 'kartu panitia', 'cetak id card', 'paket idcard', 'paket id card'],
-    },
-    'gantungan-kunci': {
-        name: 'Gantungan Kunci',
-        catalog: true,
-        sizeChart: false,
-        keywords: ['gantungan kunci', 'gantungan', 'ganci', 'keychain', 'key chain', 'gantungan konci'],
-    },
-    'bendera-printing': {
-        name: 'Bendera Printing',
-        catalog: true,
-        sizeChart: false,
-        keywords: ['bendera', 'flag', 'umbul', 'umbul umbul', 'panji', 'banner bendera'],
-    },
-    kaos: {
-        name: 'Kaos',
-        catalog: false,
-        sizeChart: true,
-        keywords: ['kaos', 'kaus', 't-shirt', 'tshirt', 'tee', 'baju kaos', 'kaos komunitas', 'kaos sablon', 'sablon', 'kaos oblong', 'kaos polos', 'oversize', 'boxy', 'kaos kelas', 'kaos angkatan', 'kaos sekolah', 'two tone', 'two-tone', 'twotone'],
-    },
-    pdl: {
-        name: 'PDL',
-        catalog: false,
-        sizeChart: true,
-        keywords: ['pdl', 'pdh', 'baju lapangan', 'kemeja lapangan', 'seragam lapangan', 'baju dinas', 'kemeja pdl', 'pdl 2in1'],
-    },
-    kemeja: {
-        name: 'Kemeja',
-        catalog: false,
-        sizeChart: true,
-        keywords: ['kemeja', 'hem', 'baju kantor', 'seragam kantor', 'batik'],
-    },
-    polo: {
-        name: 'Polo Shirt',
-        catalog: false,
-        sizeChart: true,
-        keywords: ['polo', 'poloshirt', 'kaos kerah', 'kaos berkerah', 'polo shirt'],
-    },
-    rompi: {
-        name: 'Rompi',
-        catalog: false,
-        sizeChart: true,
-        keywords: ['rompi', 'vest', 'romp'],
-    },
-    jaket: {
-        name: 'Jaket',
-        catalog: false,
-        sizeChart: true,
-        keywords: ['jaket', 'jacket', 'jaket bomber', 'bomber', 'varsity', 'windbreaker', 'parasut', 'jaket angkatan'],
-    },
-    hoodie: {
-        name: 'Hoodie',
-        catalog: false,
-        sizeChart: true,
-        keywords: ['hoodie', 'hodie', 'hoody', 'sweater', 'crewneck', 'sweatshirt', 'zipper hoodie'],
-    },
-    topi: {
-        name: 'Topi',
-        catalog: false,
-        sizeChart: false,
-        keywords: ['topi', 'cap', 'snapback', 'trucker', 'bucket hat'],
-    },
-    'tote-bag': {
-        name: 'Tote Bag',
-        catalog: false,
-        sizeChart: false,
-        keywords: ['totebag', 'tote bag', 'tote', 'tas kain', 'goodie bag', 'goodiebag', 'tas spunbond'],
-    },
-    'seragam-sekolah': {
-        name: 'Seragam',
-        catalog: false,
-        sizeChart: true,
-        keywords: ['seragam', 'wearpack', 'werpack', 'baju kerja', 'baju bengkel', 'seragam kerja', 'baju olahraga sekolah', 'osis', 'mpk', 'pramuka', 'paskibra', 'paskib', 'pks', 'pmr', 'seragam sekolah', 'baju sekolah', 'seragam osis', 'baju osis', 'baju pramuka'],
-    },
+
+let cache = null;
+const listeners = new Set();
+
+/** Lets other caches (keywords) drop their copy when products change. */
+export const onProductsChanged = (fn) => listeners.add(fn);
+
+const changed = () => {
+    cache = null;
+    for (const fn of listeners) fn();
 };
 
-export const productKeys = Object.keys(PRODUCTS);
+export function listProducts() {
+    cache ??= all('SELECT * FROM products ORDER BY position, name').map((row) => ({
+        key: row.key,
+        name: row.name,
+        catalog: row.kind === 'catalog',
+        sizeChart: Boolean(row.size_chart),
+        builtin: Boolean(row.builtin),
+        position: row.position,
+    }));
 
-export const productName = (key) => PRODUCTS[key]?.name ?? key;
+    return cache;
+}
 
-export const hasCatalog = (key) => Boolean(PRODUCTS[key]?.catalog);
+export const productKeys = () => listProducts().map((p) => p.key);
+
+export const getProduct = (key) => listProducts().find((p) => p.key === key) ?? null;
+
+export const productName = (key) => getProduct(key)?.name ?? key;
+
+export const hasCatalog = (key) => Boolean(getProduct(key)?.catalog);
+
+export const productKeywords = (key) =>
+    all(`SELECT phrase FROM custom_keywords WHERE intent = 'product' AND product = ? ORDER BY phrase`, [key]).map((r) => r.phrase);
+
+const fail = (message, statusCode = 422) => {
+    throw Object.assign(new Error(message), { statusCode });
+};
+
+const parseKeywords = (value) =>
+    [...new Set((Array.isArray(value) ? value : String(value ?? '').split(/[\n,]/)).map(cleanPhrase).filter((k) => k.length >= 2 && k.length <= 60))].slice(0, 200);
+
+/** Replaces a product's keywords. A phrase another product or answer already uses is reported, not stolen. */
+function setKeywords(key, value) {
+    const wanted = parseKeywords(value);
+    const taken = [];
+
+    run(`DELETE FROM custom_keywords WHERE intent = 'product' AND product = ?`, [key]);
+
+    for (const phrase of wanted) {
+        const owner = get('SELECT intent, product FROM custom_keywords WHERE phrase = ?', [phrase]);
+
+        if (owner) {
+            taken.push(`"${phrase}" (sudah dipakai ${owner.product ? `produk ${productName(owner.product)}` : owner.intent})`);
+            continue;
+        }
+
+        run(`INSERT INTO custom_keywords (phrase, intent, product, source, created_at) VALUES (?, 'product', ?, 'tim', ?)`, [phrase, key, now()]);
+    }
+
+    return taken;
+}
+
+function validFields(values, current = {}) {
+    const name = values.name === undefined ? current.name : String(values.name).trim().replace(/\s+/g, ' ').slice(0, 40);
+    if (!name) fail('Nama produk wajib diisi');
+
+    const catalog = values.catalog === undefined ? current.catalog : Boolean(values.catalog);
+    const sizeChart = values.sizeChart === undefined ? current.sizeChart : Boolean(values.sizeChart);
+
+    return { name, catalog, sizeChart };
+}
+
+export function createProduct(values) {
+    const { name, catalog, sizeChart } = validFields(values);
+
+    let key = slugify(name) || 'produk';
+    for (let i = 2; get('SELECT 1 FROM products WHERE "key" = ?', [key]); i++) key = `${slugify(name)}-${i}`;
+
+    const position = (get('SELECT MAX(position) AS p FROM products')?.p ?? -1) + 1;
+    run(
+        `INSERT INTO products ("key", name, kind, size_chart, position, builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
+        [key, name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, position, now(), now()],
+    );
+
+    const taken = values.keywords === undefined ? [] : setKeywords(key, values.keywords);
+    changed();
+
+    return { product: getProduct(key), taken };
+}
+
+export function updateProduct(key, values) {
+    const current = getProduct(key) ?? fail('Produk tidak ditemukan', 404);
+    const { name, catalog, sizeChart } = validFields(values, current);
+
+    run(`UPDATE products SET name = ?, kind = ?, size_chart = ?, updated_at = ? WHERE "key" = ?`, [name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, now(), key]);
+
+    const taken = values.keywords === undefined ? [] : setKeywords(key, values.keywords);
+    changed();
+
+    return { product: getProduct(key), taken };
+}
+
+/**
+ * Deletes a product with its keywords, its catalog-item matches and its
+ * catalog link. Conversations that mentioned it keep the old key as text.
+ */
+export function deleteProduct(key) {
+    getProduct(key) ?? fail('Produk tidak ditemukan', 404);
+
+    run(`DELETE FROM custom_keywords WHERE intent = 'product' AND product = ?`, [key]);
+    run(`DELETE FROM settings WHERE "key" LIKE 'catmap:%' AND value = ?`, [key]);
+    run(`DELETE FROM settings WHERE "key" = ?`, [`link:katalog:${key}`]);
+    run(`DELETE FROM products WHERE "key" = ?`, [key]);
+    changed();
+}
+
+/** For tests and imports that write through SQL. */
+export const forgetProducts = changed;

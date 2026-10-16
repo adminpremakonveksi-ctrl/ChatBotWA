@@ -7,15 +7,15 @@ import express from 'express';
 import { Bot } from './bot/bot.js';
 import { aiEnabled } from './bot/classify-ai.js';
 import { catalogStatus, setItemProduct } from './bot/catalog.js';
-import { addPatternKeyword, createPattern, deletePattern, getPattern, listPatterns, updatePattern } from './bot/patterns.js';
+import { addPatternKeyword, createPattern, deletePattern, getPattern, listPatterns, missingBuiltins, resetPattern, restoreBuiltin, updatePattern } from './bot/patterns.js';
 import { classifyWithRules, findPattern, normalise } from './bot/classify-rules.js';
-import { TEACHABLE, addKeyword, customKeywords, removeKeyword, seedStarterKeywords } from './bot/keywords.js';
+import { TEACHABLE, addKeyword, customKeywords, removeKeyword, updateKeyword } from './bot/keywords.js';
 import { media } from './bot/media.js';
-import { productKeys, productName } from './bot/products.js';
+import { createProduct, deleteProduct, listProducts, productKeywords, productName, updateProduct } from './bot/products.js';
 import { listTemplates, render, resetTemplate, templateText, updateTemplate } from './bot/replies.js';
 import { holidayOn, isBotActive, localClock, nextChange } from './bot/schedule.js';
 import { resetSimulation, simulate } from './bot/simulator.js';
-import { analytics, listConversations, loadConversation, markHandover, messagesOf, stats, unrecognised } from './bot/store.js';
+import { analytics, listConversations, loadConversation, markHandover, messagesOf, resetConversation, stats, unrecognised } from './bot/store.js';
 import { config, root } from './config.js';
 import { db, describeDatabase, getSetting, now, run } from './db.js';
 import { logger } from './logger.js';
@@ -201,11 +201,7 @@ app.get('/conversations/:session/:jid', wrap(async (req, res) => {
 
 /** Hands a customer back to the bot, e.g. after CS is done or after a test. */
 app.post('/conversations/:session/:jid/reset', wrap(async (req, res) => {
-    run(
-        `UPDATE conversations SET step = 'new', product = NULL, return_step = NULL, handed_over_at = NULL, handover_reason = NULL
-         WHERE session_key = ? AND jid = ?`,
-        [req.params.session, req.params.jid],
-    );
+    resetConversation(req.params.session, req.params.jid);
 
     res.json({ ok: true });
 }));
@@ -256,7 +252,19 @@ app.post('/media/:slot', express.raw({ type: () => true, limit: '16mb' }), wrap(
 const patternView = (p) => ({ ...p, photos: media.files('pola', String(p.id)).map((file) => path.relative(config.mediaDir, file).replace(/\\/g, '/')) });
 
 app.get('/patterns', wrap(async (req, res) => {
-    res.json({ patterns: listPatterns().map(patternView) });
+    res.json({ patterns: listPatterns().map(patternView), missingBuiltins: missingBuiltins() });
+}));
+
+/** "Kembalikan ke bawaan": a seeded pattern back to its original answer and keywords. */
+app.post('/patterns/:id/reset', wrap(async (req, res) => {
+    res.json({ pattern: patternView(resetPattern(req.params.id)) });
+}));
+
+/** Brings back a seeded pattern (Lokasi, ...) the team deleted. */
+app.post('/patterns/restore/:builtin', wrap(async (req, res) => {
+    const pattern = restoreBuiltin(req.params.builtin);
+
+    res.status(201).json({ pattern: pattern ? patternView(pattern) : null });
 }));
 
 app.post('/patterns', wrap(async (req, res) => {
@@ -392,7 +400,7 @@ app.get('/keywords', wrap(async (req, res) => {
         keywords: customKeywords(),
         intents: TEACHABLE,
         patterns: listPatterns().map((p) => ({ id: p.id, name: p.name })),
-        products: productKeys.map((key) => ({ key, name: productName(key) })),
+        products: listProducts().map((p) => ({ key: p.key, name: p.name })),
     });
 }));
 
@@ -410,9 +418,42 @@ app.post('/keywords', wrap(async (req, res) => {
     res.status(201).json({ ok: true, phrase });
 }));
 
+app.put('/keywords/:id', wrap(async (req, res) => {
+    res.json({ ok: true, phrase: updateKeyword(req.params.id, req.body ?? {}) });
+}));
+
 app.delete('/keywords/:id', wrap(async (req, res) => {
     removeKeyword(req.params.id);
 
+    res.json({ ok: true });
+}));
+
+/* ------------------------------------------------------------- products --- */
+
+const productView = (p) => ({ ...p, keywords: productKeywords(p.key) });
+
+app.get('/products', wrap(async (req, res) => {
+    res.json({ products: listProducts().map(productView) });
+}));
+
+app.post('/products', wrap(async (req, res) => {
+    const { product, taken } = createProduct(req.body ?? {});
+
+    logger.info({ product: product.key }, 'produk ditambah dari konsol');
+    res.status(201).json({ product: productView(product), taken });
+}));
+
+app.put('/products/:key', wrap(async (req, res) => {
+    const { product, taken } = updateProduct(req.params.key, req.body ?? {});
+
+    logger.info({ product: product.key }, 'produk diubah dari konsol');
+    res.json({ product: productView(product), taken });
+}));
+
+app.delete('/products/:key', wrap(async (req, res) => {
+    deleteProduct(req.params.key);
+
+    logger.info({ product: req.params.key }, 'produk dihapus dari konsol');
     res.json({ ok: true });
 }));
 
@@ -432,7 +473,6 @@ const bot = new Bot();
 async function main() {
     describeDatabase();
     loadSettings();
-    seedStarterKeywords();
 
     logger.info(
         {

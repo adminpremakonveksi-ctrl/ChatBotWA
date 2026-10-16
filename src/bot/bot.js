@@ -21,6 +21,9 @@ import * as defaultStore from './store.js';
 const REPEAT_LIMIT = 2;
 const REPEAT_WINDOW_MINUTES = 10;
 
+// Staff-facing, only ever sent in the bot number's own "Message yourself" chat.
+const SELF_TEST_RESET = '🔄 Mode uji: percakapan dimulai ulang. Ketik pesan seperti pelanggan.';
+
 export class Bot {
     constructor({
         classify = defaultClassify,
@@ -44,20 +47,29 @@ export class Bot {
      * @param transport  { newMessageId() -> string, send(jid, action, messageId) -> Promise }
      *                   action is { type: 'text', text } or { type: 'file', file }
      */
-    onIncoming(sessionKey, transport, { jid, id, text = '', hasImage = false }) {
+    onIncoming(sessionKey, transport, { jid, id, text = '', hasImage = false, selfTest = false }) {
         this.store.logMessage({ sessionKey, jid, direction: 'in', waMessageId: id, text });
 
-        if (!this.isActive()) {
+        // The self-chat test answers at any hour, so the team can try the bot by day.
+        if (!selfTest && !this.isActive()) {
             return;
         }
 
         // The recap recipients are staff; never greet them as customers.
-        if (config.recap.to.includes(this.store.phoneOf(jid))) {
+        if (!selfTest && config.recap.to.includes(this.store.phoneOf(jid))) {
+            return;
+        }
+
+        // "reset" in the test chat starts the conversation over, handover included.
+        if (selfTest && /^\s*#?reset\s*$/i.test(text)) {
+            this.store.resetConversation(sessionKey, jid);
+            this.#enqueue(`${sessionKey}|${jid}`, () => this.#sendNote(sessionKey, transport, jid, SELF_TEST_RESET));
+
             return;
         }
 
         const key = `${sessionKey}|${jid}`;
-        const buffer = this.buffers.get(key) ?? { texts: [], hasImage: false, timer: null };
+        const buffer = this.buffers.get(key) ?? { texts: [], hasImage: false, timer: null, selfTest };
 
         if (text) buffer.texts.push(text);
         buffer.hasImage ||= hasImage;
@@ -77,6 +89,17 @@ export class Bot {
      * A message from our own number. If the bot did not send it, CS replied
      * from the phone: hand the customer over so the two do not talk at once.
      */
+    isBotMessage(id) {
+        return Boolean(id) && this.store.isBotMessage(id);
+    }
+
+    /** A staff-facing line (not a customer reply), logged first so its echo is known. */
+    async #sendNote(sessionKey, transport, jid, text) {
+        const id = transport.newMessageId();
+        this.store.logMessage({ sessionKey, jid, direction: 'out', waMessageId: id, text });
+        await transport.send(jid, { type: 'text', text }, id);
+    }
+
     onOwnMessage(sessionKey, { jid, id }) {
         if (!id || this.store.isBotMessage(id)) {
             return;
@@ -110,9 +133,9 @@ export class Bot {
         return next;
     }
 
-    async handle(sessionKey, transport, jid, { texts, hasImage }) {
+    async handle(sessionKey, transport, jid, { texts, hasImage, selfTest = false }) {
         // The night may have ended while we were waiting.
-        if (!this.isActive()) return;
+        if (!selfTest && !this.isActive()) return;
 
         const conversation = this.store.loadConversation(sessionKey, jid);
 

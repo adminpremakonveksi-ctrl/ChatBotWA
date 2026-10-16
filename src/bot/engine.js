@@ -23,8 +23,9 @@ import { fillText, replies } from './replies.js';
  *   handed_over                  CS takes it from here; bot stays silent
  */
 
-// Answered at any point, without moving the conversation; 'custom' = a team pattern.
-const FAQ = new Set(['size_chart', 'location', 'shipping', 'trust', 'design_reference', 'moq', 'custom']);
+// Answered at any point, without moving the conversation. 'custom' = answer
+// patterns, which include the seeded Lokasi, Pengiriman, Ragu and Minimal order.
+const FAQ = new Set(['size_chart', 'design_reference', 'custom']);
 
 export function decide(conversation, classified, media, { random = Math.random } = {}) {
     const conv = { step: 'new', name: null, origin: null, product: null, return_step: null, ...conversation };
@@ -97,25 +98,6 @@ export function decide(conversation, classified, media, { random = Math.random }
         const product = r.product ?? state().product;
 
         switch (intent) {
-            case 'custom': {
-                // The team's own answer, bubble by bubble, in their order.
-                const p = r.pattern;
-
-                for (const bubble of p.bubbles) {
-                    if (bubble.type === 'text') {
-                        // Several versions: one at random, so regulars do not get the same lines.
-                        const versions = textVersions(bubble.text);
-                        say(fillText(versions[Math.floor(random() * versions.length)] ?? '', { nama: state().name ?? '' }));
-                    }
-                    if (bubble.type === 'link') say(bubble.url);
-                    if (bubble.type === 'photos' && media.has('pola', String(p.id))) send('pola', String(p.id));
-                    if (bubble.type === 'catalog') for (const link of media.catalogItemLinks?.(bubble.items) ?? []) say(link);
-                }
-
-                if (p.after === 'handover') handover(`pola: ${p.name}`);
-                break;
-            }
-
             case 'size_chart':
                 if (!product) {
                     say(replies.sizeChartWhich());
@@ -124,25 +106,6 @@ export function decide(conversation, classified, media, { random = Math.random }
                 } else {
                     sizeChart(product, r.sizeVariant);
                 }
-                break;
-
-            case 'location':
-                say(replies.location());
-                say(replies.locationMap());
-                break;
-
-            case 'shipping':
-                say(replies.shipping());
-                break;
-
-            case 'trust':
-                say(replies.trust());
-                if (media.has('katalog-review')) send('katalog-review');
-                break;
-
-            case 'moq':
-                say(replies.moq1());
-                say(replies.moq2());
                 break;
 
             case 'design_reference':
@@ -166,10 +129,41 @@ export function decide(conversation, classified, media, { random = Math.random }
     const wantsProduct = Boolean(r.product) && (r.intent === 'product' || (r.extras ?? []).includes('product'));
 
     /** Answers each FAQ; false when one of them had to hand over. */
+    /**
+     * One answer pattern (the team's, or a seeded one such as Lokasi), bubble
+     * by bubble in the order they set.
+     */
+    const answerPattern = (p) => {
+        for (const bubble of p.bubbles) {
+            if (bubble.type === 'text') {
+                // Several versions: one at random, so regulars do not get the same lines.
+                const versions = textVersions(bubble.text);
+                say(fillText(versions[Math.floor(random() * versions.length)] ?? '', { nama: state().name ?? '' }));
+            }
+            if (bubble.type === 'link') say(bubble.url);
+            if (bubble.type === 'photos' && media.has('pola', String(p.id))) send('pola', String(p.id));
+            if (bubble.type === 'catalog') for (const link of media.catalogItemLinks?.(bubble.items) ?? []) say(link);
+            if (bubble.type === 'slot') {
+                // "katalog-review", "katalog:jersey", "size-chart:kaos:reguler": files from the Media page.
+                const [kind, product = null, variant = null] = bubble.slot.split(':');
+                if (media.has(kind, product, variant)) send(kind, product, variant);
+            }
+        }
+
+        if (p.after === 'handover') handover(`pola: ${p.name}`);
+    };
+
+    /** Every pattern, then every built-in answer the message asked; false when one handed over. */
     const answerFaqs = () => {
-        if (faqs.length && r.product && !state().product) remember('product', r.product);
+        if ((faqs.length || r.patterns?.length) && r.product && !state().product) remember('product', r.product);
+
+        for (const p of r.patterns ?? []) {
+            answerPattern(p);
+            if (handedOver()) return false;
+        }
 
         for (const intent of faqs) {
+            if (intent === 'custom') continue; // answered above
             answerFaq(intent);
             if (handedOver()) return false;
         }

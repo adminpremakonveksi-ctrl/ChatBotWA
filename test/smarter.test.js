@@ -10,6 +10,7 @@ import { replies } from '../src/bot/replies.js';
 import { nextChange } from '../src/bot/schedule.js';
 import * as store from '../src/bot/store.js';
 import { run } from '../src/db.js';
+import { patternNames, seedText } from './helpers.js';
 
 const c = (text, step = 'awaiting_product', extra = {}) => classifyWithRules({ text, step, ...extra });
 const media = { has: (kind, product) => kind === 'katalog' && product === 'jersey' };
@@ -18,8 +19,9 @@ const texts = (actions) => actions.filter((a) => a.type === 'text').map((a) => a
 test('one message, several questions: all are recognised', () => {
     const r = c('mau bikin jersey futsal, minimal order berapa? lokasinya dimana?');
 
-    assert.equal(r.intent, 'location');
-    assert.deepEqual(r.extras.sort(), ['moq', 'product']);
+    assert.equal(r.intent, 'custom');
+    assert.deepEqual(patternNames(r).sort(), ['Lokasi', 'Minimal order']);
+    assert.deepEqual(r.extras, ['product']);
     assert.equal(r.product, 'jersey');
 });
 
@@ -31,7 +33,7 @@ test('several questions get every answer, and the bot question comes last', () =
     const r = c('mau bikin jersey, minimal order berapa? bisa kirim ke makassar?');
     const { actions, patch } = decide({ step: 'awaiting_product' }, r, media);
 
-    assert.deepEqual(texts(actions), [replies.shipping(), replies.moq1(), replies.moq2(), replies.askQuantity()]);
+    assert.deepEqual(texts(actions), [seedText('shipping', 0), seedText('moq', 0), seedText('moq', 1), replies.askQuantity()]);
     assert.equal(patch.step, 'awaiting_quantity');
     assert.equal(actions.filter((a) => a.type === 'media').length, 1, 'jersey catalog');
 });
@@ -41,7 +43,7 @@ test('a side question next to the expected answer is answered too', () => {
     assert.equal(r.intent, 'no_reference');
 
     const { actions, patch } = decide({ step: 'awaiting_design', product: 'kaos' }, r, media);
-    assert.deepEqual(texts(actions), [replies.location(), replies.locationMap(), replies.portfolio(), replies.askQuantity()]);
+    assert.deepEqual(texts(actions), [seedText('location', 0), seedText('location', 1), replies.portfolio(), replies.askQuantity()]);
     assert.equal(patch.step, 'awaiting_quantity');
 });
 
@@ -49,7 +51,7 @@ test('typos are tolerated on longer words', () => {
     assert.equal(editDistance('jresey', 'jersey'), 1, 'swap counts once');
     assert.equal(c('bikin hoddie angkatan bisa?').product, 'hoodie');
     assert.equal(c('mau pesan lanyrd').product, 'id-card-lanyard');
-    assert.equal(c('lokais nya di mana').intent, 'location');
+    assert.equal(c('lokais nya di mana').pattern?.name, 'Lokasi');
     assert.equal(c('minta portopolio dong').intent, 'design_reference');
 });
 
@@ -59,22 +61,22 @@ test('short words are never fuzzy-matched', () => {
 });
 
 test('keywords taught from the console take effect immediately', () => {
-    assert.equal(c('bisa pakai rekber?').intent, 'other');
+    assert.equal(c('ada mockup nya kak?').intent, 'other');
 
-    addKeyword({ phrase: 'Rekber!', intent: 'trust' });
-    addKeyword({ phrase: 'kaos panitia', intent: 'product', product: 'kaos' });
+    addKeyword({ phrase: 'Mockup!', intent: 'design_reference' });
+    addKeyword({ phrase: 'kaos bazar', intent: 'product', product: 'kaos' });
 
-    assert.equal(c('bisa pakai rekber?').intent, 'trust');
-    assert.equal(c('mau order kaos panitia 17an').product, 'kaos');
-    assert.deepEqual(customKeywords().map((k) => k.phrase).sort(), ['kaos panitia', 'rekber']);
+    assert.equal(c('ada mockup nya kak?').intent, 'design_reference');
+    assert.equal(c('mau order kaos bazar 17an').product, 'kaos');
+    assert.ok(customKeywords().some((k) => k.phrase === 'mockup' && k.source === 'tim'));
 
-    for (const k of customKeywords()) removeKeyword(k.id);
-    assert.equal(c('bisa pakai rekber?').intent, 'other');
+    for (const k of customKeywords().filter((k) => ['mockup', 'kaos bazar'].includes(k.phrase))) removeKeyword(k.id);
+    assert.equal(c('ada mockup nya kak?').intent, 'other');
 });
 
 test('teaching rejects nonsense', () => {
-    assert.throws(() => addKeyword({ phrase: 'x', intent: 'trust' }), /2-60/);
-    assert.throws(() => addKeyword({ phrase: 'halo', intent: 'greeting' }), /Maksud/);
+    assert.throws(() => addKeyword({ phrase: 'x', intent: 'size_chart' }), /2-60/);
+    assert.throws(() => addKeyword({ phrase: 'saya budi', intent: 'introduction' }), /Maksud/);
     assert.throws(() => addKeyword({ phrase: 'baju', intent: 'product' }), /produk/);
 });
 

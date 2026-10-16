@@ -34,6 +34,9 @@ const IGNORED_TYPES = new Set([
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// Sent within the last two minutes (messageTimestamp is seconds, maybe a Long).
+const isRecent = (message) => Date.now() / 1000 - Number(message.messageTimestamp ?? 0) < 120;
+
 /** One WhatsApp number: its socket, its pairing state and its reconnect loop. */
 export class Session {
     constructor(row, bot) {
@@ -186,14 +189,22 @@ export class Session {
 
             if (!contentType || IGNORED_TYPES.has(contentType)) continue;
 
-            if (message.key.fromMe) {
+            // "Message yourself" on the bot's own number is a test chat: what the
+            // team types there is answered as if a customer wrote it.
+            const selfTest = Boolean(message.key.fromMe && this.#isSelfChat(jid));
+
+            if (selfTest) {
+                // The bot's own replies echo back here too; and an old self-chat
+                // message from a history sync is not a new test.
+                if (this.bot.isBotMessage(message.key.id) || !isRecent(message)) continue;
+            } else if (message.key.fromMe) {
                 // Typed by CS on the phone, or the echo of a bot reply.
                 this.bot.onOwnMessage(this.key, { jid, id: message.key.id });
                 continue;
+            } else if (type !== 'notify') {
+                // History sync and other catch-up batches are not new chats.
+                continue;
             }
-
-            // History sync and other catch-up batches are not new chats.
-            if (type !== 'notify') continue;
 
             const text =
                 content?.conversation ??
@@ -205,10 +216,18 @@ export class Session {
 
             const hasImage = ['imageMessage', 'documentMessage', 'videoMessage', 'stickerMessage'].includes(contentType);
 
-            this.log.info({ from: jid, type: contentType, text }, 'pesan masuk');
+            this.log.info({ from: jid, type: contentType, text, selfTest }, selfTest ? 'pesan uji dari nomor sendiri' : 'pesan masuk');
 
-            this.bot.onIncoming(this.key, this, { jid, id: message.key.id, text, hasImage });
+            this.bot.onIncoming(this.key, this, { jid, id: message.key.id, text, hasImage, selfTest });
         }
+    }
+
+    /** The chat with the bot's own number, by phone jid or by LID. */
+    #isSelfChat(jid) {
+        const user = (id) => String(id ?? '').split('@')[0].split(':')[0];
+        const own = [this.socket?.user?.id, this.socket?.user?.lid].filter(Boolean).map(user);
+
+        return own.includes(user(jid)) && !jid.endsWith('@g.us');
     }
 
     /* ---------------------------------------------- transport for the bot --- */

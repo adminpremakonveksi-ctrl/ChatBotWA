@@ -1,94 +1,79 @@
-import { all, db, getSetting, now, run, setSetting } from '../db.js';
-import { INTENTS } from './intents.js';
-import { productKeys } from './products.js';
+import { all, get, now, run } from '../db.js';
+import { cleanPhrase } from '../text.js';
+import { onProductsChanged, productKeys } from './products.js';
 
 /**
- * Keywords taught by the team from the console ("Latih bot"), on top of the
- * built-in lists. Spec rule 2 - "perbanyak variasi kata kunci" - never ends,
- * so it must not need a code change.
+ * Every keyword of the built-in flow answers and of the products, in the
+ * database: the seeded ones (source 'bawaan', from src/seeds.js) and the
+ * ones the team adds in "Latih bot" or "Produk" (source 'tim'). All of them
+ * can be edited or deleted; nothing here is fixed in code any more.
  *
- * A keyword points at an intent (e.g. "rekber" -> trust) or at a product
- * (e.g. "kaos panitia" -> kaos); it never changes what the bot says.
+ * A keyword points at an intent (e.g. "contoh desain" -> design_reference)
+ * or at a product ("kaos panitia" -> kaos). It never changes what the bot
+ * says. Question-and-answer topics (Lokasi, Pengiriman, ...) are answer
+ * patterns with their own keywords (patterns.js).
  */
 
-db.exec(`
-CREATE TABLE IF NOT EXISTS custom_keywords (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    phrase TEXT NOT NULL UNIQUE,
-    intent TEXT NOT NULL,
-    product TEXT,
-    created_at TEXT
-);
-`);
+export { cleanPhrase };
 
-// Intents a phrase may be taught. Greeting/other/introduction are not keyword-shaped.
-export const TEACHABLE = INTENTS.filter((intent) => !['greeting', 'introduction', 'other', 'custom'].includes(intent));
+// Intents a phrase may be taught; the rest are not keyword-shaped or are patterns.
+export const TEACHABLE = ['product', 'size_chart', 'design_reference', 'no_reference', 'has_reference', 'quantity', 'greeting'];
 
 let cache = null;
-
-/** Lowercase, strip punctuation, collapse spaces: the same shape the classifier matches on. */
-export const cleanPhrase = (phrase) =>
-    String(phrase ?? '')
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}&\- ]/gu, ' ')
-        .replace(/(\p{L})\1{2,}/gu, '$1')
-        .replace(/\s+/g, ' ')
-        .trim();
+const forget = () => {
+    cache = null;
+};
+onProductsChanged(forget);
 
 export function customKeywords() {
-    cache ??= all('SELECT id, phrase, intent, product, created_at FROM custom_keywords ORDER BY phrase');
+    cache ??= all('SELECT id, phrase, intent, product, source, created_at FROM custom_keywords ORDER BY phrase');
 
     return cache;
 }
 
+const fail = (message, statusCode = 422) => {
+    throw Object.assign(new Error(message), { statusCode });
+};
+
 export function addKeyword({ phrase, intent, product = null }) {
     const clean = cleanPhrase(phrase);
 
-    if (clean.length < 2 || clean.length > 60) {
-        throw Object.assign(new Error('Kata kunci harus 2-60 huruf'), { statusCode: 422 });
-    }
-
-    if (!TEACHABLE.includes(intent)) {
-        throw Object.assign(new Error('Maksud tidak dikenal'), { statusCode: 422 });
-    }
-
-    if (intent === 'product' && !productKeys.includes(product)) {
-        throw Object.assign(new Error('Pilih produknya'), { statusCode: 422 });
-    }
+    if (clean.length < 2 || clean.length > 60) fail('Kata kunci harus 2-60 huruf');
+    if (!TEACHABLE.includes(intent)) fail('Maksud tidak dikenal');
+    if (intent === 'product' && !productKeys().includes(product)) fail('Pilih produknya');
 
     run(
-        `INSERT INTO custom_keywords (phrase, intent, product, created_at) VALUES (?, ?, ?, ?)
+        `INSERT INTO custom_keywords (phrase, intent, product, source, created_at) VALUES (?, ?, ?, 'tim', ?)
          ON CONFLICT(phrase) DO UPDATE SET intent = excluded.intent, product = excluded.product`,
         [clean, intent, intent === 'product' ? product : null, now()],
     );
-    cache = null;
+    forget();
 
     return clean;
 }
 
-/**
- * A fresh install starts with a few real examples, so "Latih bot" shows how
- * teaching works instead of an empty page. Seeded once; the team may delete them.
- */
-const STARTERS = [
-    { phrase: 'rekber', intent: 'trust' },
-    { phrase: 'jam buka', intent: 'location' },
-    { phrase: 'buka jam berapa', intent: 'location' },
-    { phrase: 'dikirim pakai apa', intent: 'shipping' },
-    { phrase: 'contoh foto', intent: 'design_reference' },
-    { phrase: 'baju tim', intent: 'product', product: 'jersey' },
-    { phrase: 'kaos panitia', intent: 'product', product: 'kaos' },
-    { phrase: 'kaos kelas', intent: 'product', product: 'kaos' },
-];
+/** Edits a keyword (bawaan or tim): its wording, and what it points at. */
+export function updateKeyword(id, { phrase, intent, product = null }) {
+    const row = get('SELECT * FROM custom_keywords WHERE id = ?', [Number(id)]) ?? fail('Kata kunci tidak ditemukan', 404);
+    const clean = phrase === undefined ? row.phrase : cleanPhrase(phrase);
+    const target = intent ?? row.intent;
+    const targetProduct = target === 'product' ? (product ?? row.product) : null;
 
-export function seedStarterKeywords() {
-    if (getSetting('keywords:seeded')) return;
+    if (clean.length < 2 || clean.length > 60) fail('Kata kunci harus 2-60 huruf');
+    if (!TEACHABLE.includes(target)) fail('Maksud tidak dikenal');
+    if (target === 'product' && !productKeys().includes(targetProduct)) fail('Pilih produknya');
+    if (get('SELECT 1 FROM custom_keywords WHERE phrase = ? AND id <> ?', [clean, row.id])) fail(`"${clean}" sudah ada`);
 
-    for (const starter of STARTERS) addKeyword(starter);
-    setSetting('keywords:seeded', now());
+    run('UPDATE custom_keywords SET phrase = ?, intent = ?, product = ? WHERE id = ?', [clean, target, targetProduct, row.id]);
+    forget();
+
+    return clean;
 }
 
 export function removeKeyword(id) {
     run('DELETE FROM custom_keywords WHERE id = ?', [Number(id)]);
-    cache = null;
+    forget();
 }
+
+/** For tests and imports that write through SQL. */
+export const forgetKeywords = forget;

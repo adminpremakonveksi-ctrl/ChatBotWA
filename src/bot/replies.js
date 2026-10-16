@@ -125,57 +125,6 @@ export const TEMPLATES = {
             '1. Yang diukur adalah panjang baju x lebar baju ya. Lebar baju diukur dari bawah lengan baju (lihat ilustrasi pada size chart).\n' +
             '2. Toleransi jahit ±2cm',
     },
-    location: {
-        group: 'Pertanyaan umum',
-        label: 'Lokasi / shareloc',
-        when: 'Pelanggan menanyakan alamat, lokasi, atau jam buka.',
-        vars: [],
-        text:
-            'Silahkan buat sharelocnya ya kak. Lokasi kami ada di Jl. H. Agus Salim, Purworejo, Jawa Tengah. Jam operasional mulai dari 8.30 sd 17.00 ya kak.\n\n' +
-            'nb. Setiap hari Minggu pelayanan offline libur.',
-    },
-    locationMap: {
-        group: 'Pertanyaan umum',
-        label: 'Lokasi: link peta',
-        when: 'Gelembung kedua setelah jawaban lokasi.',
-        vars: [],
-        text: 'https://maps.app.goo.gl/VcEFAFZVhP2x6o91A',
-    },
-    shipping: {
-        group: 'Pertanyaan umum',
-        label: 'Pengiriman dari mana',
-        when: 'Pelanggan menanyakan asal pengiriman, ongkir, atau pengiriman ke kotanya.',
-        vars: [],
-        text: 'Pengiriman dari Purworejo, Jawa Tengah ya kak, namun jangan khawatir, kami melayani pengiriman keluar kota melalui rekanan ekspedisi. Kami sudah memiliki pelanggan dari Sabang - Merauke kak, jadi kami sudah terbiasa menghandle pengiriman ke luar daerah dengan ongkos kirim ekonomis mulai dari Rp 1.000/piece. 😇',
-    },
-    trust: {
-        group: 'Pertanyaan umum',
-        label: 'Ragu / takut ditipu',
-        when: 'Pelanggan ragu, takut ditipu, atau minta testimoni. Dikirim bersama katalog review.',
-        vars: [],
-        text: 'Aman kakk, kami sudah vendor nasional kok. Kakak bisa cek portofolio kami kak, kami memiliki pelanggan dari Sabang sampai Merauke, jadi kakak tidak perlu khawatir. Setiap produk yang kami produksi juga bergaransi, misal ada ketidaksesuaian bisa digaransikan tanpa biaya tambahan. 😁',
-    },
-    moq1: {
-        group: 'Pertanyaan umum',
-        label: 'Minimal order (gelembung 1)',
-        when: 'Pelanggan menanyakan minimal order.',
-        vars: [],
-        text:
-            'Untuk minimum pemesanan, tiap produk berbeda ya kak 😊\n\n' +
-            '• Kaos: bisa mulai 1 pcs, khusus bahan Cotton Combed 30s dengan pilihan warna marun, navy, army, putih, atau hitam. Kalau pesan lebih dari 12 pcs, warna dan jenis bahan bisa request.\n' +
-            '• Bendera Printing: bisa mulai dari 1 pcs.',
-    },
-    moq2: {
-        group: 'Pertanyaan umum',
-        label: 'Minimal order (gelembung 2)',
-        when: 'Langsung setelah gelembung 1.',
-        vars: [],
-        text:
-            'Untuk produk lainnya:\n\n' +
-            '• PDL, Rompi, Jersey, serta Paket ID Card & Lanyard: minimal 6 pcs\n' +
-            '• Produk selain yang disebutkan di atas: minimal 12 pcs\n\n' +
-            'Kalau kakak sudah tahu mau bikin produk apa dan jumlahnya berapa, boleh langsung diinfokan ya kak 😄',
-    },
 };
 
 const MAX_LENGTH = 3000;
@@ -282,10 +231,4 @@ export const replies = {
     catalogLink: (link, produk) => render('catalogLink', { link, produk }),
     sizeChartWhich: () => render('sizeChartWhich'),
     sizeChartNote: () => render('sizeChartNote'),
-    location: () => render('location'),
-    locationMap: () => render('locationMap'),
-    shipping: () => render('shipping'),
-    trust: () => render('trust'),
-    moq1: () => render('moq1'),
-    moq2: () => render('moq2'),
 };

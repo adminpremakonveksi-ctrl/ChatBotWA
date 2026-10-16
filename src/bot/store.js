@@ -53,6 +53,15 @@ export function saveConversation(sessionKey, jid, values) {
     );
 }
 
+/** Back to the greeting, e.g. after CS is done or after a test. Keeps the name. */
+export function resetConversation(sessionKey, jid) {
+    run(
+        `UPDATE conversations SET step = 'new', product = NULL, return_step = NULL, handed_over_at = NULL, handover_reason = NULL
+         WHERE session_key = ? AND jid = ?`,
+        [sessionKey, jid],
+    );
+}
+
 export function markHandover(sessionKey, jid, reason) {
     saveConversation(sessionKey, jid, { step: 'handed_over', handed_over_at: now(), handover_reason: reason });
     logMessage({ sessionKey, jid, direction: 'handover', text: reason });

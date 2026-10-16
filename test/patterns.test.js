@@ -17,7 +17,8 @@ import { run } from '../src/db.js';
 
 const JPG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(20)]);
 const c = (text, step = 'awaiting_product') => classifyWithRules({ text, step });
-const clean = () => { for (const p of listPatterns()) deletePattern(p.id); };
+// Team patterns only: the seeded ones (Lokasi, ...) stay, as on a real install.
+const clean = () => { for (const p of listPatterns().filter((x) => !x.builtin)) deletePattern(p.id); };
 
 function ukuran(extra = {}) {
     const p = createPattern('Ukuran');
@@ -37,7 +38,7 @@ test('a team pattern is recognised by its keywords, typos included, before built
     assert.equal(c('ukurannya apa aja kak').pattern.name, 'Ukuran');
     assert.equal(c('sizenya gmn').intent, 'custom', 'beats the built-in size chart answer');
     assert.equal(c('lingkar dadanya berapa').intent, 'custom');
-    assert.equal(c('lokasinya dimana').intent, 'location', 'other questions untouched');
+    assert.equal(c('lokasinya dimana').pattern.name, 'Lokasi', 'other questions untouched');
 });
 
 test('a pattern needs a keyword, an answer and to be switched on', () => {

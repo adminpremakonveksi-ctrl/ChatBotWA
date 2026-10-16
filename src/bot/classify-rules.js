@@ -1,7 +1,11 @@
 import { normaliseResult } from './intents.js';
 import { customKeywords } from './keywords.js';
 import { activePatterns } from './patterns.js';
-import { PRODUCTS, productKeys } from './products.js';
+import { productKeys } from './products.js';
+import { normalise, SHORTHAND } from '../text.js';
+
+// Kept here too: callers import them from the classifier.
+export { normalise, SHORTHAND };
 
 /**
  * Offline keyword classifier. Always available, costs nothing, and is the
@@ -12,44 +16,6 @@ import { PRODUCTS, productKeys } from './products.js';
  * "other", which the engine hands to CS.
  */
 
-/**
- * Chat shorthand, written out, so "brp min order nya" matches "berapa" and
- * "minimal" keywords. Only unambiguous abbreviations: a wrong expansion is
- * worse than none.
- */
-export const SHORTHAND = {
-    brp: 'berapa', brapa: 'berapa', berapaan: 'berapa', brpa: 'berapa',
-    gmn: 'gimana', gmna: 'gimana', gimn: 'gimana', bgmn: 'bagaimana', bgmna: 'bagaimana',
-    dmn: 'dimana', dmna: 'dimana', dimn: 'dimana', mana2: 'mana',
-    bs: 'bisa', bsa: 'bisa', bisaa: 'bisa',
-    gk: 'gak', ggk: 'gak', g: 'gak', ga: 'gak', nggk: 'nggak', engga: 'nggak', ngga: 'nggak', kaga: 'gak',
-    tdk: 'tidak', tak: 'tidak',
-    blm: 'belum', blom: 'belum', belom: 'belum',
-    udh: 'udah', udah: 'udah', dah: 'udah', sdh: 'sudah', sudh: 'sudah',
-    klo: 'kalau', kalo: 'kalau', kl: 'kalau', kalu: 'kalau',
-    yg: 'yang', dgn: 'dengan', utk: 'untuk', untk: 'untuk', tp: 'tapi', jg: 'juga', sm: 'sama', aja: 'aja', aj: 'aja', ajh: 'aja',
-    pesen: 'pesan', psn: 'pesan', mesen: 'pesan', bkin: 'bikin', bikinin: 'bikin', bkn: 'bikin', mau: 'mau', mo: 'mau', pgn: 'pengen', pngn: 'pengen',
-    mnta: 'minta', mnt: 'minta', tny: 'tanya', tnya: 'tanya', nnya: 'nanya',
-    hrg: 'harga', hrga: 'harga', harganya: 'harga', ongkos: 'ongkos', okr: 'ongkir',
-    lok: 'lokasi', loc: 'lokasi', almt: 'alamat', alamt: 'alamat',
-    pcs: 'pcs', psc: 'pcs', pc: 'pcs', biji: 'pcs',
-    sz: 'size', siz: 'size', ukrn: 'ukuran', ukr: 'ukuran',
-    mksh: 'makasih', mks: 'makasih', trims: 'makasih', thx: 'makasih', tq: 'makasih',
-    kk: 'kak', kakk: 'kak', ka: 'kak', kaka: 'kak',
-};
-
-/** Lowercase, strip punctuation, squash "kakkk" -> "kak", expand shorthand, collapse spaces. */
-export function normalise(text) {
-    const words = String(text ?? '')
-        .toLowerCase()
-        .replace(/[^\p{L}\p{N}&\- ]/gu, ' ')
-        .replace(/(\p{L})\1{2,}/gu, '$1')
-        .split(/\s+/)
-        .filter(Boolean)
-        .map((word) => SHORTHAND[word] ?? word);
-
-    return ` ${words.join(' ')} `;
-}
 
 const containsWord = (haystack, needles) => needles.some((needle) => haystack.includes(` ${needle} `));
 
@@ -98,52 +64,46 @@ const nearly = (token, keyword) => {
 
 const tokens = (haystack) => haystack.trim().split(' ').filter(Boolean);
 
-const fuzzyMentions = (haystack, needles) => mentions(haystack, needles) || tokens(haystack).some((token) => needles.some((needle) => nearly(token, needle)));
 
 // Words that say "I want to order", so "mau bikin jersey, minimal berapa?" also starts the jersey flow.
 const ORDER_WORDS = ['mau', 'mo ', 'ingin', 'pengen', 'pgn', 'pingin', 'bikin', 'buat', 'pesan', 'pesen', 'order', 'produksi', 'harga', 'cetak', 'butuh', 'nyari', 'cari'];
 
-// FAQ answers, in the order they are sent when one message asks several.
-const FAQ_ORDER = ['size_chart', 'trust', 'location', 'shipping', 'moq', 'design_reference'];
+// Built-in flow answers that are not answer patterns, in the order sent when
+// one message asks several. (Lokasi, Pengiriman, Ragu, Minimal order are patterns.)
+const FAQ_ORDER = ['size_chart', 'design_reference'];
+
+/** How well one keyword matches: exact at a word start beats a typo; 0 = no match. */
+const keywordScore = (normalised, keyword) => {
+    const exact = /\d$/.test(keyword) ? normalised.includes(` ${keyword} `) : normalised.includes(` ${keyword}`);
+
+    return exact ? keyword.length + 1 : tokens(normalised).some((token) => nearly(token, keyword)) ? keyword.length : 0;
+};
+
+/** The keywords of a list that this message hits. */
+const hitsOf = (normalised, keywords) => keywords.filter((keyword) => keywordScore(normalised, keyword) > 0);
 
 /**
- * The team's own answer pattern this message triggers, if any: the one whose
- * matching phrase is longest (most specific) wins.
+ * Every active answer pattern this message triggers, most specific match
+ * first, with the keywords that triggered it.
  */
-export function findPattern(normalised) {
-    let best = null;
+export function findPatterns(normalised) {
+    const found = [];
 
     for (const pattern of activePatterns()) {
-        for (const keyword of pattern.keywords) {
-            const hit = /\d$/.test(keyword) ? normalised.includes(` ${keyword} `) : normalised.includes(` ${keyword}`);
-            const score = hit ? keyword.length + 1 : tokens(normalised).some((token) => nearly(token, keyword)) ? keyword.length : 0;
+        const score = Math.max(0, ...pattern.keywords.map((keyword) => keywordScore(normalised, keyword)));
 
-            if (score && (!best || score > best.score)) best = { pattern, score };
-        }
+        if (score) found.push({ pattern, score, hits: hitsOf(normalised, pattern.keywords) });
     }
 
-    return best?.pattern ?? null;
+    return found.sort((a, b) => b.score - a.score);
 }
 
-/** Built-in keywords plus the ones the team taught from the console. */
-function keywordsFor(intent) {
-    const taught = customKeywords().filter((k) => k.intent === intent).map((k) => k.phrase);
+/** The single best pattern for a message, or null ("Coba kalimat" in the console). */
+export const findPattern = (normalised) => findPatterns(normalised)[0]?.pattern ?? null;
 
-    return taught.length ? [...KEYWORDS[intent], ...taught] : KEYWORDS[intent];
-}
+/** Keywords of a built-in answer: all in the database (seeded, editable, deletable). */
+const keywordsFor = (intent) => customKeywords().filter((k) => k.intent === intent).map((k) => k.phrase);
 
-const KEYWORDS = {
-    size_chart: ['size chart', 'sizechart', 'size cart', 'sizecart', 'tabel ukuran', 'daftar ukuran', 'ukuran', 'ukurannya', 'size', 'sizenya', 'size nya', 'sizes', 'lingkar dada', 'panjang baju', 'lebar baju'],
-    location: ['lokasi', 'lokasinya', 'alamat', 'alamatnya', 'shareloc', 'share loc', 'sharelok', 'share lokasi', 'serlok', 'sherlok', 'maps', 'gmaps', 'google maps', 'titik lokasi', 'dimana tempatnya', 'di mana tempatnya', 'tempatnya dimana', 'tempatnya di mana', 'tokonya dimana', 'tokonya di mana', 'kantornya dimana', 'workshopnya', 'bisa datang', 'datang langsung', 'mampir', 'main ke tempat', 'ke toko', 'offline store'],
-    shipping: ['kirim dari', 'dikirim dari', 'pengiriman dari', 'ngirim dari', 'ongkir', 'ongkos kirim', 'ekspedisi', 'luar kota', 'luar pulau', 'luar jawa', 'bisa kirim', 'bisa dikirim', 'kirim ke', 'dikirim ke', 'pengiriman ke', 'kirimnya dari', 'produksi dimana', 'produksi di mana', 'lokasi produksi', 'posisi dimana', 'posisi di mana', 'jauh gak', 'jauh ga'],
-    trust: ['penipu', 'penipuan', 'nipu', 'tipu', 'ketipu', 'scam', 'abal', 'amanah', 'terpercaya', 'aman gak', 'aman ga', 'aman nggak', 'aman tidak', 'aman kan', 'beneran', 'bisa dipercaya', 'takut', 'ragu', 'khawatir', 'was was', 'legit', 'testimoni', 'testi', 'review', 'bukti', 'garansi', 'trusted', 'resmi gak', 'resmi ga'],
-    moq: ['minimal', 'minimum', 'min order', 'minorder', 'min pesan', 'min pesen', 'moq', 'paling sedikit', 'paling dikit', 'minim order', 'bisa satuan', 'satuan', 'eceran', 'ecer', 'cuma 1', 'cuma satu', 'cuma 2', 'cuma 3', 'hanya 1', 'hanya satu', '1 pcs aja', '1 aja', 'satu aja', 'sedikit aja', 'dikit aja', 'bisa sedikit'],
-    design_reference: ['referensi desain', 'referensi design', 'contoh desain', 'contoh design', 'contoh produk', 'contoh hasil', 'contoh jersey', 'contoh kaos', 'template', 'templete', 'portofolio', 'portfolio', 'katalog desain', 'katalog design', 'pilihan desain', 'pilihan design', 'model desain', 'model design', 'lihat desain', 'liat desain', 'hasil produksi', 'hasil jadinya', 'desain apa saja', 'desain apa aja', 'design apa aja', 'ada desain', 'ada design', 'ada contoh', 'minta contoh', 'minta katalog', 'katalog', 'catalog', 'pricelist', 'price list', 'daftar harga'],
-    no_reference: ['belum ada', 'belum punya', 'blm ada', 'blm punya', 'belom ada', 'gak ada', 'ga ada', 'gk ada', 'nggak ada', 'enggak ada', 'tidak ada', 'ngga ada', 'belum kepikiran', 'blm kepikiran', 'bingung', 'terserah', 'belum tau', 'blm tau', 'belum tahu', 'masih bingung', 'belum ada desain', 'belum ada referensi', 'belum', 'blm', 'belom'],
-    has_reference: ['sudah ada', 'udah ada', 'sdh ada', 'dah ada', 'sudah punya', 'udah punya', 'ada kok', 'ini desainnya', 'ini designnya', 'kayak gini', 'seperti ini', 'seperti gambar', 'kaya gini'],
-    quantity: [],
-    greeting: ['halo', 'hallo', 'helo', 'hai', 'hi', 'hello', 'permisi', 'assalamualaikum', 'asalamualaikum', 'assalamu alaikum', 'salam', 'selamat malam', 'selamat pagi', 'selamat siang', 'selamat sore', 'malam', 'pagi', 'siang', 'sore', 'p', 'test', 'tes', 'kak', 'min', 'admin', 'gan', 'sis', 'om'],
-};
 
 const QUANTITY = /(?:^|\s)(\d{1,6})\s*(?:pcs|pc|psc|biji|buah|bh|potong|ptg|lembar|lbr|set|pasang|orang|org|stel|setel|lusin|kodi|an|anan)?(?:\s|$)/;
 const QUANTITY_WORDS = [' selusin ', ' lusin', ' sekodi ', ' kodi', ' seratus', ' ratusan', ' puluhan', ' sepuluh ', ' dua puluh', ' tiga puluh', ' lima puluh'];
@@ -158,11 +118,11 @@ const SIZE_VARIANT = (text) => {
 export function findProduct(text) {
     let best = null;
 
-    const taught = customKeywords().filter((k) => k.intent === 'product' && k.product);
-    const candidates = productKeys.flatMap((key) => [
-        ...PRODUCTS[key].keywords.map((keyword) => ({ key, keyword })),
-        ...taught.filter((k) => k.product === key).map((k) => ({ key, keyword: k.phrase, taught: true })),
-    ]);
+    // Product keywords live in the database with the rest (seeded + team), only for products that still exist.
+    const known = new Set(productKeys());
+    const candidates = customKeywords()
+        .filter((k) => k.intent === 'product' && known.has(k.product))
+        .map((k) => ({ key: k.product, keyword: k.phrase, taught: k.source === 'tim' }));
 
     for (const { key, keyword, taught: isTaught } of candidates) {
         if (text.includes(` ${keyword} `) || (text.includes(` ${keyword}`) && keyword.length >= 5)) {
@@ -232,7 +192,17 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
     const intro = findIntroduction(text, { lenient: step === 'awaiting_intro' });
 
     // Everything the message asks, so one bubble with three questions gets three answers.
-    const faqs = FAQ_ORDER.filter((intent) => fuzzyMentions(normalised, keywordsFor(intent)));
+    const found = findPatterns(normalised);
+    const patternHits = found.flatMap((f) => f.hits);
+    const patterns = found.map(({ pattern: p }) => ({ id: p.id, name: p.name, bubbles: p.bubbles, after: p.after, builtin: p.builtin }));
+
+    // A built-in answer triggered only by the same words as a pattern is the
+    // pattern's job ("sizenya" -> the team's "Ukuran"); a different question
+    // in the same message still gets its built-in answer.
+    const overlaps = (a, b) => a.includes(b) || b.includes(a);
+    const faqs = FAQ_ORDER.filter((intent) =>
+        hitsOf(normalised, keywordsFor(intent)).some((hit) => !patternHits.some((p) => overlaps(hit, p))),
+    );
     const wantsProduct = Boolean(product) && containsPrefix(normalised, ORDER_WORDS);
 
     const result = (intent) =>
@@ -243,9 +213,10 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
                 sizeVariant,
                 ...intro,
                 extras: [...faqs, ...(wantsProduct ? ['product'] : [])].filter((extra) => extra !== intent),
+                patterns,
                 source: 'rules',
             },
-            productKeys,
+            productKeys(),
         );
 
     const quantity = () =>
@@ -263,14 +234,8 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
         return result('quantity');
     }
 
-    // The team's own patterns come before the built-in answers.
-    const pattern = findPattern(normalised);
-    if (pattern) {
-        return normaliseResult(
-            { intent: 'custom', pattern: { id: pattern.id, name: pattern.name, bubbles: pattern.bubbles, after: pattern.after }, product, ...intro, sizeVariant, extras: [], source: 'rules' },
-            productKeys,
-        );
-    }
+    // Answer patterns (the team's and the seeded Lokasi, Pengiriman, ...) come before the built-in answers.
+    if (patterns.length) return result('custom');
 
     // Questions the spec answers at any point in the conversation.
     if (faqs.length) return result(faqs[0]);
@@ -288,7 +253,7 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
 
     const words = tokens(normalised);
 
-    if (words.length && words.length <= 5 && words.every((word) => KEYWORDS.greeting.includes(word) || ['kak', 'ka', 'min', 'mas', 'mbak', 'selamat', 'ya', 'nih', 'sore', 'malam'].includes(word))) {
+    if (words.length && words.length <= 5 && words.every((word) => keywordsFor('greeting').includes(word) || ['kak', 'ka', 'min', 'mas', 'mbak', 'selamat', 'ya', 'nih', 'sore', 'malam'].includes(word))) {
         return result('greeting');
     }
 

@@ -5,7 +5,7 @@ import { config } from '../config.js';
 import { getSetting, run, setSetting } from '../db.js';
 import { catalogLinksFor, productLink } from './catalog.js';
 import { all as allRows } from '../db.js';
-import { PRODUCTS, productKeys } from './products.js';
+import { listProducts } from './products.js';
 
 /**
  * Files the bot sends. The team uploads them from the console (Media page);
@@ -90,21 +90,21 @@ function slotDefinitions() {
         effect,
     });
 
+    // Built from the products in the database: a product the team adds gets
+    // its slots, a deleted one loses them (its files stay on disk).
+    const products = listProducts();
+
     return [
-        ...productKeys
-            .filter((key) => PRODUCTS[key].catalog)
-            .map((key) => slot('katalog', key, null, PRODUCTS[key].name, 'Katalog', { multi: true, effect: 'Dikirim saat pelanggan menanyakan produk ini. Tanpa file, alur tetap jalan.' })),
+        ...products
+            .filter((p) => p.catalog)
+            .map((p) => slot('katalog', p.key, null, p.name, 'Katalog', { multi: true, effect: 'Dikirim saat pelanggan menanyakan produk ini. Tanpa file, alur tetap jalan.' })),
         slot('katalog', null, null, 'Katalog umum', 'Katalog', { multi: true, effect: 'Dikirim saat pelanggan minta contoh desain tapi belum menyebut produk.' }),
-        ...productKeys
-            .filter((key) => PRODUCTS[key].sizeChart)
-            .flatMap((key) => [
-                slot('size-chart', key, 'reguler', PRODUCTS[key].name, 'Size chart', { effect: 'Tanpa file, pertanyaan size chart produk ini diserahkan ke CS.' }),
-                ...(key === 'kaos'
-                    ? [
-                        slot('size-chart', key, 'boxy', `${PRODUCTS[key].name} boxy`, 'Size chart', { optional: true, effect: 'Opsional. Tanpa file, dikirim size chart reguler.' }),
-                        slot('size-chart', key, 'oversize', `${PRODUCTS[key].name} oversize`, 'Size chart', { optional: true, effect: 'Opsional. Tanpa file, dikirim size chart reguler.' }),
-                    ]
-                    : []),
+        ...products
+            .filter((p) => p.sizeChart)
+            .flatMap((p) => [
+                slot('size-chart', p.key, 'reguler', p.name, 'Size chart', { effect: 'Tanpa file, pertanyaan size chart produk ini diserahkan ke CS.' }),
+                slot('size-chart', p.key, 'boxy', `${p.name} boxy`, 'Size chart', { optional: true, effect: 'Opsional. Tanpa file, dikirim size chart reguler.' }),
+                slot('size-chart', p.key, 'oversize', `${p.name} oversize`, 'Size chart', { optional: true, effect: 'Opsional. Tanpa file, dikirim size chart reguler.' }),
             ]),
         slot('katalog-review', null, null, 'Katalog review', 'Lainnya', { multi: true, effect: 'Dikirim saat pelanggan ragu / takut ditipu. Tanpa file, hanya teks.' }),
         slot('promo', 'jersey', null, 'Pamflet promo jersey [9]', 'Lainnya', { multi: true, optional: true, effect: 'Dikirim saat pelanggan menanyakan jersey (langkah [9]). Kosongkan kalau sedang tidak ada promo.' }),

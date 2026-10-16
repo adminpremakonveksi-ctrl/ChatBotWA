@@ -65,8 +65,11 @@ export function cleanOrigin(value) {
 export function normaliseResult(result, productKeys) {
     let intent = INTENTS.includes(result?.intent) ? result.intent : 'other';
 
-    // A pattern answer without its pattern cannot be sent.
-    if (intent === 'custom' && !result?.pattern) intent = 'other';
+    // Answer patterns this message triggered, most specific first (also side answers next to another intent).
+    const patterns = (Array.isArray(result?.patterns) ? result.patterns : result?.pattern ? [result.pattern] : []).filter((p) => p && Array.isArray(p.bubbles));
+
+    // A pattern answer without a pattern cannot be sent.
+    if (intent === 'custom' && !patterns.length) intent = 'other';
     const product = productKeys.includes(result?.product) ? result.product : null;
     const sizeVariant = SIZE_VARIANTS.includes(result?.sizeVariant) ? result.sizeVariant : 'reguler';
 
@@ -82,7 +85,8 @@ export function normaliseResult(result, productKeys) {
         name: cleanName(result?.name),
         origin: cleanOrigin(result?.origin),
         sizeVariant,
-        pattern: intent === 'custom' ? result?.pattern ?? null : null,
+        patterns,
+        pattern: intent === 'custom' ? patterns[0] : null,
         source: result?.source ?? 'rules',
     };
 }
