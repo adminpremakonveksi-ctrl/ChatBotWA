@@ -57,6 +57,14 @@ export const TEMPLATES = {
             'Oke kak, untuk desainnya akan kami cek setelah CS {cs} online kembali ya kak.\n\n' +
             'Kalau perihal jumlah pemesanannya, rencana kakak mau bikin berapa produk nih?',
     },
+    askQuantityCatalog: {
+        group: 'Alur pemesanan',
+        label: '[5] Minta jumlah, setelah katalog',
+        when: 'Setelah katalog produk ber-price list (jersey, ID card, dll) dikirim. Belum ada obrolan desain, jadi tanpa kalimat "desainnya akan kami cek".',
+        vars: [],
+        // The second paragraph of [5], word for word.
+        text: 'Kalau perihal jumlah pemesanannya, rencana kakak mau bikin berapa produk nih?',
+    },
     portfolio: {
         group: 'Alur pemesanan',
         label: '[6] / [6B] Belum punya referensi',
@@ -96,7 +104,7 @@ export const TEMPLATES = {
         label: 'Link katalog WhatsApp',
         when: 'Dikirim sebagai katalog untuk produk yang memakai link katalog WhatsApp Business (atur di halaman Media).',
         vars: ['link', 'produk'],
-        text: '{link}',
+        text: 'Berikut katalog {produk} kami ya kak, silakan dicek 👇\n{link}',
     },
     jerseyPromo: {
         group: 'Alur pemesanan',
@@ -105,6 +113,23 @@ export const TEMPLATES = {
         vars: [],
         optional: true,
         text: '',
+    },
+
+    // Not in the spec: written for gaps the spec leaves (customers who only want
+    // to ask, price without a product). Plain and editable; the team owns them.
+    askFirst: {
+        group: 'Pertanyaan umum',
+        label: 'Mau tanya-tanya dulu',
+        when: 'Pelanggan bilang mau bertanya dulu ("mau nanya2 dulu", "masih survey") tanpa pertanyaan. Bot menunggu pertanyaannya, tidak menyerahkan ke CS.',
+        vars: [],
+        text: 'Boleh banget kak, silakan ditanyakan saja ya 😊',
+    },
+    priceWhich: {
+        group: 'Pertanyaan umum',
+        label: 'Harga: tanya produknya',
+        when: 'Pelanggan menanyakan harga tanpa menyebut produk.',
+        vars: [],
+        text: 'Harga untuk produk apa ya kak? Biar aku bantu kirim info yang sesuai 😉',
     },
 
     sizeChartWhich: {
@@ -223,6 +248,9 @@ export const replies = {
     afterIntro: (nama) => render('afterIntro', { nama }),
     askDesign: (produk) => render('askDesign', { produk }),
     askQuantity: () => render('askQuantity'),
+    askQuantityCatalog: () => render('askQuantityCatalog'),
+    askFirst: () => render('askFirst'),
+    priceWhich: () => render('priceWhich'),
     portfolio: () => render('portfolio'),
     jerseyTemplates: () => render('jerseyTemplates'),
     waitForCs: () => render('waitForCs'),

@@ -69,9 +69,9 @@ test('the bot says its text first, then sends the catalog link instead of pictur
 
     assert.deepEqual(
         sent.map((a) => (a.type === 'text' ? a.text.slice(0, 12) : a.type)),
-        [replies.greetKnown('Budi').slice(0, 12), SHOP.slice(0, 12), replies.askQuantity().slice(0, 12)],
+        [replies.greetKnown('Budi').slice(0, 12), replies.catalogLink(SHOP, 'Jersey').slice(0, 12), replies.askQuantityCatalog().slice(0, 12)],
     );
-    assert.equal(sent[1].text, SHOP);
+    assert.equal(sent[1].text, replies.catalogLink(SHOP, 'Jersey'), 'a lead-in, then the link');
     assert.ok(!sent.some((a) => a.type === 'file'), 'no pictures when a catalog link applies');
 });
 
@@ -83,5 +83,5 @@ test('the lead-in before the link is an editable template', () => {
         resetTemplate('catalogLink');
     }
 
-    assert.equal(replies.catalogLink(SHOP, 'Jersey'), SHOP);
+    assert.equal(replies.catalogLink(SHOP, 'Jersey'), `Berikut katalog Jersey kami ya kak, silakan dicek 👇\n${SHOP}`);
 });

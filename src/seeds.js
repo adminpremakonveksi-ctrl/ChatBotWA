@@ -603,3 +603,220 @@ export const SEED_STARTER_KEYWORDS = [
         "product": "kaos"
     }
 ];
+
+/**
+ * Seeds added after the first release, each brought to existing installs by
+ * the migration named here. A fresh install gets them too: they are merged
+ * into the lists above, so the first seeding and "Kembalikan ke bawaan"
+ * include them.
+ *
+ * To teach every client something new: add an entry with a new migration id,
+ * and a migration that calls syncSeeds(db, '<id>') (see migrations.js).
+ * Never change an entry that has shipped.
+ */
+export const SEED_ADDITIONS = [
+    {
+        migration: '005_smarter_seeds',
+        keywords: {
+            // "Mau nanya2 dulu": wants to ask first; the bot invites the question instead of closing the chat.
+            ask_first: [
+                'mau tanya', 'mau nanya', 'mau tanya tanya', 'mau nanya nanya', 'tanya dulu', 'nanya dulu', 'tanya tanya dulu',
+                'nanya nanya dulu', 'boleh tanya', 'boleh nanya', 'izin tanya', 'ijin tanya', 'izin bertanya', 'ijin bertanya',
+                'numpang tanya', 'mau bertanya', 'ingin bertanya', 'pengen tanya', 'pengen nanya', 'cuma tanya', 'cuma nanya',
+                'sekedar tanya', 'sekadar tanya', 'tanya aja', 'nanya aja', 'tanya tanya aja', 'nanya nanya aja', 'lihat lihat dulu',
+                'liat liat dulu', 'masih survey', 'masih survei', 'survey dulu', 'survei dulu', 'cari info', 'nyari info',
+                'mau info', 'minta info', 'butuh info', 'mau konsultasi', 'konsul dulu', 'belum mau pesan', 'belum mau order',
+                'belum jadi pesan', 'masih rencana', 'baru rencana', 'masih tanya tanya',
+             'tanya', 'nanya', 'bertanya', 'konsultasi',
+             'menanyakan', 'ditanyakan', 'pertanyaan',
+            ],
+            // "ok", "makasih kak" on their own: nothing to answer, so the bot does not hand over for them.
+            ack: [
+                'ok', 'oke', 'okey', 'okay', 'okeh', 'okee', 'siap', 'sip', 'baik', 'baiklah', 'noted', 'iya', 'iyah', 'ya', 'yap', 'yup',
+                'nggih', 'njih', 'enggih', 'oh', 'oo', 'oalah', 'owh', 'mantap', 'mantab', 'mantul', 'makasih', 'terima kasih',
+                'terimakasih', 'trimakasih', 'matur nuwun', 'maturnuwun', 'suwun', 'thanks', 'thank you', 'thankyou', 'ditunggu',
+                'saya tunggu', 'aku tunggu', 'tak tunggu', 'sama sama', 'paham', 'mengerti', 'dimengerti', 'deh', 'dong',
+            ],
+            // "harganya berapa?": with no product, ask which; with one, its catalog or [4].
+            price: [
+                'harga', 'kisaran harga', 'range harga', 'biaya', 'tarif', 'ongkos produksi', 'budget', 'bujet', 'murah',
+                'mahal', 'diskon', 'potongan harga', 'per pcs berapa', 'satu pcs berapa', 'per biji berapa', 'habis berapa', 'kena berapa',
+            ],
+            greeting: ['hay', 'hy', 'hey', 'misi', 'punten', 'kulonuwun', 'sugeng', 'pp', 'ping'],
+            no_reference: [
+                'belum ada gambaran', 'belum ada bayangan', 'belum kebayang', 'blank', 'gak tau', 'nggak tau', 'ga tau', 'tidak tahu',
+                'kurang tahu', 'bebas', 'ikut aja', 'ngikut', 'dibantu desain', 'dibuatin desain', 'dibikinin desain',
+                'minta dibuatkan desain', 'bisa bantu desain', 'desain dari sana', 'desain dari prema', 'belum ada logo',
+            ],
+            has_reference: [
+                'ada desain', 'sudah ada desain', 'udah ada desain', 'desain sendiri', 'sudah jadi', 'udah jadi', 'filenya ada',
+                'file nya ada', 'ada gambarnya', 'nanti saya kirim', 'nanti aku kirim', 'saya kirim', 'aku kirim', 'seperti contoh',
+                'kayak contoh', 'mirip', 'warna', 'logo', 'tulisan', 'nomor punggung', 'nama punggung',
+            ],
+            quantity: ['selusin', 'sekodi', 'satu tim', 'satu kelas', 'satu angkatan', 'satu kantor', 'sekelas', 'setim', 'seangkatan'],
+            size_chart: ['ukuran apa saja', 'ukuran apa aja', 'size apa aja', 'size apa saja', 'ada size', 'ada ukuran', 'xxl', 'xxxl', 'jumbo', 'big size', 'ukuran anak', 'size anak'],
+            design_reference: ['contoh model', 'model apa aja', 'model apa saja', 'pilihan model', 'lihat contoh', 'liat contoh', 'foto produk', 'foto hasil', 'hasil sablon', 'galeri', 'jualan apa', 'jual apa'],
+        },
+        products: {
+            jersey: ['jersey sepeda', 'jersey voli', 'jersey badminton', 'jersey esport', 'jersey kantor', 'jersey komunitas', 'seragam tim', 'kostum bola', 'kostum futsal'],
+            kaos: ['kaos event', 'kaos acara', 'kaos keluarga', 'kaos reuni', 'kaos lari', 'kaos couple', 'kaos dakwah', 'kaos lengan panjang'],
+            pdl: ['pdl angkatan', 'pdh angkatan', 'baju organisasi', 'kemeja organisasi'],
+            jaket: ['jaket komunitas', 'jaket kampus', 'jaket motor'],
+            hoodie: ['hoodie angkatan', 'hoodie komunitas', 'switer', 'sweter'],
+            'id-card-lanyard': ['tali lanyard', 'gantungan id card', 'kartu identitas'],
+            'bendera-printing': ['bendera printing', 'bendera custom', 'bendera komunitas', 'bendera kampus'],
+            'tote-bag': ['tas belanja', 'tas seminar'],
+        },
+        patterns: {
+            location: ['lokasi toko', 'alamat toko', 'alamat lengkap', 'posisi toko', 'patokan', 'rute', 'purworejo mana', 'bisa ke tempat', 'boleh datang', 'kunjungan', 'jam operasional', 'jam kerja', 'buka sampai', 'tutup jam', 'minggu buka', 'tempat dimana', 'toko dimana', 'alamat dimana', 'dimana alamat', 'dimana lokasi', 'dimana toko', 'dimana tempat', 'posisi dimana', 'daerah mana'],
+            shipping: ['bisa cod', 'cod', 'jne', 'jnt', 'j&t', 'sicepat', 'kargo', 'cargo', 'kirim luar negeri', 'sampai berapa hari', 'estimasi pengiriman', 'kirim ke luar', 'pengiriman', 'dikirim dari mana', 'kirimnya dari mana', 'dari mana kirim', 'antar ke', 'diantar', 'dikirim pakai'],
+            trust: ['aman ga', 'beneran ada', 'toko asli', 'asli gak', 'pernah order', 'feedback', 'ulasan', 'rating', 'takut kecewa', 'kualitas', 'ditipu', 'dibohongi', 'bohong', 'tertipu'],
+            moq: ['minimal pesan', 'minimal order', 'minimal berapa', 'min berapa', 'paling sedikit berapa', 'bisa 1', 'bisa satu', 'bisa 2', 'bisa dua', 'pesan 1', 'order 1', 'beli 1', 'beli satu', 'gak banyak', 'nggak banyak', 'sedikit saja', 'pesan sedikit', 'order sedikit', 'beli sedikit', 'sedikit bisa', 'pesan satuan', 'order satuan', 'jumlah minimal', 'minimal jumlah', 'pesan satu', 'order satu', 'beli satu', 'pesan dua', 'satu bisa', 'satu saja'],
+        },
+    },
+];
+
+// More ways of saying the same things, across the five chat levels (short,
+// casual, standard, Javanese/Sundanese, formal). Same migration as above.
+// Javanese words are written as customers type them; normalise() turns them
+// into Indonesian, so the stored keyword is the Indonesian form.
+SEED_ADDITIONS.push({
+    migration: '005_smarter_seeds',
+    keywords: {
+        greeting: [
+            'met malam', 'met pagi', 'met siang', 'met sore', 'malem', 'malem kak', 'slmt malam', 'assalamualaikum wr wb', 'asw',
+            'ass', 'samlekom', 'shalom', 'om swastiastu', 'halo admin', 'halo min', 'hai kak', 'hallo kak', 'helo kak', 'misi kak',
+            'sugeng enjing', 'sugeng siang', 'sugeng sonten', 'sugeng dalu', 'wilujeng enjing', 'wilujeng wengi', 'sampurasun', 'rampes',
+            'kulonuwun mas', 'nuwun sewu', 'test', 'tes',
+        ],
+        size_chart: [
+            'size chartnya', 'size chat', 'sizechat', 'tabel size', 'list ukuran', 'list size', 'pilihan ukuran', 'pilihan size',
+            'ukuran tersedia', 'size tersedia', 'size ready', 'ukuran ready', 'ukuran paling besar', 'ukuran paling kecil', 'size terbesar',
+            'size terkecil', 'ukuran s', 'ukuran m', 'ukuran l', 'ukuran xl', 'ukuran 3xl', 'ukuran 4xl', 'ukuran 5xl', '3xl', '4xl', '5xl',
+            'size dewasa', 'ukuran dewasa', 'ukuran cewek', 'ukuran cowok', 'size cewek', 'size cowok', 'ukuran wanita', 'ukuran pria',
+            'lebar dada', 'panjang lengan', 'ld berapa', 'pb berapa', 'muat badan', 'badan gede', 'badan besar', 'kegedean', 'kekecilan',
+            'pas di badan', 'cara ukur', 'cara mengukur', 'ukuranipun', 'ukurane pinten', 'ukurane nopo mawon', 'size e',
+        ],
+        design_reference: [
+            'contoh jadinya', 'contoh yang sudah jadi', 'hasil jadi', 'hasil karya',  'project sebelumnya', 'proyek sebelumnya',
+            'orderan sebelumnya', 'pesanan sebelumnya', 'yang pernah dibuat', 'yang pernah dibikin', 'pernah bikin apa aja', 'desain desain',
+            'desain terbaru', 'model terbaru', 'model kekinian', 'desain kekinian', 'inspirasi desain', 'ide desain', 'mockup', 'mock up',
+            'katalognya', 'catalognya', 'e katalog', 'brosur', 'pamflet', 'list produk', 'daftar produk', 'produk apa aja', 'produk apa saja',
+            'bisa bikin apa aja', 'bisa bikin apa saja', 'jual apa aja', 'melayani apa saja', 'menerima pembuatan apa', 'telegram',
+            'conto desain', 'contone', 'conto', 'nyuwun conto', 'pirsani contone',
+        ],
+        no_reference: [
+            'belum ada konsep', 'belum ada ide', 'belum punya ide', 'belum punya konsep', 'belum punya gambaran', 'belum nemu',
+            'belum dapat', 'belum dapet', 'nggak punya', 'gak punya', 'tidak punya', 'nol', 'kosong', 'masih kosong', 'masih mikir',
+            'masih dipikir', 'nanti dipikir', 'mau dibuatkan', 'tolong buatkan', 'tolong desainkan', 'desainkan', 'bantu buatkan',
+            'minta didesainkan', 'minta dibantu', 'dibantu saja', 'dibantu aja', 'serahkan ke kakak', 'pilihkan', 'rekomendasi kakak',
+            'saran kakak', 'yang bagus menurut kakak', 'yang penting bagus', 'yang simple aja', 'simpel aja', 'polos aja',
+            'dereng gadhah', 'durung nduwe', 'mboten gadhah', 'ora nduwe', 'dereng kepikiran', 'durung kepikiran', 'bingung mas',
+            'teu acan', 'teu gaduh', 'acan aya',
+        ],
+        has_reference: [
+            'gambar', 'foto', 'screenshot', 'ss', 'pdf', 'cdr', 'corel', 'psd', 'png', 'jpg', 'vektor', 'vector', 'pantone', 'motif',
+            'konsep', 'tema', 'kombinasi', 'gradasi', 'sablon depan', 'sablon belakang', 'bordir', 'printing', 'polos depan', 'nama dan nomor',
+            'ini contohnya', 'ini contoh', 'ini referensinya', 'ini gambarnya', 'nih kak', 'begini kak', 'kaya gini kak', 'model begini',
+            'kados niki', 'koyo ngene', 'kaya ngene', 'niki desaine', 'iki desaine', 'sampun gadhah', 'wis nduwe',
+        ],
+        quantity: [
+                  'ratusan', 'puluhan', 'dua lusin', 'tiga lusin',
+            'setengah lusin', 'satu lusin', 'satu angkatan', 'satu sekolah', 'satu desa', 'satu rt', 'satu rw', 'satu komunitas', 'satu divisi',
+            'semua anggota', 'semua karyawan', 'semua siswa', 'buat satu tim', 'buat sekelas',   
+            'sakkelas', 'sak kelas', 'sak angkatan', 'sak tim',
+        ],
+        ask_first: [
+            'tanya dikit', 'nanya dikit', 'tanya sedikit', 'nanya sedikit', 'tanya bentar', 'nanya bentar', 'tanya sebentar', 'boleh nanya ga',
+            'boleh tanya ga', 'mau minta info', 'mau cari info', 'lagi cari info', 'lagi nyari', 'lagi cari vendor', 'cari vendor', 'nyari vendor',
+            'bandingin', 'membandingkan', 'perbandingan', 'masih bandingin', 'masih pikir pikir', 'pikir pikir dulu', 'mau diskusi',
+            'diskusi dulu', 'rapat dulu', 'tanya teman dulu', 'tanya ketua dulu', 'nunggu keputusan', 'belum fix', 'belum pasti',
+            'mau tanya tanya', 'kepo', 'penasaran', 'badhe nyuwun pirsa', 'badhe tanglet', 'arep takon', 'tak takon', 'takon sik',
+            'takon riyin', 'nyuwun informasi', 'hoyong naros', 'bade naros', 'naros heula', 'wawancara',
+        ],
+        ack: [
+            'oke kak', 'ok kak', 'okey kak', 'siap kak', 'sip kak', 'baik kak', 'iya kak', 'ya kak', 'oke min', 'siap min', 'oke deh kak',
+            'oke siap kak', 'oke sip', 'oke noted', 'noted kak', 'wokey', 'okelah', 'ok lah', 'yaudah', 'ya sudah', 'yasudah', 'udah cukup',
+            'cukup kak', 'sudah jelas', 'jelas kak', 'paham kak', 'mengerti kak', 'oke paham', 'siap paham', 'mantap kak', 'keren kak',
+            'thank', 'thanks kak', 'tengkyu', 'makasi', 'makaci', 'makasih banyak', 'terima kasih banyak', 'terimakasih banyak',
+            'nuhun', 'hatur nuhun', 'mangga', 'monggo', 'sendiko dawuh', 'siap mas', 'siap mbak', 'sami sami', 'sami-sami', 'ok mas',
+            'injih mas', 'nggih mas', 'nggih mbak', 'mantep', 'joss', 'sae', 'wis cukup',
+        ],
+        price: [
+            'harga jual', 'harga jasa', 'harga sablon', 'harga bordir', 'harga bahan', 'harga paket', 'harga promo', 'harga terbaru',
+            'harga per pcs', 'harga perpcs', 'harga satuannya', 'harga totalnya', 'total biaya', 'estimasi biaya', 'estimasi harga',
+            'perkiraan harga', 'penawaran harga', 'minta penawaran', 'quotation',  'anggaran',   'ongkosnya',
+            'bayarnya berapa', 'total berapa', 'jadi berapa', 'semua berapa', 'kena berapaan', 'mulai dari berapa', 'mulai berapa',
+            'paling murah', 'termurah', 'yang murah', 'kemahalan', 'nego', 'bisa nego', 'bisa kurang', 'bisa dikurangi', 'harga pelajar',
+            'harga mahasiswa', 'hargane', 'reginipun', 'regi pinten', 'rego piro', 'pira regane', 'sabaraha hargana', 'hargana',
+        ],
+    },
+    products: {
+        jersey: ['jersey tim', 'jersey sekolah', 'jersey kampus', 'jersey kelas', 'jersey custom', 'jersey printing full', 'jersey full print', 'baju bal', 'klambi bal', 'kaos bal', 'seragam voli', 'seragam basket', 'seragam badminton', 'kostum tim'],
+        kaos: ['kaos custom', 'kaos desain sendiri', 'kaos komunitas motor', 'kaos organisasi', 'kaos kantor', 'kaos promosi', 'kaos kampanye', 'kaos partai', 'kaos 17an', 'kaos tujuh belasan', 'kaos agustusan', 'kaos jalan sehat', 'kaos fun run', 'kaos sekolah', 'kaos ospek', 'kaos mpls', 'kaos pengajian', 'kaos tpq', 'klambi kaos', 'kaos lengan pendek'],
+        pdl: ['baju pdl', 'seragam pdl', 'pdl himpunan', 'pdh himpunan', 'pdl bem', 'baju himpunan', 'baju bem', 'seragam lapangan kampus'],
+        kemeja: ['kemeja kantor', 'kemeja seragam', 'kemeja kerja', 'kemeja batik', 'seragam batik', 'hem kantor', 'kemeja lengan panjang', 'kemeja lengan pendek'],
+        polo: ['polo kantor', 'polo seragam', 'kaos polo kantor', 'polo komunitas', 'polo bordir'],
+        jaket: ['jaket organisasi', 'jaket himpunan', 'jaket bem', 'jaket kerja', 'jaket kantor', 'jaket couch', 'jaket coach', 'jaket parka', 'jaket varsity'],
+        hoodie: ['hoodie kelas', 'hoodie kampus', 'hoodie custom', 'hoodie sablon', 'hoodie bordir', 'jumper', 'sweter angkatan'],
+        topi: ['topi komunitas', 'topi bordir', 'topi sablon', 'topi baseball', 'topi rimba', 'topi custom', 'kupluk'],
+        rompi: ['rompi kerja', 'rompi organisasi', 'rompi relawan', 'rompi proyek', 'rompi safety'],
+        'tote-bag': ['tas kanvas', 'tas souvenir', 'tas custom', 'goodie bag seminar', 'tas sablon'],
+        'id-card-lanyard': ['tali id card', 'tali nametag', 'id card panitia', 'id card karyawan', 'id card peserta', 'kartu peserta'],
+        'gantungan-kunci': ['gantungan kunci custom', 'souvenir gantungan', 'ganci akrilik', 'gantungan akrilik'],
+        'bendera-printing': ['bendera organisasi', 'bendera sekolah', 'bendera partai', 'bendera merah putih', 'bendera umbul umbul', 'umbul-umbul'],
+        'seragam-sekolah': ['seragam kelas', 'seragam pramuka', 'seragam paskibra', 'seragam pmr', 'baju paskibra', 'baju pmr', 'seragam mpk', 'seragam olahraga'],
+    },
+    patterns: {
+        location: [
+            'lokasinya dmn', 'alamatnya dmn', 'tempatnya dmn', 'kantornya di mana', 'workshop', 'konveksinya dimana', 'konveksi dimana',
+            'produksinya dimana', 'gudangnya dimana', 'tokonya buka', 'buka hari apa', 'buka jam', 'jam berapa buka', 'jam berapa tutup',
+            'hari minggu buka', 'minggu libur', 'libur hari apa', 'sabtu buka', 'bisa diambil', 'ambil sendiri', 'ambil di tempat',
+            'ambil langsung', 'pickup', 'pick up', 'datang ke toko', 'datang ke konveksi', 'ke lokasi', 'ke workshop', 'survei tempat',
+            'lihat bahan langsung', 'cek bahan langsung', 'pegang bahan', 'kirim lokasi', 'kirim shareloc', 'minta lokasi', 'minta alamat',
+            'minta maps', 'link maps', 'google map', 'titik', 'purworejo sebelah mana', 'agus salim', 'dekat mana', 'deket mana',
+            'lokasine', 'alamate', 'panggenanipun', 'nggone ning endi',  'kantore', 'wonten pundi', 'dimana kak',
+        ],
+        shipping: [
+            'ongkirnya', 'ongkir berapa', 'ongkos kirimnya', 'biaya kirim', 'biaya pengiriman', 'kirim pakai', 'kirim lewat', 'via apa',
+            'pakai ekspedisi apa', 'ekspedisinya apa', 'jnt cargo', 'jne trucking', 'lion parcel', 'anteraja', 'ninja',  'gosend',
+            'grab express', 'paxel', 'travel',  'dakota', 'indah cargo', 'kirim ke rumah', 'diantar ke rumah', 'sampai rumah',
+            'sampai alamat', 'bisa antar', 'bisa diantar', 'antar jemput', 'free ongkir', 'gratis ongkir', 'subsidi ongkir',
+            'luar provinsi', 'luar negeri', 'antar kota', 'antar pulau', 'sumatra', 'sumatera', 'kalimantan', 'sulawesi', 'papua', 'ntt', 'ntb',
+            'berapa lama sampai', 'berapa hari sampai', 'nyampe berapa hari', 'lama pengiriman',  'packing', 'dikintun pundi',
+            'saged dikintun', 'iso dikirim', 'kintun mriki', 'dikirim mriki', 'dikirim ke sini', 'kirim ke sini',
+        ],
+        trust: [
+            'beneran kan', 'asli kan', 'resmi', 'legal', 'terdaftar', 'punya izin',    'badan usaha', 'sudah lama berdiri',
+            'berdiri sejak', 'berapa tahun', 'pengalaman', 'jam terbang', 'sudah berapa lama',    
+            'kepuasan', 'puas', 'kecewa', 'zonk', 'ga sesuai', 'tidak sesuai', 'nggak sesuai', 'beda sama foto', 'retur', 'refund', 'uang kembali',
+            'jaminan', 'dijamin', 'bisa dipertanggungjawabkan', 'kepercayaan', 'percaya', 'yakin', 'meyakinkan', 'kredibel', 'kredibilitas',
+            'track record', 'rekam jejak', 'bukti pengiriman', 'bukti order', 'bukti transfer', 'google review', 'bintang', 'instagramnya',
+            'ig resmi', 'akun resmi', 'shopee', 'tokopedia', 'marketplace', 'rekening bersama', 'bayar setelah barang', 'bayar di tempat',
+            'apus apus', 'ngapusi', 'diapusi', 'tenan to', 'temenan', 'saestu', 'amanah mboten', 'percados', 'leres',
+        ],
+        moq: [
+            'min pesan berapa', 'minimal pemesanan', 'minimum pemesanan', 'minimum order', 'min beli', 'minimal beli', 'minimal produksi',
+            'minimum produksi', 'jumlah minimum', 'jumlah minimal', 'paling sedikit', 'paling dikit', 'syarat minimal', 'ketentuan minimal',
+            'harus berapa', 'harus banyak', 'wajib berapa', 'bisa satuan kah', 'terima satuan', 'menerima satuan', 'satuan bisa', 'pcs aja',
+            'cuma 5', 'cuma 6', 'cuma 10', 'hanya 5', 'hanya 6', 'hanya 10', 'cuma butuh', 'hanya butuh', 'cuma perlu', 'butuh sedikit',
+            'jumlah sedikit', 'jumlahnya sedikit', 'dikit doang', 'sedikit doang', 'ga banyak', 'tidak banyak', 'sak pcs', 'sakpcs', 'siji wae',
+            'setunggal mawon', 'sekedhik mawon', 'minimale', 'minimal pinten', 'paling sithik', 'paling sekedhik', 'sabaraha minimal',
+        ],
+    },
+});
+
+// Every addition is part of the full seed lists too.
+for (const add of SEED_ADDITIONS) {
+    for (const [intent, phrases] of Object.entries(add.keywords ?? {})) {
+        SEED_KEYWORDS[intent] = [...new Set([...(SEED_KEYWORDS[intent] ?? []), ...phrases])];
+    }
+    for (const [key, phrases] of Object.entries(add.products ?? {})) {
+        const product = SEED_PRODUCTS.find((p) => p.key === key);
+        if (product) product.keywords = [...new Set([...product.keywords, ...phrases])];
+    }
+    for (const [builtin, phrases] of Object.entries(add.patterns ?? {})) {
+        const pattern = SEED_PATTERNS.find((p) => p.builtin === builtin);
+        if (pattern) pattern.keywords = [...new Set([...pattern.keywords, ...phrases])];
+    }
+}

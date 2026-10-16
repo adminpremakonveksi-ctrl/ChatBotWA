@@ -57,6 +57,9 @@ Label intent:
 - no_reference: menjawab pertanyaan desain dengan "belum ada", "bingung", "terserah".
 - has_reference: menjawab pertanyaan desain dengan deskripsi desain atau mengirim gambar.
 - quantity: menyebut jumlah pesanan ("50 pcs", "2 lusin", "sekitar 30an").
+- price: tanya harga/biaya TANPA menyebut produk ("harganya berapa kak?", "kisaran biayanya?"). Kalau produknya disebut, pakai product.
+- ask_first: hanya bilang mau bertanya/lihat-lihat dulu tanpa pertanyaan ("mau nanya2 dulu", "masih survey", "izin bertanya").
+- ack: hanya menanggapi tanpa hal baru ("ok kak", "siap", "makasih", "baik ditunggu").
 - other: selain di atas, atau kamu ragu. Pesan "other" akan diteruskan ke CS manusia.
 
 Kalau satu pesan berisi beberapa hal, pilih yang paling perlu dijawab dengan urutan:

@@ -1,4 +1,4 @@
-import { normaliseResult } from './intents.js';
+import { cleanName, normaliseResult } from './intents.js';
 import { customKeywords } from './keywords.js';
 import { activePatterns } from './patterns.js';
 import { productKeys } from './products.js';
@@ -76,7 +76,7 @@ const FAQ_ORDER = ['size_chart', 'design_reference'];
 const keywordScore = (normalised, keyword) => {
     const exact = /\d$/.test(keyword) ? normalised.includes(` ${keyword} `) : normalised.includes(` ${keyword}`);
 
-    return exact ? keyword.length + 1 : tokens(normalised).some((token) => nearly(token, keyword)) ? keyword.length : 0;
+    return exact ? keyword.length + 1 : tokens(normalised).some((token) => !NOT_FUZZY.has(token) && nearly(token, keyword)) ? keyword.length : 0;
 };
 
 /** The keywords of a list that this message hits. */
@@ -137,6 +137,8 @@ export function findProduct(text) {
 
     // No exact hit: allow a typo on single-word product names.
     for (const token of tokens(text)) {
+        if (NOT_FUZZY.has(token)) continue;
+
         const hit = candidates.find(({ keyword }) => nearly(token, keyword));
         if (hit) return hit.key;
     }
@@ -144,10 +146,11 @@ export function findProduct(text) {
     return null;
 }
 
-const LEAD = '(?:(?:ini\\s+)?(?:dengan|dgn)|saya|aku|sy|ak|gw|gue|ini|namaku|nama\\s+(?:saya|aku|sy)|nama|perkenalkan|kenalin)';
+// Indonesian, Javanese ("kulo Budi saking Purworejo", "nami kula Sri") and Sundanese ("abdi Asep ti Garut").
+const LEAD = '(?:(?:ini\\s+)?(?:dengan|dgn|kalih|kaliyan)|saya|aku|sy|ak|gw|gue|ini|namaku|nama\\s+(?:saya|aku|sy)|nama|perkenalkan|kenalin|nami\\s+(?:kulo|kula|abdi)|kulo|kula|abdi|asmanipun|jenengku|jenenge\\s+aku|aranku)';
 const NAME = "([\\p{L}']+(?:\\s+[\\p{L}']+){0,2}?)";
-const ORIGIN_LEAD = '(?:dari|dr|asal(?:\\s+dari)?|tinggal\\s+di|domisili|di)';
-const STOP = '(?=\\s+(?:mau|mo|ingin|pengen|pgn|kak|min|ya|yaa|nih|mohon|izin|ijin|tanya|nanya|butuh|perlu|pesan|pesen|order|bikin|buat|minta|kalau|kalo|untuk|utk|ada)\\b|\\s*$)';
+const ORIGIN_LEAD = '(?:dari|dr|asal(?:\\s+dari)?|tinggal\\s+di|domisili|di|saking|seko|soko|teko|ti|ten|teng|neng|nang)';
+const STOP = '(?=\\s+(?:mau|mo|ingin|pengen|pgn|kak|min|ya|yaa|nih|mohon|izin|ijin|tanya|nanya|butuh|perlu|pesan|pesen|order|bikin|buat|minta|kalau|kalo|untuk|utk|ada|badhe|bade|ajeng|arep|hoyong|nyuwun|takon|damel|wonten|mas|mbak|mba|pak|bu|nggih|njih)\\b|\\s*$)';
 
 /** Pulls a name and origin out of "saya Budi dari Jogja", "Budi, Magelang", ... */
 export function findIntroduction(raw, { lenient = false } = {}) {
@@ -178,12 +181,69 @@ export function findIntroduction(raw, { lenient = false } = {}) {
             name = bare[1];
             origin = bare[2];
         } else if (/^[\p{L}' ]+$/u.test(text) && text.split(' ').length <= 3) {
-            name = text;
+            // "budi jogja": a known place at the end is the origin, not a surname.
+            const words = text.split(' ');
+            const last = words.at(-1).toLowerCase();
+
+            if (words.length >= 2 && PLACES.has(last)) {
+                name = words.slice(0, -1).join(' ');
+                origin = words.at(-1);
+            } else {
+                name = text;
+            }
         }
     }
 
     return { name, origin };
 }
+
+// Places customers often name bare ("budi jogja"); around Purworejo first, then big cities.
+const PLACES = new Set([
+    'purworejo', 'kutoarjo', 'kebumen', 'magelang', 'wonosobo', 'temanggung', 'jogja', 'yogya', 'yogyakarta', 'jogjakarta', 'sleman',
+    'bantul', 'kulonprogo', 'wates', 'gunungkidul', 'klaten', 'solo', 'surakarta', 'semarang', 'salatiga', 'kendal', 'banjarnegara',
+    'purbalingga', 'purwokerto', 'banyumas', 'cilacap', 'kebumen', 'gombong', 'muntilan', 'mungkid', 'boyolali', 'sragen', 'karanganyar',
+    'sukoharjo', 'wonogiri', 'pati', 'kudus', 'jepara', 'demak', 'rembang', 'blora', 'grobogan', 'pekalongan', 'batang', 'pemalang',
+    'tegal', 'brebes', 'jakarta', 'bandung', 'surabaya', 'malang', 'bogor', 'depok', 'bekasi', 'tangerang', 'cirebon', 'madiun',
+    'kediri', 'ngawi', 'ponorogo', 'pacitan', 'medan', 'makassar', 'palembang', 'lampung', 'bali', 'denpasar', 'balikpapan', 'samarinda',
+    'pontianak', 'banjarmasin', 'manado', 'padang', 'pekanbaru', 'batam', 'jambi', 'bengkulu', 'aceh', 'ambon', 'jayapura', 'kupang', 'mataram',
+]);
+
+// Everyday words a product name must never be "corrected" into ("baik" is not "batik").
+const NOT_FUZZY = new Set([
+    'baik', 'kasih', 'terima', 'makasih', 'siap', 'mana', 'sama', 'saja', 'kalau', 'harga', 'tanya', 'nanya', 'belum', 'sudah', 'bagus',
+    'besar', 'kecil', 'minta', 'semua', 'sedikit', 'banyak', 'untuk', 'dengan', 'ingin', 'pesan', 'kirim', 'bikin', 'warna', 'logo', 'kamu',
+    'kapan', 'tapi', 'bisa', 'boleh', 'lihat', 'liat', 'model', 'bahan', 'jumlah', 'tempat', 'bayar', 'transfer', 'nanti', 'besok', 'hari',
+    'pakai', 'pake', 'kayak', 'kaya', 'masih', 'cari', 'dulu', 'lagi', 'tolong', 'mohon', 'info', 'tahu', 'paham', 'ditunggu', 'tunggu',
+    'gimana', 'dimana', 'bagaimana', 'kenapa', 'mengapa', 'berapa', 'siapa', 'kapan', 'teman', 'tidak', 'nggak', 'bukan', 'karena',
+    'sekarang', 'sudah', 'semoga', 'nomor', 'warna', 'kirim', 'dikirim', 'sablon', 'bordir', 'gambar', 'desain', 'design',
+]);
+
+// Words that ride along with an acknowledgement without adding anything.
+const ACK_FILLERS = new Set(['kak', 'min', 'mas', 'mbak', 'mba', 'bu', 'pak', 'gan', 'sis', 'ya', 'nih', 'deh', 'dong', 'kok', 'banyak', 'sekali', 'ok', 'yang', 'kalau', 'begitu', 'gitu', 'sudah', 'udah',
+    'atas', 'info', 'infonya', 'informasi', 'informasinya', 'penjelasannya', 'bantuannya', 'responnya', 'balasannya', 'jawabannya', 'to', 'lho', 'loh', 'yo', 'sanget', 'nggeh',
+    'sangat', 'membantu', 'terbantu', 'bermanfaat', 'jelas', 'lengkap', 'kakak', 'semuanya', 'ya', 'kembali']);
+
+/**
+ * True when the message is only these phrases plus filler words; with
+ * allowEmpty, also when there are no words at all (one emoji, a sticker).
+ */
+function onlyPhrases(normalised, phrases, fillers, allowEmpty = false) {
+    let rest = normalised;
+    let hit = false;
+
+    for (const phrase of [...phrases].sort((a, b) => b.length - a.length)) {
+        while (rest.includes(` ${phrase} `)) {
+            rest = rest.replace(` ${phrase} `, ' ');
+            hit = true;
+        }
+    }
+
+    const left = tokens(rest);
+
+    return left.every((word) => fillers.has(word)) && (hit || (allowEmpty && !tokens(normalised).length));
+}
+
+const GREETING_FILLERS = new Set(['kak', 'min', 'mas', 'mbak', 'mba', 'admin', 'gan', 'sis', 'bu', 'pak', 'selamat', 'ya', 'nih', 'pagi', 'siang', 'sore', 'malam', 'wr', 'wb', 'semua', 'dulu']);
 
 export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
     const normalised = normalise(text);
@@ -192,7 +252,9 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
     const intro = findIntroduction(text, { lenient: step === 'awaiting_intro' });
 
     // Everything the message asks, so one bubble with three questions gets three answers.
-    const found = findPatterns(normalised);
+    // Answered in the order the customer asked, not by how strongly each matched.
+    const at = (f) => Math.min(...f.hits.map((hit) => normalised.indexOf(` ${hit}`)).filter((i) => i >= 0), Infinity);
+    const found = findPatterns(normalised).sort((a, b) => at(a) - at(b));
     const patternHits = found.flatMap((f) => f.hits);
     const patterns = found.map(({ pattern: p }) => ({ id: p.id, name: p.name, bubbles: p.bubbles, after: p.after, builtin: p.builtin }));
 
@@ -242,6 +304,13 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
 
     if (product) return result('product');
 
+    // "harganya berapa?" without a product; then "mau nanya2 dulu" (a question announced, none asked).
+    if (mentions(normalised, keywordsFor('price'))) return result('price');
+    if (mentions(normalised, keywordsFor('ask_first'))) return result('ask_first');
+
+    // "ok kak", "siap makasih", or only an emoji: nothing to answer, nothing to hand over.
+    if (!hasImage && onlyPhrases(normalised, keywordsFor('ack'), ACK_FILLERS, true)) return result('ack');
+
     if (step === 'awaiting_design' && tokens(normalised).length >= 3) {
         // A sentence about what they want is the design description.
         return result('has_reference');
@@ -249,11 +318,13 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
 
     if (quantity()) return result('quantity');
 
-    if (intro.name) return result('introduction');
+    // Only a real-looking name: "kulo nuwun" has a lead word but no name.
+    if (intro.name && cleanName(intro.name)) return result('introduction');
 
     const words = tokens(normalised);
 
-    if (words.length && words.length <= 5 && words.every((word) => keywordsFor('greeting').includes(word) || ['kak', 'ka', 'min', 'mas', 'mbak', 'selamat', 'ya', 'nih', 'sore', 'malam'].includes(word))) {
+    // Only greetings ("met malam kak", "sugeng dalu mas"), phrases included.
+    if (words.length && words.length <= 6 && onlyPhrases(normalised, keywordsFor('greeting'), GREETING_FILLERS)) {
         return result('greeting');
     }
 

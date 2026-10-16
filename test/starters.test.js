@@ -41,16 +41,16 @@ test('keywords are stored the way messages are compared, so shorthand matches', 
 
 test('built-in keywords can be edited and deleted like the team ones', () => {
     // A multi-word phrase with no look-alike in the list (single words also match typos of each other).
-    const kw = customKeywords().find((k) => k.phrase === 'hasil jadinya');
+    const kw = customKeywords().find((k) => k.phrase === 'hasil produksi');
     assert.equal(kw.source, 'bawaan');
-    assert.equal(c('boleh lihat hasil jadinya').intent, 'design_reference');
+    assert.equal(c('boleh lihat hasil produksi').intent, 'design_reference');
 
-    updateKeyword(kw.id, { phrase: 'hasil jadi prema' });
-    assert.notEqual(c('boleh lihat hasil jadinya').intent, 'design_reference');
-    assert.equal(c('boleh lihat hasil jadi prema').intent, 'design_reference');
+    updateKeyword(kw.id, { phrase: 'karya prema' });
+    assert.notEqual(c('boleh lihat hasil produksi').intent, 'design_reference');
+    assert.equal(c('boleh lihat karya prema').intent, 'design_reference');
 
     removeKeyword(kw.id);
-    assert.notEqual(c('boleh lihat hasil jadi prema').intent, 'design_reference');
+    assert.notEqual(c('boleh lihat karya prema').intent, 'design_reference');
 });
 
 test('products: add, edit, and delete (jersey included)', () => {
@@ -135,4 +135,26 @@ test('upgrading an existing client database keeps everything the team changed', 
     assert.deepEqual(runMigrations(old), []);
     assert.equal(old.prepare('SELECT COUNT(*) AS n FROM patterns WHERE builtin IS NOT NULL').get().n, SEED_PATTERNS.length);
     old.close();
+});
+
+test('a later seed update never brings back what the team deleted', async () => {
+    const { db } = await import('../src/db.js');
+    const { syncSeeds } = await import('../src/migrations.js');
+
+    const kw = customKeywords().find((k) => k.phrase === 'mau tanya' && k.source === 'bawaan');
+    removeKeyword(kw.id);
+
+    const lokasi = activePatterns().find((p) => p.builtin === 'location');
+    updatePattern(lokasi.id, { keywords: lokasi.keywords.filter((k) => k !== 'patokan') });
+
+    syncSeeds(db, '005_smarter_seeds');
+    const { forgetKeywords } = await import('../src/bot/keywords.js');
+    forgetKeywords();
+
+    assert.ok(!customKeywords().some((k) => k.phrase === 'mau tanya'), 'deleted keyword stays deleted');
+    assert.ok(!listPatterns().find((p) => p.builtin === 'location').keywords.includes('patokan'), 'removed pattern keyword stays removed');
+
+    // "Kembalikan ke bawaan" is explicit: the original keywords come back.
+    resetPattern(lokasi.id);
+    assert.ok(listPatterns().find((p) => p.builtin === 'location').keywords.includes('patokan'));
 });

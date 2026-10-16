@@ -15,6 +15,9 @@ export const INTENTS = [
     'no_reference', //     answering "what design?": has none yet
     'has_reference', //    answering "what design?": describes it or sends a picture
     'quantity', //         states how many pieces
+    'price', //            asks the price without naming a product
+    'ask_first', //        "mau nanya2 dulu": announces a question, asks nothing yet
+    'ack', //              "ok", "siap", "makasih": nothing to answer
     'custom', //           matches an answer pattern the team built (carries `pattern`)
     'other', //            anything else - handed to CS
 ];
@@ -30,6 +33,11 @@ const NOT_A_NAME = new Set([
     'mohon', 'tolong', 'info', 'informasi', 'kok', 'apa', 'gimana', 'bagaimana', 'berapa', 'terima', 'kasih',
     'makasih', 'oke', 'ok', 'siap', 'baik', 'sama', 'dengan', 'dgn', 'tidak', 'gak', 'ga', 'nggak', 'enggak',
     'assalamualaikum', 'waalaikumsalam', 'salam', 'kenal',
+    // Javanese / Sundanese words that are not names
+    'kulo', 'kula', 'badhe', 'bade', 'ajeng', 'arep', 'nggih', 'njih', 'inggih', 'saking', 'seko', 'soko', 'wonten', 'nopo',
+    'pinten', 'sampun', 'dereng', 'matur', 'nuwun', 'suwun', 'sugeng', 'dalu', 'enjing', 'sonten', 'punten', 'hoyong',
+    'damel', 'takon', 'nyuwun', 'pripun', 'piye', 'mboten', 'ora', 'niki', 'iki', 'mriki', 'mangke', 'riyin', 'ngapunten',
+    'monggo', 'mangga', 'sami', 'ten', 'teng', 'neng', 'oke', 'sip', 'mantap', 'makasih',
 ]);
 
 /**
@@ -75,7 +83,7 @@ export function normaliseResult(result, productKeys) {
 
     // Further things the same message asked, answered before the main intent.
     const extras = [...new Set(Array.isArray(result?.extras) ? result.extras : [])].filter(
-        (extra) => INTENTS.includes(extra) && extra !== intent && !['greeting', 'introduction', 'other'].includes(extra),
+        (extra) => INTENTS.includes(extra) && extra !== intent && !['greeting', 'introduction', 'other', 'ack', 'ask_first'].includes(extra),
     );
 
     return {

@@ -33,7 +33,8 @@ test('several questions get every answer, and the bot question comes last', () =
     const r = c('mau bikin jersey, minimal order berapa? bisa kirim ke makassar?');
     const { actions, patch } = decide({ step: 'awaiting_product' }, r, media);
 
-    assert.deepEqual(texts(actions), [seedText('shipping', 0), seedText('moq', 0), seedText('moq', 1), replies.askQuantity()]);
+    // In the order asked: minimum order, then shipping.
+    assert.deepEqual(texts(actions), [seedText('moq', 0), seedText('moq', 1), seedText('shipping', 0), replies.askQuantityCatalog()]);
     assert.equal(patch.step, 'awaiting_quantity');
     assert.equal(actions.filter((a) => a.type === 'media').length, 1, 'jersey catalog');
 });
@@ -61,17 +62,17 @@ test('short words are never fuzzy-matched', () => {
 });
 
 test('keywords taught from the console take effect immediately', () => {
-    assert.equal(c('ada mockup nya kak?').intent, 'other');
+    assert.equal(c('ada visualisasinya kak?').intent, 'other');
 
-    addKeyword({ phrase: 'Mockup!', intent: 'design_reference' });
+    addKeyword({ phrase: 'Visualisasi!', intent: 'design_reference' });
     addKeyword({ phrase: 'kaos bazar', intent: 'product', product: 'kaos' });
 
-    assert.equal(c('ada mockup nya kak?').intent, 'design_reference');
+    assert.equal(c('ada visualisasinya kak?').intent, 'design_reference');
     assert.equal(c('mau order kaos bazar 17an').product, 'kaos');
-    assert.ok(customKeywords().some((k) => k.phrase === 'mockup' && k.source === 'tim'));
+    assert.ok(customKeywords().some((k) => k.phrase === 'visualisasi' && k.source === 'tim'));
 
-    for (const k of customKeywords().filter((k) => ['mockup', 'kaos bazar'].includes(k.phrase))) removeKeyword(k.id);
-    assert.equal(c('ada mockup nya kak?').intent, 'other');
+    for (const k of customKeywords().filter((k) => ['visualisasi', 'kaos bazar'].includes(k.phrase))) removeKeyword(k.id);
+    assert.equal(c('ada visualisasinya kak?').intent, 'other');
 });
 
 test('teaching rejects nonsense', () => {

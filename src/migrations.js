@@ -1,5 +1,5 @@
-import { SEED_KEYWORDS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS } from './seeds.js';
-import { cleanPhrase } from './text.js';
+import { SEED_ADDITIONS, SEED_KEYWORDS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS } from './seeds.js';
+import { cleanPhrase, textRulesVersion } from './text.js';
 
 /**
  * Numbered schema migrations with their seeders. Each runs once per database
@@ -220,7 +220,83 @@ CREATE TABLE IF NOT EXISTS products (
             }
         },
     },
+
+    {
+        // More ways customers say things, three new intents (ask_first, ack, price),
+        // and a memory of what the team deleted so later seeds never bring it back.
+        id: '005_smarter_seeds',
+        up(db) {
+            db.exec(`CREATE TABLE IF NOT EXISTS seed_removed (kind TEXT NOT NULL, value TEXT NOT NULL, removed_at TEXT, PRIMARY KEY (kind, value))`);
+            renormaliseKeywords(db);
+            syncSeeds(db, '005_smarter_seeds');
+        },
+    },
 ];
+
+/** Re-stores keywords the way messages are now compared; drops the duplicates that makes. */
+function renormaliseKeywords(db) {
+    for (const row of db.prepare('SELECT id, phrase FROM custom_keywords').all()) {
+        const clean = cleanPhrase(row.phrase);
+        if (clean === row.phrase) continue;
+
+        const taken = db.prepare('SELECT 1 FROM custom_keywords WHERE phrase = ? AND id <> ?').get(clean, row.id);
+        if (taken || !clean) db.prepare('DELETE FROM custom_keywords WHERE id = ?').run(row.id);
+        else db.prepare('UPDATE custom_keywords SET phrase = ? WHERE id = ?').run(clean, row.id);
+    }
+
+    for (const row of db.prepare('SELECT id, keywords FROM patterns').all()) {
+        const before = JSON.parse(row.keywords || '[]');
+        const after = [...new Set(before.map(cleanPhrase).filter(Boolean))];
+        if (JSON.stringify(after) !== JSON.stringify(before)) db.prepare('UPDATE patterns SET keywords = ? WHERE id = ?').run(JSON.stringify(after), row.id);
+    }
+}
+
+/**
+ * Brings one SEED_ADDITIONS entry to this database without undoing the team:
+ * - a phrase the team deleted or renamed (seed_removed) is not added again;
+ * - a phrase already in use, for any intent or product, keeps its meaning;
+ * - a product or built-in pattern the team deleted gets nothing;
+ * - pattern keywords are appended, the team's own stay.
+ */
+export function syncSeeds(db, migration) {
+    for (const add of SEED_ADDITIONS.filter((a) => a.migration === migration)) applySeed(db, add);
+}
+
+function applySeed(db, add) {
+
+    const removed = (kind, value) => Boolean(db.prepare('SELECT 1 FROM seed_removed WHERE kind = ? AND value = ?').get(kind, value));
+    const insert = db.prepare(`INSERT OR IGNORE INTO custom_keywords (phrase, intent, product, source, created_at) VALUES (?, ?, ?, 'bawaan', ?)`);
+
+    for (const [intent, phrases] of Object.entries(add.keywords ?? {})) {
+        for (const phrase of phrases.map(cleanPhrase)) {
+            if (!removed('keyword', phrase)) insert.run(phrase, intent, null, stamp());
+        }
+    }
+
+    for (const [key, phrases] of Object.entries(add.products ?? {})) {
+        if (!db.prepare('SELECT 1 FROM products WHERE "key" = ?').get(key)) continue;
+
+        for (const phrase of phrases.map(cleanPhrase)) {
+            if (!removed('keyword', phrase)) insert.run(phrase, 'product', key, stamp());
+        }
+    }
+
+    for (const [builtin, phrases] of Object.entries(add.patterns ?? {})) {
+        const row = db.prepare('SELECT id, keywords FROM patterns WHERE builtin = ?').get(builtin);
+        if (!row) continue;
+
+        const current = JSON.parse(row.keywords || '[]');
+        const fresh = phrases.map(cleanPhrase).filter((p) => !current.includes(p) && !removed(`pattern:${builtin}`, p));
+        if (fresh.length) {
+            db.prepare('UPDATE patterns SET keywords = ?, updated_at = ? WHERE id = ?').run(JSON.stringify([...current, ...fresh]), stamp(), row.id);
+        }
+    }
+}
+
+/** Remembers that the team removed a built-in seed, so no later migration re-adds it. */
+export function rememberRemoved(db, kind, value) {
+    db.prepare(`INSERT OR IGNORE INTO seed_removed (kind, value, removed_at) VALUES (?, ?, ?)`).run(kind, value, stamp());
+}
 
 /** Applies every migration this database has not had yet. Returns the ids applied now. */
 export function runMigrations(db) {
@@ -238,6 +314,18 @@ export function runMigrations(db) {
         })();
 
         applied.push(migration.id);
+    }
+
+    // Keywords are stored the way messages are compared. When the comparison
+    // rules change (new shorthand, Javanese words, ...), re-store them, so an
+    // update never leaves a client with keywords that can no longer match.
+    const version = textRulesVersion();
+    const saved = db.prepare(`SELECT value FROM settings WHERE "key" = 'text:rules'`).get()?.value;
+    if (saved !== version) {
+        db.transaction(() => {
+            renormaliseKeywords(db);
+            db.prepare(`INSERT OR REPLACE INTO settings ("key", value, updated_at) VALUES ('text:rules', ?, ?)`).run(version, stamp());
+        })();
     }
 
     return applied;

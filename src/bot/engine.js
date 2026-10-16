@@ -71,7 +71,8 @@ export function decide(conversation, classified, media, { random = Math.random }
                 if (media.has('promo', 'jersey')) send('promo', 'jersey');
                 say(replies.jerseyPromo());
             }
-            say(replies.askQuantity());
+            // No design talk happened, so [5] without "untuk desainnya akan kami cek".
+            say(replies.askQuantityCatalog());
             patch.step = 'awaiting_quantity';
         } else {
             say(replies.askDesign(productName(product)));
@@ -90,6 +91,38 @@ export function decide(conversation, classified, media, { random = Math.random }
 
         send('size-chart', product, found);
         say(replies.sizeChartNote());
+    };
+
+    /**
+     * "Harganya berapa?" with no product in the message. Prices come only from
+     * the catalog or from CS: never computed here.
+     */
+    const price = () => {
+        const product = state().product;
+
+        if (!product) {
+            say(replies.priceWhich());
+            patch.step = 'awaiting_product';
+
+            return;
+        }
+
+        // Catalog products: the catalog carries the price list.
+        if (hasCatalog(product) && media.has('katalog', product)) {
+            send('katalog', product);
+            if (state().step !== 'awaiting_quantity') {
+                say(replies.askQuantityCatalog());
+                patch.step = 'awaiting_quantity';
+            }
+
+            return;
+        }
+
+        // Design products: [4] explains price depends on quantity and design;
+        // once that was said, CS gives the actual price.
+        if (state().step === 'awaiting_product') return productFlow(product);
+
+        giveUp(`tanya harga ${product}`);
     };
 
     const handedOver = () => patch.step === 'handed_over';
@@ -189,6 +222,23 @@ export function decide(conversation, classified, media, { random = Math.random }
 
         const step = state().step;
 
+        // "ok", "makasih": nothing to answer and no reason to call CS. After the
+        // quantity question it closes the flow politely ([7] + [8]).
+        if (r.intent === 'ack') {
+            if (step === 'awaiting_quantity') finish();
+
+            return;
+        }
+
+        // "mau nanya2 dulu": invite the question and keep waiting where we were.
+        if (r.intent === 'ask_first') {
+            say(replies.askFirst());
+
+            return;
+        }
+
+        if (r.intent === 'price') return price();
+
         if (step === 'awaiting_size_chart_product') {
             if (r.product) {
                 patch.product = r.product;
@@ -264,7 +314,7 @@ export function decide(conversation, classified, media, { random = Math.random }
                 say(replies.greetKnown(name));
                 patch.step = 'awaiting_product';
 
-                if (!['greeting', 'introduction'].includes(r.intent)) handle();
+                if (!['greeting', 'introduction', 'ack', 'ask_first'].includes(r.intent)) handle();
             } else {
                 // [2]. Keep any product they mentioned for after the intro.
                 say(replies.greetUnknown());
@@ -292,8 +342,12 @@ export function decide(conversation, classified, media, { random = Math.random }
                 patch.step = 'awaiting_product';
                 if (r.intent === 'product' && r.product) productFlow(r.product);
                 else handle();
-            } else if (r.intent === 'greeting') {
+            } else if (r.intent === 'greeting' || r.intent === 'ack') {
                 // still waiting for the introduction
+            } else if (r.intent === 'ask_first' || r.intent === 'price') {
+                // They want to get to their question; do not insist on the introduction.
+                patch.step = 'awaiting_product';
+                handle();
             } else {
                 giveUp(`perkenalan tidak dikenali (${r.intent})`);
             }

@@ -175,7 +175,7 @@ export class Bot {
                 const [first, ...rest] = links;
 
                 return [
-                    { type: 'text', text: replies.catalogLink(first, action.product ? productName(action.product) : 'kami') },
+                    { type: 'text', text: replies.catalogLink(first, action.product ? productName(action.product) : 'produk') },
                     ...rest.map((link) => ({ type: 'text', text: link })),
                 ];
             }

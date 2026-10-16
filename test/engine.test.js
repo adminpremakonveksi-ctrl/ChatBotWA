@@ -42,7 +42,7 @@ test('[1]: customer who already introduced themselves is greeted by name', () =>
 test('catalog product (jersey): catalog, [5], then [7] + [8] and handover', () => {
     const asked = decide({ step: 'awaiting_product', name: 'Rina' }, r('product', { product: 'jersey' }), media);
     assert.deepEqual(kinds(asked.actions), ['media:katalog', 'text']);
-    assert.deepEqual(texts(asked.actions), [replies.askQuantity()]);
+    assert.deepEqual(texts(asked.actions), [replies.askQuantityCatalog()], '[5] without the design sentence: no design was discussed');
     assert.equal(asked.patch.step, 'awaiting_quantity');
 
     const done = decide({ step: 'awaiting_quantity', product: 'jersey' }, r('quantity'), media);
@@ -57,7 +57,7 @@ test('[9] jersey promo is sent only once its text exists', async () => {
 
     try {
         const { actions } = decide({ step: 'awaiting_product' }, r('product', { product: 'jersey' }), media);
-        assert.deepEqual(texts(actions), ['PROMO JERSEY', replies.askQuantity()]);
+        assert.deepEqual(texts(actions), ['PROMO JERSEY', replies.askQuantityCatalog()]);
     } finally {
         config.bot.jerseyPromo = '';
     }

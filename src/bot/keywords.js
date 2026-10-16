@@ -1,4 +1,5 @@
-import { all, get, now, run } from '../db.js';
+import { all, db, get, now, run } from '../db.js';
+import { rememberRemoved } from '../migrations.js';
 import { cleanPhrase } from '../text.js';
 import { onProductsChanged, productKeys } from './products.js';
 
@@ -17,7 +18,7 @@ import { onProductsChanged, productKeys } from './products.js';
 export { cleanPhrase };
 
 // Intents a phrase may be taught; the rest are not keyword-shaped or are patterns.
-export const TEACHABLE = ['product', 'size_chart', 'design_reference', 'no_reference', 'has_reference', 'quantity', 'greeting'];
+export const TEACHABLE = ['product', 'size_chart', 'design_reference', 'no_reference', 'has_reference', 'quantity', 'greeting', 'ask_first', 'ack', 'price'];
 
 let cache = null;
 const forget = () => {
@@ -64,6 +65,9 @@ export function updateKeyword(id, { phrase, intent, product = null }) {
     if (target === 'product' && !productKeys().includes(targetProduct)) fail('Pilih produknya');
     if (get('SELECT 1 FROM custom_keywords WHERE phrase = ? AND id <> ?', [clean, row.id])) fail(`"${clean}" sudah ada`);
 
+    // A built-in phrase the team reworded or repointed is never seeded back.
+    if (row.source === 'bawaan' && (clean !== row.phrase || target !== row.intent)) rememberRemoved(db, 'keyword', row.phrase);
+
     run('UPDATE custom_keywords SET phrase = ?, intent = ?, product = ? WHERE id = ?', [clean, target, targetProduct, row.id]);
     forget();
 
@@ -71,6 +75,9 @@ export function updateKeyword(id, { phrase, intent, product = null }) {
 }
 
 export function removeKeyword(id) {
+    const row = get('SELECT phrase, source FROM custom_keywords WHERE id = ?', [Number(id)]);
+    if (row?.source === 'bawaan') rememberRemoved(db, 'keyword', row.phrase);
+
     run('DELETE FROM custom_keywords WHERE id = ?', [Number(id)]);
     forget();
 }

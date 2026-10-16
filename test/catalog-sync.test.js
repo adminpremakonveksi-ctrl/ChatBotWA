@@ -106,10 +106,10 @@ test('the bot answers with its text, then the matching catalog products', async 
 
     assert.deepEqual(sent.map((a) => a.text), [
         replies.greetKnown('Budi'),
-        'https://wa.me/p/1005/6281999911895',
+        replies.catalogLink('https://wa.me/p/1005/6281999911895', 'Jersey'),
         'https://wa.me/p/1001/6281999911895',
         'https://wa.me/p/1002/6281999911895',
-        replies.askQuantity(),
+        replies.askQuantityCatalog(),
     ]);
 });
 

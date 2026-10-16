@@ -2,7 +2,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { config } from '../config.js';
-import { all, get, now, run } from '../db.js';
+import { all, db, get, now, run } from '../db.js';
+import { rememberRemoved } from '../migrations.js';
 import { SEED_PATTERNS } from '../seeds.js';
 import { cleanPhrase } from '../text.js';
 import { localDateString } from './schedule.js';
@@ -29,7 +30,7 @@ import { localDateString } from './schedule.js';
  */
 
 const MAX_BUBBLES = 10;
-const MAX_KEYWORDS = 100;
+const MAX_KEYWORDS = 300;
 const MAX_TEXT = 3000;
 
 const fail = (message, statusCode = 422) => {
@@ -150,6 +151,9 @@ export function updatePattern(id, values) {
     const endsOn = values.endsOn === undefined ? pattern.endsOn : day(values.endsOn, 'Selesai berlaku');
     if (startsOn && endsOn && endsOn < startsOn) fail('Tanggal selesai sebelum tanggal mulai');
 
+    // Built-in keywords the team took out are never seeded back by a later update.
+    if (pattern.builtin) for (const k of pattern.keywords.filter((k) => !keywords.includes(k))) rememberRemoved(db, `pattern:${pattern.builtin}`, k);
+
     run(
         `UPDATE patterns SET name = ?, keywords = ?, bubbles = ?, after = ?, enabled = ?, starts_on = ?, ends_on = ?, updated_at = ? WHERE id = ?`,
         [name, JSON.stringify(keywords), JSON.stringify(bubbles), after, enabled ? 1 : 0, startsOn || null, endsOn || null, now(), pattern.id],
@@ -186,7 +190,11 @@ export function resetPattern(id) {
     const pattern = getPattern(id);
     const seed = seedFor(pattern.builtin) ?? fail('Pola ini buatan tim, tidak punya versi bawaan');
 
-    return updatePattern(pattern.id, { name: seed.name, keywords: seed.keywords, bubbles: seed.bubbles, after: 'stay', enabled: true, startsOn: '', endsOn: '' });
+    const reset = updatePattern(pattern.id, { name: seed.name, keywords: seed.keywords, bubbles: seed.bubbles, after: 'stay', enabled: true, startsOn: '', endsOn: '' });
+    // Back to the original on purpose: later seed updates may add to it again.
+    run('DELETE FROM seed_removed WHERE kind = ?', [`pattern:${pattern.builtin}`]);
+
+    return reset;
 }
 
 /**
@@ -200,8 +208,9 @@ export function restoreBuiltin(builtin) {
     const stamp = now();
     const { lastInsertRowid } = run(
         `INSERT INTO patterns (name, keywords, bubbles, after, enabled, builtin, created_at, updated_at) VALUES (?, ?, ?, 'stay', 1, ?, ?, ?)`,
-        [seed.name, JSON.stringify(seed.keywords), JSON.stringify(seed.bubbles), builtin, stamp, stamp],
+        [seed.name, JSON.stringify([...new Set(seed.keywords.map(cleanPhrase))]), JSON.stringify(seed.bubbles), builtin, stamp, stamp],
     );
+    run('DELETE FROM seed_removed WHERE kind = ?', [`pattern:${builtin}`]);
     cache = null;
 
     return getPattern(Number(lastInsertRowid));
