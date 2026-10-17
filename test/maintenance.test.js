@@ -6,6 +6,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
+import { replies } from '../src/bot/replies.js';
+
 import { Bot } from '../src/bot/bot.js';
 import { classifyWithRules } from '../src/bot/classify-rules.js';
 import { media } from '../src/bot/media.js';
@@ -101,5 +103,6 @@ test('simulator walks the same flow without WhatsApp', async () => {
     assert.equal(second.replies.at(-1).type, 'handover');
 
     const sizeChart = await simulate('t2', { text: 'size chart hoodie dong' });
-    assert.ok(sizeChart.replies.some((r) => r.type === 'handover'), 'missing size chart goes to CS');
+    assert.ok(!sizeChart.replies.some((r) => r.type === 'handover'), 'a missing size chart does not close the chat');
+    assert.ok(sizeChart.replies.some((r) => r.text === replies.sizeChartMissing('Hoodie')));
 });

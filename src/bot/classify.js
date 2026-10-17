@@ -1,7 +1,5 @@
-import Anthropic from '@anthropic-ai/sdk';
-
 import { logger } from '../logger.js';
-import { aiEnabled, classifyWithAi } from './classify-ai.js';
+import { classifyWithOllama, ollamaEnabled } from './classify-ollama.js';
 import { classifyWithRules } from './classify-rules.js';
 import { patternForBuiltin } from './patterns.js';
 
@@ -27,28 +25,35 @@ function toPatterns(result) {
         : { ...result, intent: 'other', extras, patterns: [], pattern: null };
 }
 
+/** The AI that is set up: Ollama (cloud key or local host), or none. */
+export const aiProvider = () => (ollamaEnabled() ? 'ollama' : null);
+
 /**
- * AI first when configured, keywords otherwise. Any AI failure (no network,
- * rate limit, timeout, refusal) falls back to keywords so the bot keeps
- * answering instead of going quiet.
+ * Keywords first: they are instant, free and tested on every chat level. The
+ * AI (Ollama) is asked only about a message the keywords did not
+ * recognise, which would otherwise go straight to CS. Any AI failure (no
+ * network, rate limit, timeout, a label outside the list) keeps the keyword
+ * result, so the bot never goes quiet because of the AI.
  */
 export async function classify(input) {
     const rules = classifyWithRules(input);
+    const provider = aiProvider();
 
-    // A team pattern is matched by its own keywords: use it as is, no AI.
-    if (!aiEnabled() || rules.intent === 'custom') {
+    if (!provider || rules.intent !== 'other') {
         return rules;
     }
 
     try {
-        return toPatterns(await classifyWithAi(input));
+        const result = toPatterns(await classifyWithOllama(input));
+        // The amount as written ("2000 pcs") comes from the keyword reading.
+        result.quantity ??= rules.quantity;
+        result.text = input.text ?? '';
+
+        logger.info({ text: input.text?.slice(0, 80), intent: result.intent, via: provider }, 'AI mengenali pesan yang tidak dikenali kata kunci');
+
+        return result;
     } catch (error) {
-        const reason =
-            error instanceof Anthropic.RateLimitError ? 'rate limit' :
-            error instanceof Anthropic.AuthenticationError ? 'API key ditolak' :
-            error instanceof Anthropic.APIConnectionError ? 'tidak ada koneksi' :
-            error instanceof Anthropic.APIError ? `API error ${error.status}` :
-            error.message;
+        const reason = error.name === 'TimeoutError' ? 'waktu habis' : error.message;
 
         logger.warn({ reason }, 'AI gagal, memakai kata kunci');
 

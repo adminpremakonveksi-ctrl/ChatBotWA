@@ -189,6 +189,14 @@ export class Session {
 
             if (!contentType || IGNORED_TYPES.has(contentType)) continue;
 
+            const text =
+                content?.conversation ??
+                content?.extendedTextMessage?.text ??
+                content?.imageMessage?.caption ??
+                content?.videoMessage?.caption ??
+                content?.documentMessage?.caption ??
+                '';
+
             // "Message yourself" on the bot's own number is a test chat: what the
             // team types there is answered as if a customer wrote it.
             const selfTest = Boolean(message.key.fromMe && this.#isSelfChat(jid));
@@ -198,21 +206,14 @@ export class Session {
                 // message from a history sync is not a new test.
                 if (this.bot.isBotMessage(message.key.id) || !isRecent(message)) continue;
             } else if (message.key.fromMe) {
-                // Typed by CS on the phone, or the echo of a bot reply.
-                this.bot.onOwnMessage(this.key, { jid, id: message.key.id });
+                // Typed by CS on the phone, the echo of a bot reply, or a WhatsApp
+                // Business automatic message (Salam, Pesan tidak di tempat).
+                this.bot.onOwnMessage(this.key, { jid, id: message.key.id, text });
                 continue;
             } else if (type !== 'notify') {
                 // History sync and other catch-up batches are not new chats.
                 continue;
             }
-
-            const text =
-                content?.conversation ??
-                content?.extendedTextMessage?.text ??
-                content?.imageMessage?.caption ??
-                content?.videoMessage?.caption ??
-                content?.documentMessage?.caption ??
-                '';
 
             const hasImage = ['imageMessage', 'documentMessage', 'videoMessage', 'stickerMessage'].includes(contentType);
 

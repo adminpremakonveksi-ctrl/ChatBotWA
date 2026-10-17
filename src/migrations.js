@@ -1,4 +1,4 @@
-import { SEED_ADDITIONS, SEED_KEYWORDS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS } from './seeds.js';
+import { SEED_ADDITIONS, SEED_KEYWORDS, SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS, seedQuestions } from './seeds.js';
 import { cleanPhrase, textRulesVersion } from './text.js';
 
 /**
@@ -229,6 +229,45 @@ CREATE TABLE IF NOT EXISTS products (
             db.exec(`CREATE TABLE IF NOT EXISTS seed_removed (kind TEXT NOT NULL, value TEXT NOT NULL, removed_at TEXT, PRIMARY KEY (kind, value))`);
             renormaliseKeywords(db);
             syncSeeds(db, '005_smarter_seeds');
+        },
+    },
+
+    {
+        // Follow-up questions per product ("kemeja apa? ukuran apa?"), and what
+        // the customer answered plus the quantity they named, kept for CS.
+        id: '006_order_details',
+        up(db) {
+            if (!hasColumn(db, 'products', 'questions')) db.exec(`ALTER TABLE products ADD COLUMN questions TEXT NOT NULL DEFAULT '[]'`);
+            for (const column of ['quantity TEXT', 'details TEXT', 'detail_index INTEGER']) {
+                if (!hasColumn(db, 'conversations', column.split(' ')[0])) db.exec(`ALTER TABLE conversations ADD COLUMN ${column}`);
+            }
+
+            const removed = (value) => Boolean(db.prepare(`SELECT 1 FROM seed_removed WHERE kind = 'product' AND value = ?`).get(value));
+            const insertKeyword = db.prepare(`INSERT OR IGNORE INTO custom_keywords (phrase, intent, product, source, created_at) VALUES (?, 'product', ?, 'bawaan', ?)`);
+
+            for (const p of SEED_NEW_PRODUCTS) {
+                if (removed(p.key) || db.prepare('SELECT 1 FROM products WHERE "key" = ?').get(p.key)) continue;
+
+                const position = (db.prepare('SELECT MAX(position) AS p FROM products').get()?.p ?? -1) + 1;
+                db.prepare(`INSERT INTO products ("key", name, kind, size_chart, position, builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`)
+                    .run(p.key, p.name, p.catalog ? 'catalog' : 'design', p.sizeChart ? 1 : 0, position, stamp(), stamp());
+                for (const phrase of p.keywords) insertKeyword.run(cleanPhrase(phrase), p.key, stamp());
+            }
+
+            // Seeded products get their questions; one the team made itself starts with none.
+            for (const row of db.prepare(`SELECT "key", size_chart FROM products WHERE builtin = 1 AND questions = '[]'`).all()) {
+                db.prepare('UPDATE products SET questions = ? WHERE "key" = ?').run(JSON.stringify(seedQuestions({ key: row.key, sizeChart: Boolean(row.size_chart) })), row.key);
+            }
+        },
+    },
+
+    {
+        // More ways of saying the same things (see SEED_ADDITIONS in seeds.js).
+        id: '007_more_variations',
+        up(db) {
+            // How many messages in a row the bot did not understand (it asks again before handing over).
+            if (!hasColumn(db, 'conversations', 'misses')) db.exec('ALTER TABLE conversations ADD COLUMN misses INTEGER NOT NULL DEFAULT 0');
+            syncSeeds(db, '007_more_variations');
         },
     },
 ];

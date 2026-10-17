@@ -46,7 +46,7 @@ test('catalog product (jersey): catalog, [5], then [7] + [8] and handover', () =
     assert.equal(asked.patch.step, 'awaiting_quantity');
 
     const done = decide({ step: 'awaiting_quantity', product: 'jersey' }, r('quantity'), media);
-    assert.deepEqual(texts(done.actions), [replies.waitForCs(), replies.socials()]);
+    assert.deepEqual(texts(done.actions), [replies.waitForCs(), replies.socials(), replies.handoverNotice()]);
     assert.equal(done.actions.at(-1).type, 'handover');
     assert.equal(done.patch.step, 'handed_over');
 });
@@ -121,10 +121,10 @@ test('size chart variant falls back to reguler when the variant file is missing'
     assert.equal(boxy.actions[0].variant, 'reguler');
 });
 
-test('size chart file missing: hand to CS instead of sending nothing', () => {
+test('size chart file missing: CS sends it later, the chat is not closed', () => {
     const { actions, patch } = decide({ step: 'awaiting_product' }, r('size_chart', { product: 'jaket' }), media);
-    assert.deepEqual(texts(actions), [replies.waitForCs()]);
-    assert.equal(patch.step, 'handed_over');
+    assert.deepEqual(texts(actions), [replies.sizeChartMissing('Jaket')]);
+    assert.notEqual(patch.step, 'handed_over');
 });
 
 test('seeded answer patterns keep the conversation where it was', () => {
@@ -155,10 +155,35 @@ test('design reference for jersey: catalog + both [6] bubbles', () => {
     assert.deepEqual(texts(actions), [replies.portfolio(), replies.jerseyTemplates()]);
 });
 
-test('aturan 1: anything unrecognised goes to CS', () => {
-    const { actions, patch } = decide({ step: 'awaiting_product' }, r('other'), media);
-    assert.deepEqual(texts(actions), [replies.waitForCs()]);
+test('not understood: asked again; CS only after 3 in a row (Pengaturan)', () => {
+    let conv = { step: 'awaiting_product' };
+
+    for (const n of [1, 2]) {
+        const { actions, patch } = decide(conv, r('other'), media);
+        assert.deepEqual(texts(actions), [replies.clarify()], `miss ${n}: asked again`);
+        assert.equal(patch.misses, n);
+        conv = { ...conv, ...patch };
+    }
+
+    const third = decide(conv, r('other'), media);
+    assert.deepEqual(texts(third.actions), [replies.waitForCs(), replies.handoverNotice()]);
+    assert.equal(third.patch.step, 'handed_over');
+
+    // Understanding something in between starts the count over.
+    const reset = decide({ step: 'awaiting_product', misses: 2 }, r('greeting'), media);
+    assert.equal(reset.patch.misses, 0);
+});
+
+test('asking for a person goes to CS at once', () => {
+    const { actions, patch } = decide({ step: 'awaiting_design', product: 'kaos' }, r('human'), media);
+    assert.deepEqual(texts(actions), [replies.waitForCs(), replies.handoverNotice()]);
     assert.equal(patch.step, 'handed_over');
+});
+
+test('not a name at the introduction: no insisting, no closing', () => {
+    const { actions, patch } = decide({ step: 'awaiting_intro' }, r('other'), media);
+    assert.deepEqual(texts(actions), [replies.clarify()]);
+    assert.equal(patch.step, 'awaiting_product');
 });
 
 test('handed over: silent', () => {

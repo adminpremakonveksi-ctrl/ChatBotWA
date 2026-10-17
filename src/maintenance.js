@@ -62,6 +62,7 @@ const STEP_LABEL = {
     awaiting_design: 'ditanya desain, belum menjawab',
     awaiting_quantity: 'ditanya jumlah, belum menjawab',
     awaiting_size_chart_product: 'minta size chart, belum menyebut produk',
+    awaiting_detail: 'ditanya detail produk, belum menjawab',
 };
 
 const describe = (row) => {
@@ -80,11 +81,18 @@ export function buildRecap(since) {
 
     const lines = rows.map((row, index) => {
         const who = row.name ? `Kak ${row.name}${row.origin ? ` (${row.origin})` : ''}` : 'Tanpa nama';
-        const product = row.product ? ` · ${productName(row.product)}` : '';
+        const product = row.product ? ` · ${productName(row.product)}${row.quantity ? ` ${row.quantity}` : ''}` : '';
+        let answers = [];
+        try {
+            answers = JSON.parse(row.details ?? '[]');
+        } catch {
+            /* none */
+        }
+        const details = answers.map((d) => `\n   - ${String(d.a).slice(0, 80)}`).join('');
         const contact = row.phone ? `wa.me/${row.phone}` : 'nomor disembunyikan WhatsApp, cari di daftar chat';
         const last = row.last_text ? `\n   "${row.last_text.slice(0, 120)}${row.last_text.length > 120 ? '…' : ''}"` : '';
 
-        return `${index + 1}. ${who}${product}\n   ${describe(row)}\n   ${contact}${last}`;
+        return `${index + 1}. ${who}${product}${details}\n   ${describe(row)}\n   ${contact}${last}`;
     });
 
     return `Rekap ${config.bot.botName} semalam: ${rows.length} pelanggan perlu ditindaklanjuti\n\n${lines.join('\n\n')}`;

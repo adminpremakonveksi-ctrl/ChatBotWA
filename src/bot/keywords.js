@@ -18,7 +18,7 @@ import { onProductsChanged, productKeys } from './products.js';
 export { cleanPhrase };
 
 // Intents a phrase may be taught; the rest are not keyword-shaped or are patterns.
-export const TEACHABLE = ['product', 'size_chart', 'design_reference', 'no_reference', 'has_reference', 'quantity', 'greeting', 'ask_first', 'ack', 'price'];
+export const TEACHABLE = ['product', 'size_chart', 'design_reference', 'no_reference', 'has_reference', 'quantity', 'greeting', 'ask_first', 'ack', 'price', 'human'];
 
 let cache = null;
 const forget = () => {

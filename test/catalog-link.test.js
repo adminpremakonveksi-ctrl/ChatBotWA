@@ -46,11 +46,21 @@ test("a product's own link beats its pictures; its own pictures beat the shop li
     assert.equal(m.link('katalog', 'jersey'), null, 'cleared');
 });
 
-test('only WhatsApp catalog links are accepted', () => {
+test('catalog slots take WhatsApp catalog links only; other slots any https link', () => {
     const m = fresh();
 
     assert.throws(() => m.setLink('katalog', 'https://bit.ly/promo'), /link katalog WhatsApp/);
-    assert.throws(() => m.setLink('size-chart:kaos:reguler', SHOP), /hanya untuk katalog/);
+
+    // A size chart as a link: replaces the picture, and is used for the variant asked.
+    const drive = 'https://drive.google.com/file/d/abc/view';
+    assert.equal(m.setLink('size-chart:kaos:reguler', 'drive.google.com/file/d/abc/view'), drive);
+    assert.ok(m.has('size-chart', 'kaos', 'reguler'));
+    assert.deepEqual(m.links('size-chart', 'kaos', 'reguler'), [drive]);
+    assert.equal(m.slots().find((s) => s.id === 'size-chart:kaos:reguler').link, drive);
+    assert.throws(() => m.setLink('size-chart:kaos:reguler', 'bukan link'), /tidak valid/);
+
+    m.setLink('size-chart:kaos:reguler', '');
+    assert.deepEqual(m.links('size-chart', 'kaos', 'reguler'), []);
 });
 
 test('the bot says its text first, then sends the catalog link instead of pictures', async () => {
@@ -84,4 +94,22 @@ test('the lead-in before the link is an editable template', () => {
     }
 
     assert.equal(replies.catalogLink(SHOP, 'Jersey'), `Berikut katalog Jersey kami ya kak, silakan dicek 👇\n${SHOP}`);
+});
+
+test('a size chart with a link and a picture: the link first, then the picture', async () => {
+    const m = fresh();
+    m.save('size-chart:kaos:reguler', JPG);
+    m.setLink('size-chart:kaos:reguler', 'https://drive.google.com/size-kaos');
+
+    const sent = [];
+    const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: m, isActive: () => true, debounceMs: 5 });
+    const wa = { newMessageId: () => `Z${sent.length}`, send: async (jid, action) => sent.push(action) };
+
+    run('DELETE FROM conversations');
+    bot.onIncoming('utama', wa, { jid: '6289999@s.whatsapp.net', id: 'z1', text: 'halo kak saya Budi dari Jogja, size chart kaos dong' });
+    await new Promise((r) => setTimeout(r, 20));
+    await bot.drain();
+
+    const after = sent.slice(1).map((a) => (a.type === 'file' ? 'file' : a.text));
+    assert.deepEqual(after, [replies.sizeChartLink('https://drive.google.com/size-kaos', 'Kaos'), 'file', replies.sizeChartNote()]);
 });

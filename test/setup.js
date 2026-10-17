@@ -13,10 +13,18 @@ for (const file of ['katalog/jersey.pdf', 'katalog/umum.pdf', 'size-chart/kaos.j
 Object.assign(process.env, {
     DB_PATH: ':memory:',
     MEDIA_DIR: mediaDir,
-    ANTHROPIC_API_KEY: '',
+    OLLAMA_API_KEY: '',
+    API_URL_OLLAMA: '',
+    OLLAMA_HOST: '',
     JERSEY_PROMO_TEXT: '',
     BOT_NAME: 'Mawar',
     CS_NAME: 'Anggun',
     LOG_LEVEL: 'silent',
     NODE_ENV: 'production',
 });
+
+// The spec flow tests run without follow-up questions; test/questions.test.js turns them on.
+const { run } = await import('../src/db.js');
+const { forgetProducts } = await import('../src/bot/products.js');
+run(`UPDATE products SET questions = '[]'`);
+forgetProducts();

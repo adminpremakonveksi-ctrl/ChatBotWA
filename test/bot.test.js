@@ -56,7 +56,7 @@ test('full conversation over several messages', async () => {
     assert.deepEqual(wa.texts().slice(-2), [replies.portfolio(), replies.askQuantity()]);
 
     await say('sekitar 40 pcs');
-    assert.deepEqual(wa.texts().slice(-2), [replies.waitForCs(), replies.socials()]);
+    assert.deepEqual(wa.texts().slice(-3), [replies.waitForCs(), replies.socials(), replies.handoverNotice()]);
 
     const before = wa.sent.length;
     await say('oke kak ditunggu');

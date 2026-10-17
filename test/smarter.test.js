@@ -107,3 +107,15 @@ test('next switch between active and silent', () => {
     assert.equal(nextChange(new Date('2026-10-10T13:00:00Z'), options).toISOString(), '2026-10-12T00:30:00.000Z');
     assert.equal(nextChange(new Date(), { ...options, forceMode: 'always' }), null);
 });
+
+test('Latih bot: a suggested core phrase, and messages set aside by the team', async () => {
+    const { suggestPhrase, dismissText, dismissedTexts, dismissKey } = await import('../src/bot/store.js');
+
+    assert.equal(suggestPhrase('Mau nanya2 dulu mas'), 'mau nanya nanya dulu');
+    assert.equal(suggestPhrase('kak bisa pakai rekber ga ya?'), 'bisa pakai rekber gak');
+
+    dismissText('Bisa DP dulu?');
+    assert.ok(dismissedTexts().includes(dismissKey('bisa dp dulu?')));
+    dismissText('Bisa DP dulu?', true);
+    assert.ok(!dismissedTexts().includes(dismissKey('bisa dp dulu?')));
+});

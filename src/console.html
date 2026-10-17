@@ -123,6 +123,14 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .list-body { overflow-y:auto; flex:1 }
 .conv { display:flex; gap:11px; padding:12px; border-bottom:1px solid var(--line-2); cursor:pointer }
 .conv:hover { background:var(--panel-2) } .conv.on { background:var(--accent-soft) }
+.conv { border-left:4px solid transparent } .conv.who-bot { border-left-color:var(--good) } .conv.who-wait { border-left-color:var(--warn) } .conv.who-cs { border-left-color:var(--ink-3) }
+.who-banner { display:flex; gap:10px; align-items:center; padding:10px 14px; font-size:13.5px; border-bottom:1px solid var(--line) }
+.who-banner.bot { background:var(--good-soft); color:var(--good) } .who-banner.wait { background:var(--warn-soft); color:var(--warn) } .who-banner.cs { background:var(--panel-2); color:var(--ink-2) }
+.who-banner b { font-size:15px }
+.order { padding:8px 14px; font-size:13px; border-bottom:1px solid var(--line-2); background:var(--panel-2) }
+.order dt { color:var(--ink-3); font-size:12px; margin-top:4px } .order dd { margin:0 }
+.bub .who { display:block; font-size:11px; opacity:.7; margin-bottom:2px }
+.sys.auto { background:var(--accent-soft) }
 .ava { width:40px; height:40px; border-radius:50%; display:grid; place-items:center; font-weight:650; flex:none; color:#fff; font-size:15px }
 .conv .top { display:flex; gap:6px; align-items:baseline } .conv .name { font-weight:600; flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .conv .time { font-size:11.5px; color:var(--ink-3) }
@@ -270,6 +278,17 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 
 /* toast */
 .toasts { position:fixed; right:20px; bottom:20px; display:flex; flex-direction:column; gap:8px; z-index:60 }
+.helpfab { position:fixed; right:20px; bottom:20px; z-index:900; width:48px; height:48px; border-radius:50% 50% 50% 8px; border:0; background:var(--accent); color:var(--accent-ink); font-size:22px; font-weight:700; cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,.25) }
+.helpfab:hover { transform:translateY(-2px) }
+.helppanel { position:fixed; right:20px; bottom:80px; z-index:901; width:min(420px, calc(100vw - 32px)); max-height:70vh; overflow:auto; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:0 16px 48px rgba(0,0,0,.3); font-size:13.5px; line-height:1.55 }
+.helppanel.hidden { display:none }
+.helppanel ol, .helppanel ul { padding-left:20px; margin:8px 0 } .helppanel li { margin:4px 0 }
+.helppanel .tip { background:var(--accent-soft); border-radius:8px; padding:8px 10px; margin-top:8px }
+.errbox { position:fixed; inset:0; z-index:1000; background:rgba(0,0,0,.55); display:flex; align-items:center; justify-content:center; padding:16px }
+.errbox.hidden { display:none }
+.errcard { background:var(--panel); color:var(--ink); border:2px solid var(--bad); border-radius:14px; width:min(760px, 100%); max-height:90vh; display:flex; flex-direction:column; padding:18px; box-shadow:0 20px 60px rgba(0,0,0,.4) }
+.errcard #errTitle { color:var(--bad) }
+.errcard pre { margin:0; overflow:auto; flex:1; background:var(--bad-soft); color:var(--ink); border-radius:10px; padding:12px; font:12.5px/1.5 ui-monospace, Consolas, monospace; white-space:pre-wrap; word-break:break-word }
 .toast { background:var(--ink); color:var(--bg); padding:10px 14px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,.2); animation:rise .2s ease-out }
 @keyframes rise { from { transform:translateY(8px); opacity:0 } }
 
@@ -347,10 +366,10 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
             <div class="list-head">
               <input class="f" id="convSearch" placeholder="Cari nama, nomor, atau isi chat…">
               <div class="row" id="convFilters">
-                <button class="chip on" data-f="all">Semua</button>
-                <button class="chip" data-f="follow">Perlu CS</button>
-                <button class="chip" data-f="open">Berjalan</button>
-                <button class="chip" data-f="cs">Dibalas CS</button>
+                <button class="chip on" data-f="all">Semua <b data-n="all"></b></button>
+                <button class="chip" data-f="bot">🤖 Ditangani bot <b data-n="bot"></b></button>
+                <button class="chip" data-f="wait">🙋 Menunggu CS <b data-n="wait"></b></button>
+                <button class="chip" data-f="cs">💬 Ditangani CS <b data-n="cs"></b></button>
                 <select class="f" id="hours" style="margin-left:auto;padding:4px 8px"><option value="24">24 jam</option><option value="72">3 hari</option><option value="168">7 hari</option><option value="720">30 hari</option></select>
               </div>
             </div>
@@ -471,6 +490,8 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
             <div class="inline"><span>dari</span><input class="f" type="time" name="activeFrom" required><span>sampai</span><input class="f" type="time" name="activeUntil" required><span class="muted small">(melewati tengah malam)</span></div>
             <label>Bot diam setelah diserahkan ke CS<small>Setelah itu pelanggan disapa bot lagi.</small></label>
             <div class="inline"><input class="f" type="number" name="handoverHours" min="1" max="168" style="width:90px" required><span>jam</span></div>
+            <label>Bot menyerah setelah<small>Pesan yang tidak dipahami bot dibalas "Maaf kak, belum paham…" dulu. Setelah sekian kali berturut-turut, baru diserahkan ke CS.</small></label>
+            <div class="inline"><input class="f" type="number" name="maxMisses" min="1" max="10" style="width:90px" required><span>pesan tidak dipahami berturut-turut</span></div>
             <label>Mode libur<small>Tanggal bot berjaga 24 jam (mis. Lebaran, cuti bersama). Satu baris per libur.</small></label>
             <div><textarea class="f" name="holidays" rows="3" placeholder="2027-03-08 - 2027-03-14 Lebaran&#10;2026-12-25 Natal"></textarea><div class="small muted" id="holidayHint" style="margin-top:4px">Format: tanggal-mulai - tanggal-selesai keterangan. Satu hari cukup satu tanggal.</div></div>
             <label>Kalimat balasan bot<small>Termasuk teks promo jersey [9].</small></label>
@@ -488,6 +509,27 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
           <div class="chatwall" style="border-radius:10px;max-height:340px;margin-top:14px"><div class="bub me" id="recapPreview">…</div></div>
         </form>
 
+        <form class="card" id="aiForm" autocomplete="off">
+          <div class="row"><h3 style="flex:1">AI (Ollama)</h3><span id="aiState"></span></div>
+          <p class="hint">Opsional. Bot selalu memakai kata kunci dulu; AI hanya ditanya untuk pesan yang tidak dikenali, supaya lebih sedikit yang dilempar ke CS. AI hanya memberi label, balasannya tetap naskah. Kunci API dari <b>ollama.com → Settings → Keys</b>.</p>
+          <div class="form">
+            <label>Kunci API Ollama<small id="aiKeyHint">Kosongkan kalau tidak diubah.</small></label>
+            <div class="row" style="gap:6px;flex-wrap:nowrap"><input class="f" type="password" name="aiKey" placeholder="tempel kunci API di sini" style="flex:1;min-width:0"><button type="button" class="btn sm" id="aiKeyRemove">Hapus kunci</button></div>
+            <label>Model<small>Paket gratis Ollama Cloud: gemma4:31b (cepat) atau gpt-oss:20b.</small></label>
+            <div><input class="f" name="aiModel" list="aiModels" placeholder="gemma4:31b"><datalist id="aiModels"></datalist></div>
+            <label>Alamat Ollama<small>Biarkan kosong untuk Ollama Cloud. Ollama yang dipasang sendiri: http://localhost:11434</small></label>
+            <input class="f" name="aiHost" placeholder="https://ollama.com">
+          </div>
+          <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px"><button type="button" class="btn" id="aiTest">Tes koneksi</button><button class="btn primary">Simpan</button></div>
+          <div class="small" id="aiTestOut" style="margin-top:10px"></div>
+        </form>
+
+        <form class="card" id="autoForm">
+          <div class="row"><h3 style="flex:1">Pesan otomatis WhatsApp Business</h3><button class="btn primary">Simpan</button></div>
+          <p class="hint">Salam dan "Pesan tidak di tempat" dikirim WhatsApp Business dari nomor ini sendiri. Tempel teksnya di sini supaya bot tahu itu bukan CS yang membalas: bot tetap menangani pelanggan dan tidak menyapa dua kali. Pisahkan tiap pesan dengan baris <code>---</code>.</p>
+          <textarea class="f" name="autoMessages" rows="12" style="width:100%;font-family:inherit"></textarea>
+        </form>
+
         <form class="card" id="backupForm">
           <div class="row"><h3 style="flex:1">Backup harian</h3><button type="button" class="btn" id="backupNow">Backup sekarang</button><button class="btn primary">Simpan</button></div>
           <p class="hint">Setiap jam 03.00, salinan database (tautan nomor WhatsApp & riwayat chat) disimpan 14 hari. Pilih folder yang ikut tersinkron ke internet supaya aman kalau PC rusak.</p>
@@ -502,17 +544,95 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 </div>
 <div class="tip hidden" id="tip"></div>
 <div class="toasts" id="toasts"></div>
+<button class="helpfab" id="helpBtn" title="Cara memakai halaman ini" aria-label="Bantuan">?</button>
+<div class="helppanel hidden" id="helpPanel" role="dialog" aria-labelledby="helpTitle">
+  <div class="row" style="gap:8px"><b id="helpTitle" style="flex:1"></b><button class="mini" id="helpClose" aria-label="Tutup">✕</button></div>
+  <div id="helpBody"></div>
+</div>
+<div class="errbox hidden" id="errBox" role="alertdialog" aria-labelledby="errTitle">
+  <div class="errcard">
+    <div class="row" style="gap:8px"><b id="errTitle" style="flex:1;font-size:16px">⚠️ Terjadi error</b><span class="small muted" id="errCount"></span></div>
+    <p class="small muted" style="margin:6px 0 10px">Foto layar ini dan kirim ke developer. Isinya error apa adanya.</p>
+    <pre id="errText"></pre>
+    <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn" id="errCopy">Salin teks</button><button class="btn primary" id="errClose">Tutup</button></div>
+  </div>
+</div>
 
 <script>
 /* ------------------------------------------------------------ basics --- */
 const key = new URLSearchParams(location.search).get('key');
 const headers = { 'Content-Type': 'application/json', ...(key ? { 'X-Api-Key': key } : {}) };
+/* ------------------------------------------------------- error pop-up --- */
+// Every error, raw: the client photographs it, the developer reads what failed.
+const errQueue = [];
+let appVersion = '';
+function errorText(e) {
+  const d = e.detail || {};
+  const lines = [
+    `Waktu   : ${d.time || e.time || new Date().toLocaleString('id-ID')}`,
+    `Sumber  : ${e.source || ''}${d.method ? ` ${d.method} ${d.path || ''}` : ''}${d.status ? ` (HTTP ${d.status})` : ''}`,
+    `Level   : ${e.level || 'error'}`,
+    `Pesan   : ${e.message}`,
+  ];
+  const rest = Object.fromEntries(Object.entries(d).filter(([k, v]) => v !== undefined && !['time', 'method', 'path', 'status', 'stack'].includes(k)));
+  if (Object.keys(rest).length) lines.push(`Detail  : ${JSON.stringify(rest, null, 2)}`);
+  if (d.stack) lines.push('Stack   :\n' + d.stack);
+  lines.push(`Halaman : ${location.hash || '#ringkasan'} · versi ${appVersion || '?'} · ${navigator.userAgent.split(') ')[0]})`);
+  return lines.join('\n');
+}
+const errSeen = new Map();
+function showError(e) {
+  // The same failure repeating (the bot is down, polled every 5 s) is counted, not stacked.
+  const key = `${e.source}|${e.message}|${e.detail?.path || ''}`;
+  if (errSeen.has(key) && !$('#errBox').classList.contains('hidden')) {
+    const n = errSeen.get(key) + 1; errSeen.set(key, n);
+    $('#errCount').textContent = `terulang ${n}×`;
+    return;
+  }
+  errSeen.set(key, 1);
+  errQueue.push(errorText(e));
+  $('#errText').textContent = errQueue.join('\n\n────────────────────────\n\n');
+  $('#errCount').textContent = errQueue.length > 1 ? `${errQueue.length} error` : '';
+  $('#errBox').classList.remove('hidden');
+}
+document.getElementById('errClose')?.addEventListener('click', () => { errQueue.length = 0; errSeen.clear(); $('#errBox').classList.add('hidden'); });
+document.getElementById('errCopy')?.addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#errText').textContent); toast('Teks error disalin'); } catch {} });
+window.addEventListener('error', (ev) => showError({ source: 'konsol (browser)', message: ev.message, detail: { file: ev.filename, line: ev.lineno, col: ev.colno, stack: ev.error?.stack } }));
+window.addEventListener('unhandledrejection', (ev) => { if (!ev.reason?.shown) showError({ source: 'konsol (browser)', message: ev.reason?.message || String(ev.reason), detail: { stack: ev.reason?.stack } }); });
+
 const api = async (url, options = {}) => {
-  const r = await fetch(url, { headers, ...options });
+  let r;
+  try {
+    r = await fetch(url, { headers, ...options });
+  } catch (error) {
+    // The bot is not running or the PC is unreachable.
+    const err = new Error(`Tidak bisa menghubungi bot: ${error.message}`);
+    showError({ source: 'konsol → bot', message: err.message, detail: { method: options.method || 'GET', path: url, stack: error.stack } });
+    err.shown = true; throw err;
+  }
   const body = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(body.error || r.statusText);
+  if (!r.ok) {
+    const err = new Error(body.error || r.statusText);
+    showError({ source: 'bot (server)', message: err.message, detail: { method: options.method || 'GET', path: url, status: r.status, ...(body.detail || {}) } });
+    err.shown = true; throw err;
+  }
   return body;
 };
+
+// Errors from the bot itself (sending, catalog, Ollama, daily jobs), checked every 5 seconds.
+let lastErrorId = null;
+async function pollErrors() {
+  try {
+    const r = await fetch('/errors?after=' + (lastErrorId ?? 0), { headers });
+    if (!r.ok) return;
+    const { errors, latest, version } = await r.json();
+    appVersion = version || appVersion;
+    // On opening the console, start from now: older ones are in logs/bot.log.
+    if (lastErrorId === null) { lastErrorId = latest; return; }
+    errors.forEach((e) => showError(e));
+    lastErrorId = latest;
+  } catch { /* the api() pop-up reports an unreachable bot */ }
+}
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
@@ -523,10 +643,10 @@ const num = (n) => Number(n || 0).toLocaleString('id-ID');
 const toast = (text) => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('#toasts').append(t); setTimeout(() => t.remove(), 3200); };
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
-const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', price:'Tanya harga', ask_first:'Mau tanya dulu', ack:'Oke / makasih', custom:'Pola jawaban', other:'Tidak dikenali' };
+const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', price:'Tanya harga', ask_first:'Mau tanya dulu', ack:'Oke / makasih', human:'Minta bicara dengan CS', custom:'Pola jawaban', other:'Tidak dikenali' };
 const STEPS = [['new','Sapa'], ['awaiting_intro','Kenalan'], ['awaiting_product','Produk'], ['awaiting_design','Desain'], ['awaiting_quantity','Jumlah'], ['handed_over','Ke CS']];
-const STEP_INDEX = { new:0, awaiting_intro:1, awaiting_product:2, awaiting_size_chart_product:2, awaiting_design:3, awaiting_quantity:4, handed_over:5 };
-const STEP_LABEL = { new:'baru menyapa', awaiting_intro:'ditanya nama', awaiting_product:'ditanya produk', awaiting_size_chart_product:'ditanya produk size chart', awaiting_design:'ditanya desain', awaiting_quantity:'ditanya jumlah', handed_over:'di CS' };
+const STEP_INDEX = { new:0, awaiting_intro:1, awaiting_product:2, awaiting_size_chart_product:2, awaiting_detail:2, awaiting_design:3, awaiting_quantity:4, handed_over:5 };
+const STEP_LABEL = { new:'baru menyapa', awaiting_intro:'ditanya nama', awaiting_product:'ditanya produk', awaiting_size_chart_product:'ditanya produk size chart', awaiting_detail:'ditanya detail produk', awaiting_design:'ditanya desain', awaiting_quantity:'ditanya jumlah', handed_over:'di CS' };
 const AVA = ['#2f7d6d', '#3d6fb6', '#b0623b', '#7a5aa6', '#4f8a3c', '#a2486a', '#5e6b7a'];
 const avaColor = (s) => AVA[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVA.length];
 const initials = (name) => name ? name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() : '?';
@@ -551,14 +671,82 @@ const tip = $('#tip');
 function showTip(e, html) { tip.innerHTML = html; tip.classList.remove('hidden'); tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; }
 function hideTip() { tip.classList.add('hidden'); }
 
+/* --------------------------------------------------------------- bantuan --- */
+// How to use each page, behind the "?" balloon at the bottom right.
+const HELP = {
+  ringkasan: `<p>Gambaran bot hari ini.</p><ol>
+    <li><b>Nomor WhatsApp</b>: hijau = tersambung. Kalau minta scan, buka WhatsApp di HP → Perangkat tertaut → Tautkan perangkat → scan QR di sini.</li>
+    <li><b>Status bot</b>: aktif Senin–Sabtu sesuai jam di Pengaturan, Minggu seharian. Di luar jam itu bot diam dan CS yang membalas.</li>
+    <li><b>Daftar periksa</b>: yang masih kuning perlu dilengkapi; klik tautannya untuk langsung ke halaman yang tepat.</li></ol>
+    <div class="tip">Ada error? Muncul kotak merah berisi detailnya. Foto layar itu dan kirim ke developer.</div>`,
+  percakapan: `<p>Semua chat pelanggan dan siapa yang sedang menangani.</p><ul>
+    <li><b>🤖 Ditangani bot</b> (garis hijau): bot masih bertanya-tanya. CS tidak perlu membalas dulu.</li>
+    <li><b>🙋 Menunggu CS</b> (garis kuning): bot sudah selesai/mengoper. <b>CS perlu membalas</b>.</li>
+    <li><b>💬 Ditangani CS</b> (garis abu): CS sudah membalas dari HP; bot diam di nomor ini.</li></ul>
+    <ol><li>Klik percakapan untuk membaca isinya. Di atas chat ada <b>ringkasan pesanan</b>: produk, jumlah, dan jawaban pertanyaan lanjutan.</li>
+    <li><b>CS ambil alih</b>: bot berhenti membalas pelanggan itu.</li>
+    <li><b>Kembalikan ke bot</b>: bot menyapa dan menangani pelanggan itu lagi.</li></ol>`,
+  coba: `<p>Mencoba bot tanpa mengirim apa pun ke WhatsApp.</p><ol>
+    <li>Ketik pesan seperti pelanggan, atau klik contoh kalimat.</li>
+    <li>Bot membalas persis seperti di WhatsApp, termasuk katalog dan size chart.</li>
+    <li>Tombol <b>↻</b> (Mulai ulang) di atas chat untuk mencoba dari awal.</li></ol>
+    <div class="tip">Bisa juga dari HP: buka chat "Message yourself" di nomor bot dan ketik seperti pelanggan. Ketik <b>reset</b> untuk mengulang.</div>`,
+  template: `<p>Semua kalimat yang dikirim bot. Bot tidak pernah mengarang kalimat sendiri.</p><ol>
+    <li>Klik template, ubah teksnya, <b>Simpan</b>. Langsung berlaku.</li>
+    <li>Pakai <b>{nama}</b>, <b>{bot}</b>, <b>{cs}</b>, <b>{produk}</b> sesuai yang tertera di template itu.</li>
+    <li><b>Kembalikan ke naskah asli</b> kalau ingin membatalkan perubahan.</li>
+    <li>Template bertanda opsional boleh dikosongkan: bagian itu tidak dikirim.</li></ol>`,
+  pola: `<p>Pertanyaan + jawabannya, buatan tim. Contoh: "cara bayar" → teks rekening.</p><ol>
+    <li><b>+ Pola baru</b> → beri nama.</li>
+    <li>Isi <b>kata kunci</b> (satu per baris). Cukup inti katanya; typo, singkatan, dan bahasa Jawa ikut dikenali.</li>
+    <li>Susun <b>gelembung jawaban</b>: teks, foto, link, item katalog WA, atau file dari Media. Pisahkan versi teks dengan <b>---</b> supaya bergantian.</li>
+    <li>Pilih setelah menjawab: tetap di alur, atau serahkan ke CS.</li>
+    <li>Coba di kotak "Coba kalimat".</li></ol>
+    <div class="tip">Pola bawaan (Lokasi, Pengiriman, Ragu, Minimal order) bisa diubah, dihapus, dan dipulihkan.</div>`,
+  produk: `<p>Produk yang dikenali bot.</p><ol>
+    <li><b>+ Produk baru</b>, atau klik produk untuk mengubah.</li>
+    <li><b>Jenis</b>: punya price list (bot mengirim katalog) atau harga tergantung desain (bot menanyakan desain).</li>
+    <li><b>Kata kunci</b>: cara pelanggan menyebut produk ini.</li>
+    <li><b>Pertanyaan lanjutan</b>: satu per baris, mis. "Kemejanya jenis apa?" lalu "Ukurannya apa saja?". Bot menanyakannya satu per satu dan jawabannya muncul di Percakapan.</li>
+    <li><b>Hapus produk</b>: bot tidak lagi mengenalinya.</li></ol>`,
+  latih: `<p>Mengajari bot kalimat yang belum dimengerti.</p><ol>
+    <li>Di kiri ada pesan pelanggan yang <b>belum dikenali</b> (bot menyerahkannya ke CS).</li>
+    <li>Kotak kata kunci sudah diisi intinya; rapikan kalau perlu.</li>
+    <li>Pilih maksudnya (atau pola jawaban), lalu <b>Ajarkan</b>. Pesan serupa berikutnya langsung dikenali.</li>
+    <li><b>Abaikan</b> untuk pesan yang memang urusan CS (DP, komplain). Bisa dipulihkan di bagian "Diabaikan".</li></ol>
+    <div class="tip">Di kanan: semua kata kunci. ✎ untuk mengubah, ✕ untuk menghapus.</div>`,
+  statistik: `<p>Angka percakapan: berapa pesan masuk, berapa yang dikenali bot, jam paling ramai, dan sampai langkah mana pelanggan biasanya berhenti.</p>
+    <ul><li>Pilih rentang hari di kanan atas.</li><li>Arahkan kursor ke grafik untuk melihat angkanya.</li></ul>`,
+  media: `<p>File dan link yang dikirim bot.</p><ol>
+    <li><b>Katalog</b>: unggah gambar/PDF, atau tempel link katalog WhatsApp Business. Link menggantikan gambar.</li>
+    <li><b>Size chart</b>: unggah gambar dan/atau isi link. Kalau ada link, link dikirim dulu, lalu gambarnya.</li>
+    <li>Klik kotak atau seret file ke kotak. Klik × untuk menghapus file.</li>
+    <li><b>Katalog WhatsApp Business</b>: sinkronkan supaya bot bisa mengirim produk satu per satu.</li></ol>
+    <div class="tip">"belum ada" = pertanyaan itu diserahkan ke CS sampai filenya diisi.</div>`,
+  pengaturan: `<p>Pengaturan bot. Semua langsung berlaku setelah Simpan.</p><ul>
+    <li><b>Nama bot & CS</b>, <b>jam aktif</b>, berapa lama bot diam setelah CS membalas, <b>mode libur</b>.</li>
+    <li><b>Bot menyerah setelah</b>: berapa kali bot boleh bilang "belum paham" sebelum menyerahkan ke CS.</li>
+    <li><b>Rekap pagi</b>: daftar pelanggan semalam dikirim ke WhatsApp CS.</li>
+    <li><b>AI (Ollama)</b>: tempel kunci API dari ollama.com → Settings → Keys, pilih model, Simpan, lalu <b>Tes koneksi</b>. AI hanya dipakai untuk pesan yang tidak dikenali kata kunci.</li>
+    <li><b>Pesan otomatis WhatsApp Business</b>: tempel teks Salam / Pesan tidak di tempat dari aplikasi WA Business, supaya bot tahu itu bukan CS yang membalas.</li>
+    <li><b>Backup harian</b>: pilih folder Google Drive/OneDrive supaya data aman.</li></ul>`,
+};
+function renderHelp() {
+  $('#helpTitle').textContent = 'Cara memakai: ' + (TITLES[page] || '');
+  $('#helpBody').innerHTML = HELP[page] || '';
+}
+$('#helpBtn').onclick = () => { renderHelp(); $('#helpPanel').classList.toggle('hidden'); };
+$('#helpClose').onclick = () => $('#helpPanel').classList.add('hidden');
+
 /* ------------------------------------------------------------ routing --- */
-const TITLES = { ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', pola:'Pola jawaban', produk:'Produk', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan' };
+const TITLES ={ ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', pola:'Pola jawaban', produk:'Produk', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan' };
 let page = 'ringkasan';
 function go(p) {
   page = TITLES[p] ? p : 'ringkasan';
   $$('.nav').forEach((b) => b.classList.toggle('on', b.dataset.page === page));
   $$('section[data-page]').forEach((s) => s.classList.toggle('hidden', s.dataset.page !== page));
   $('#pageTitle').textContent = TITLES[page];
+  if (!$('#helpPanel').classList.contains('hidden')) renderHelp();
   if (location.hash !== '#' + page) history.replaceState(null, '', location.pathname + location.search + '#' + page);
   refresh();
 }
@@ -685,24 +873,36 @@ async function loadConvs() {
   renderConvs();
   if (openKey) openConv(...openKey, true);
 }
+// Who has the customer now: the bot, nobody yet (the bot handed over, CS has not replied), or CS.
+const CS_REASONS = ['CS membalas', 'diambil alih dari konsol'];
+const whoHas = (c) => (c.step !== 'handed_over' ? 'bot' : CS_REASONS.includes(c.handover_reason) ? 'cs' : 'wait');
+const WHO = {
+  bot: { icon: '🤖', label: 'Ditangani bot', pill: 'good' },
+  wait: { icon: '🙋', label: 'Menunggu CS', pill: 'warn' },
+  cs: { icon: '💬', label: 'Ditangani CS', pill: 'quiet' },
+};
+function whoPill(c) {
+  const w = WHO[whoHas(c)];
+  const why = whoHas(c) === 'bot' ? (STEP_LABEL[c.step] || c.step) : (c.handover_reason || '');
+  return `<span class="pill ${w.pill}"><b>${w.icon} ${w.label}</b>${why ? ' · ' + esc(why) : ''}</span>`;
+}
 function renderConvs() {
   const q = $('#convSearch').value.trim().toLowerCase();
+  const counts = { all: convs.length, bot: 0, wait: 0, cs: 0 };
+  convs.forEach((c) => counts[whoHas(c)]++);
+  $$('#convFilters [data-n]').forEach((b) => { b.textContent = counts[b.dataset.n] || ''; });
   const list = convs.filter((c) => {
-    if (convFilter === 'follow' && !(c.step === 'handed_over' && c.handover_reason !== 'CS membalas')) return false;
-    if (convFilter === 'open' && c.step === 'handed_over') return false;
-    if (convFilter === 'cs' && c.handover_reason !== 'CS membalas') return false;
-    return !q || [c.name, c.origin, c.phone, c.last_text, c.product_name].some((v) => String(v || '').toLowerCase().includes(q));
+    if (convFilter !== 'all' && whoHas(c) !== convFilter) return false;
+    return !q || [c.name, c.origin, c.phone, c.last_text, c.product_name, c.quantity].some((v) => String(v || '').toLowerCase().includes(q));
   });
   $('#convList').innerHTML = list.length ? list.map((c) => {
     const k = JSON.stringify([c.session_key, c.jid]);
     const on = openKey && openKey[1] === c.jid;
-    const state = c.step === 'handed_over'
-      ? (c.handover_reason === 'CS membalas' ? '<span class="pill quiet">dibalas CS</span>' : '<span class="pill warn">perlu CS</span>')
-      : `<span class="pill good">${esc(STEP_LABEL[c.step] || c.step)}</span>`;
-    return `<div class="conv ${on ? 'on' : ''}" onclick='openConv(...${k})'>
+    const state = whoPill(c);
+    return `<div class="conv who-${whoHas(c)} ${on ? 'on' : ''}" onclick='openConv(...${k})'>
       <div class="ava" style="background:${avaColor(c.jid)}">${esc(initials(c.name))}</div>
       <div style="min-width:0;flex:1"><div class="top"><span class="name">${esc(c.name ? 'Kak ' + c.name : (c.phone ? '+' + c.phone : 'Tanpa nama'))}</span><span class="time">${fmtTime(c.last_message_at)}</span></div>
-        <div class="last">${esc(c.last_text || '—')}</div><div class="row" style="margin-top:5px;gap:5px">${state}${c.product_name ? `<span class="pill quiet">${esc(c.product_name)}</span>` : ''}</div></div></div>`;
+        <div class="last">${esc(c.last_text || '—')}</div><div class="row" style="margin-top:5px;gap:5px;flex-wrap:wrap">${state}${c.product_name ? `<span class="pill quiet">${esc(c.product_name)}${c.quantity ? ' · ' + esc(c.quantity) : ''}</span>` : ''}</div></div></div>`;
   }).join('') : '<div class="empty">Tidak ada percakapan.</div>';
 }
 $('#convSearch').oninput = renderConvs;
@@ -710,6 +910,25 @@ $$('#convFilters .chip').forEach((b) => b.onclick = () => { convFilter = b.datas
 $('#hours').onchange = loadConvs;
 function openConvFrom(session, jid) { openKey = [session, jid]; go('percakapan'); }
 
+function whoBanner(c) {
+  const who = whoHas(c), w = WHO[who];
+  const why = who === 'bot'
+    ? `Bot sedang menangani · ${esc(STEP_LABEL[c.step] || c.step)}. CS tidak perlu membalas dulu.`
+    : who === 'wait'
+      ? `Bot sudah mengoper (${esc(c.handover_reason || 'alur selesai')}). <b>CS perlu membalas</b> pelanggan ini.`
+      : `CS sedang menangani (${esc(c.handover_reason)}). Bot diam di nomor ini.`;
+  return `<div class="who-banner ${who}"><b>${w.icon} ${w.label}</b><span>${why}</span></div>`;
+}
+function orderSummary(c, row) {
+  let details = [];
+  try { details = JSON.parse(c.details || '[]'); } catch {}
+  if (!c.product && !c.quantity && !details.length) return '';
+  return `<dl class="order">
+    ${c.product ? `<dt>Produk</dt><dd>${esc(row.product_name || c.product)}</dd>` : ''}
+    ${c.quantity ? `<dt>Jumlah</dt><dd>${esc(c.quantity)}</dd>` : ''}
+    ${details.map((d) => `<dt>${esc(d.q)}</dt><dd>${esc(d.a)}</dd>`).join('')}
+  </dl>`;
+}
 async function openConv(session, jid, quiet) {
   openKey = [session, jid];
   if (!quiet) renderConvs();
@@ -722,10 +941,13 @@ async function openConv(session, jid, quiet) {
     const d = utc(m.created_at); const day = d.toDateString();
     const sep = day !== lastDay ? `<div class="day">${esc(fmtDay(d))}</div>` : ''; lastDay = day;
     const t = d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
-    if (m.direction === 'handover') return sep + `<div class="sys">🤝 Diserahkan ke CS · ${esc(m.text)} · ${t}</div>`;
+    if (m.direction === 'handover') return sep + `<div class="sys">${CS_REASONS.includes(m.text) ? '💬 CS mengambil alih' : '🙋 Bot mengoper ke CS'} · ${esc(m.text)} · ${t}</div>`;
+    if (m.direction === 'step') return '';
+    if (m.direction === 'auto') return sep + `<div class="sys auto">📨 Salam otomatis WhatsApp Business terkirim · bot tetap menangani · ${t}</div>`;
     const file = (m.text || '').startsWith('[file]');
     const tag = m.direction === 'in' && m.intent ? `<div><span class="tag">${esc(INTENT[m.intent] || m.intent)}</span></div>` : '';
-    return sep + `<div class="bub ${m.direction === 'in' ? 'them' : 'me'} ${file ? 'file' : ''}">${file ? '📎 ' + esc(m.text.slice(7)) : esc(m.text || '(pesan tanpa teks: suara, stiker, atau lampiran)')}${tag}<span class="t">${t}</span></div>`;
+    const who = m.direction === 'in' ? '' : `<span class="who">${m.direction === 'cs' ? '💬 CS (dari HP)' : '🤖 Bot'}</span>`;
+    return sep + `<div class="bub ${m.direction === 'in' ? 'them' : 'me'} ${file ? 'file' : ''}">${who}${file ? '📎 ' + esc(m.text.slice(7)) : esc(m.text || '(pesan tanpa teks: suara, stiker, atau lampiran)')}${tag}<span class="t">${t}</span></div>`;
   }).join('');
   const handed = c.step === 'handed_over';
   const phone = row.phone || (jid.endsWith('@s.whatsapp.net') ? jid.split('@')[0] : null);
@@ -734,6 +956,8 @@ async function openConv(session, jid, quiet) {
       <div style="flex:1;min-width:0"><b>${esc(c.name ? 'Kak ' + c.name : 'Tanpa nama')}</b>${c.origin ? ' <span class="muted">· ' + esc(c.origin) + '</span>' : ''}
       <div class="small muted">${phone ? `<a href="https://wa.me/${esc(phone)}" target="_blank" rel="noopener">+${esc(phone)}</a>` : 'nomor disembunyikan WhatsApp'}${c.product ? ' · ' + esc(row.product_name || c.product) : ''}</div></div>
       ${stepper(c.step)}</div>
+    ${whoBanner(c)}
+    ${orderSummary(c, row)}
     <div class="chatwall">${bubbles || '<div class="sys">Belum ada pesan.</div>'}</div>
     <div class="pane-foot">${handed
       ? `<span class="pill ${c.handover_reason === 'CS membalas' ? 'quiet' : 'warn'}"><span class="dot"></span>${esc(c.handover_reason || 'di CS')}</span><span class="muted small" style="flex:1">Bot diam di nomor ini.</span><button class="btn" onclick='act(${JSON.stringify(session)}, ${JSON.stringify(jid)}, "reset")'>Kembalikan ke bot</button>`
@@ -887,6 +1111,7 @@ function renderProduk() {
       <div class="pola-sum" data-toggle><b style="flex:1">${esc(p.name)}</b>
         <span class="pill ${p.catalog ? 'good' : 'quiet'}">${p.catalog ? 'punya price list' : 'harga tergantung desain'}</span>
         ${p.sizeChart ? '<span class="pill quiet">size chart</span>' : ''}
+        ${(p.questions || []).length ? `<span class="pill quiet">${p.questions.length} pertanyaan</span>` : ''}
         <span class="small muted">${p.keywords.length} kata kunci</span>${p.builtin ? '<span class="pill quiet">bawaan</span>' : ''}
         <span class="muted">${open ? '▴' : '▾'}</span></div>
       ${open ? `<div class="pola-body">
@@ -897,6 +1122,8 @@ function renderProduk() {
           <label class="row lb" style="gap:6px"><input type="checkbox" data-size ${p.sizeChart ? 'checked' : ''}> Punya size chart (muncul di halaman Media)</label>
           <label class="lb">Kata kunci <span class="small muted" style="font-weight:400">· satu per baris atau pisahkan dengan koma; tahan typo</span></label>
           <textarea class="f" data-kw rows="6">${esc(p.keywords.join('\n'))}</textarea>
+          <label class="lb">Pertanyaan lanjutan <span class="small muted" style="font-weight:400">· satu pertanyaan per baris, maks. 6. Ditanyakan satu per satu setelah produk dikenali${p.catalog ? ' (setelah katalog)' : ''}; jawabannya disimpan untuk CS. Kosongkan kalau tidak perlu.</span></label>
+          <textarea class="f" data-q rows="4" placeholder="Kemejanya mau jenis apa kak?&#10;Untuk ukurannya apa saja kak?">${esc((p.questions || []).join('\n'))}</textarea>
           <div class="row" style="margin-top:14px"><button class="btn primary" data-save>Simpan</button><button class="btn danger" data-delete>Hapus produk</button></div>
         </div>
         <div class="small muted">
@@ -913,7 +1140,7 @@ function renderProduk() {
     if (prodOpen !== key) return;
     $('[data-save]', card).onclick = async () => {
       try {
-        const r = await api('/products/' + encodeURIComponent(key), { method:'PUT', body: JSON.stringify({ name: $('[data-name]', card).value, catalog: $('[data-kind]', card).value === 'catalog', sizeChart: $('[data-size]', card).checked, keywords: $('[data-kw]', card).value }) });
+        const r = await api('/products/' + encodeURIComponent(key), { method:'PUT', body: JSON.stringify({ name: $('[data-name]', card).value, catalog: $('[data-kind]', card).value === 'catalog', sizeChart: $('[data-size]', card).checked, keywords: $('[data-kw]', card).value, questions: $('[data-q]', card).value }) });
         Object.assign(p, r.product);
         toast(r.taken.length ? `Tersimpan. Dilewati: ${r.taken.join(', ')}` : 'Tersimpan. Bot langsung memakainya.');
         kwMeta = null; renderProduk(); loadStatus();
@@ -1115,7 +1342,7 @@ $('#polaTest').onkeydown = (e) => { if (e.key === 'Enter') $('#polaTestBtn').cli
 /* ------------------------------------------------------------- latih --- */
 let kwMeta = null;
 const intentOptions = (sel) => (sel ? '' : '<option value="" selected disabled>pilih maksudnya…</option>')
-  + (kwMeta.patterns?.length ? `<optgroup label="Pola buatan tim">${kwMeta.patterns.map((p) => `<option value="pola:${p.id}">Pola: ${esc(p.name)}</option>`).join('')}</optgroup><optgroup label="Jawaban bawaan">` : '')
+  + (kwMeta.patterns?.length ? `<optgroup label="Pola jawaban (Lokasi, Pengiriman, buatan tim, …)">${kwMeta.patterns.map((p) => `<option value="pola:${p.id}">Pola: ${esc(p.name)}</option>`).join('')}</optgroup><optgroup label="Maksud lain">` : '')
   + kwMeta.intents.map((i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${esc(INTENT[i] || i)}</option>`).join('')
   + (kwMeta.patterns?.length ? '</optgroup>' : '');
 const productOptions = (sel) => kwMeta.products.map((p) => `<option value="${p.key}" ${p.key === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
@@ -1123,22 +1350,38 @@ async function loadLatih() {
   const [{ messages }, meta] = await Promise.all([api('/unrecognised'), api('/keywords')]);
   // Teaching into a pattern needs no product picker.
   kwMeta = meta;
-  const pending = messages.filter((m) => m.nowIntent === 'other');
+  // Three piles: still unknown (teach these), known by now (taught, or the bot got smarter), set aside by the team.
+  const pending = messages.filter((m) => m.nowIntent === 'other' && !m.dismissed);
+  const learned = messages.filter((m) => m.nowIntent !== 'other' && !m.dismissed);
+  const dismissed = messages.filter((m) => m.dismissed);
   const nt = $('#navTeach'); nt.textContent = pending.length; nt.classList.toggle('hidden', !pending.length);
   $('#kwIntent').innerHTML = intentOptions('product'); $('#kwProduct').innerHTML = productOptions(); $('#kwProduct').classList.remove('hidden');
-  $('#teachList').innerHTML = messages.length ? messages.map((m, i) => `
-    <div class="teach-item" data-i="${i}">
+  const nowLabel = (m) => m.nowPattern ? 'Pola: ' + m.nowPattern : (INTENT[m.nowIntent] || m.nowIntent) + (m.nowProduct ? ' · ' + (kwMeta.products.find((p) => p.key === m.nowProduct)?.name || m.nowProduct) : '');
+  $('#teachList').innerHTML = (pending.length ? pending.map((m) => `
+    <div class="teach-item" data-text="${esc(m.text)}">
       <div class="row" style="margin-bottom:6px"><span class="small muted" style="flex:1">${m.times > 1 ? m.times + '× · ' : ''}terakhir ${fmtTime(m.last_at)}</span>
-        ${m.nowIntent !== 'other' ? `<span class="pill good"><span class="dot"></span>sekarang dikenali: ${esc(INTENT[m.nowIntent] || m.nowIntent)}</span>` : '<span class="pill warn"><span class="dot"></span>belum dikenali</span>'}</div>
+        <span class="pill warn"><span class="dot"></span>belum dikenali</span><button class="btn sm" data-dismiss title="Urusan CS (DP, komplain, dll): tidak perlu diajarkan">Abaikan</button></div>
       <div class="q">${esc(m.text)}</div>
-      ${m.nowIntent === 'other' ? `<form class="teach-form"><input class="f" name="phrase" value="${esc(m.text.slice(0, 60))}" title="Sisakan kata kuncinya saja, mis. 'rekber'"><select class="f" name="intent" required>${intentOptions()}</select><select class="f" name="product">${productOptions()}</select><button class="btn primary">Ajarkan</button></form>` : ''}
-    </div>`).join('') : `<div class="empty" style="padding:18px 0 8px">Belum ada pesan pelanggan yang gagal dikenali. 👍<br><span class="small">Begitu ada, muncul di sini seperti contoh di bawah.</span></div>
+      <form class="teach-form"><input class="f" name="phrase" value="${esc(m.suggest || m.text.slice(0, 60))}" title="Inti katanya saja. Bot juga mengenali variasi, typo, dan bahasa Jawanya."><select class="f" name="intent" required>${intentOptions()}</select><select class="f" name="product">${productOptions()}</select><button class="btn primary">Ajarkan</button></form>
+      <div class="small muted" style="margin-top:4px">Sisakan inti katanya saja (sudah diisi otomatis), pilih maksudnya, lalu Ajarkan.</div>
+    </div>`).join('') : (learned.length || dismissed.length ? '<div class="empty" style="padding:14px 0">Semua pesan sudah dikenali bot atau diabaikan. 👍</div>' : ''))
+  + (learned.length ? `<details class="kwgroup" style="margin-top:12px"><summary><b>✅ Sudah dikenali sekarang</b> <span class="small muted">${learned.length} pesan · tidak perlu diajarkan lagi</span></summary>
+      <div class="kwrows">${learned.map((m) => `<div class="kwrow"><span class="kwp">${esc(m.text)}</span><span class="pill good" style="padding:0 7px">${esc(nowLabel(m))}</span></div>`).join('')}</div></details>` : '')
+  + (dismissed.length ? `<details class="kwgroup"><summary><b>🙈 Diabaikan</b> <span class="small muted">${dismissed.length} pesan · urusan CS</span></summary>
+      <div class="kwrows">${dismissed.map((m) => `<div class="kwrow" data-text="${esc(m.text)}"><span class="kwp">${esc(m.text)}</span><button class="mini" data-undismiss title="Pulihkan">↩</button></div>`).join('')}</div></details>` : '')
+  || `<div class="empty" style="padding:18px 0 8px">Belum ada pesan pelanggan yang gagal dikenali. 👍<br><span class="small">Begitu ada, muncul di sini seperti contoh di bawah.</span></div>
       <div class="teach-item" style="opacity:.75">
         <div class="row" style="margin-bottom:6px"><span class="pill quiet">contoh</span><span class="small muted" style="flex:1">3× · terakhir semalam</span><span class="pill warn"><span class="dot"></span>belum dikenali</span></div>
         <div class="q">kak bisa pakai rekber ga? takut soalnya</div>
         <div class="small muted" style="margin-top:8px">Ketik <b>rekber</b> → pilih <b>Pola: Ragu / takut ditipu</b> → <b>Ajarkan</b>. Pesan serupa berikutnya dijawab dengan naskah "Aman kakk, kami sudah vendor nasional…", bukan langsung dilempar ke CS.</div>
       </div>`;
   $$('#teachList .teach-form').forEach((f) => { wireIntent(f); f.onsubmit = (e) => { e.preventDefault(); teach(f); }; });
+  const dismiss = async (el, undo) => {
+    await api('/unrecognised/dismiss', { method:'POST', body: JSON.stringify({ text: el.closest('[data-text]').dataset.text, undo }) });
+    toast(undo ? 'Dipulihkan ke daftar' : 'Diabaikan: tetap diserahkan ke CS'); loadLatih();
+  };
+  $$('#teachList [data-dismiss]').forEach((b) => b.onclick = () => dismiss(b, false));
+  $$('#teachList [data-undismiss]').forEach((b) => b.onclick = () => dismiss(b, true));
   renderKwList();
 }
 function wireIntent(form) {
@@ -1303,9 +1546,14 @@ function renderMedia() {
   const groups = [...new Set(mediaSlots.map((s) => s.group))];
   $('#mediaGroups').innerHTML = groups.map((g) => `<div><h3 style="margin:6px 0 10px">${esc(g)}</h3><div class="slots">${mediaSlots.filter((s) => s.group === g).map((s) => `
     <div class="slot" data-slot="${esc(s.id)}">
-      <div class="head"><b>${esc(s.label)}</b>${s.catalogItems ? `<span class="pill good"><span class="dot"></span>${s.catalogItems} produk katalog WA</span>` : s.link || s.fallbackLink ? `<span class="pill good"><span class="dot"></span>katalog WA${s.link ? '' : ' toko'}</span>` : s.files.length ? `<span class="pill good"><span class="dot"></span>${s.files.length > 1 ? s.files.length + ' file' : 'ada'}</span>` : s.optional ? '<span class="pill quiet">opsional</span>' : '<span class="pill warn"><span class="dot"></span>belum ada</span>'}</div>
+      <div class="head"><b>${esc(s.label)}</b>${s.catalogItems ? `<span class="pill good"><span class="dot"></span>${s.catalogItems} produk katalog WA</span>` : s.link || s.fallbackLink ? `<span class="pill good"><span class="dot"></span>${s.kind === 'katalog' ? 'katalog WA' + (s.link ? '' : ' toko') : 'link'}</span>` : s.files.length ? `<span class="pill good"><span class="dot"></span>${s.files.length > 1 ? s.files.length + ' file' : 'ada'}</span>` : s.optional ? '<span class="pill quiet">opsional</span>' : '<span class="pill warn"><span class="dot"></span>belum ada</span>'}</div>
       <div class="small muted">${esc(s.effect)}</div>
-      ${s.linkable ? `<div class="linkbox">
+      ${s.linkable && s.kind !== 'katalog' ? `<div class="linkbox">
+        <label class="small" style="font-weight:600">Link <span class="muted" style="font-weight:400">(opsional)</span></label>
+        <div class="row" style="gap:6px;flex-wrap:nowrap"><input class="f" data-link value="${esc(s.link || '')}" placeholder="https://drive.google.com/…" style="flex:1;min-width:0"><button class="btn sm" data-savelink>Simpan</button></div>
+        <div class="small muted">${s.link ? 'Bot mengirim link ini dulu' + (s.kind === 'size-chart' ? ' (dengan kalimat "Size chart: link" dari Template)' : '') + (s.files.length ? ', lalu gambar di bawah.' : '.') : 'Kosong: bot hanya mengirim gambar/PDF di bawah.'}</div>
+      </div>` : ''}
+      ${s.linkable && s.kind === 'katalog' ? `<div class="linkbox">
         <label class="small" style="font-weight:600">Link katalog WhatsApp ${s.product ? '' : '<span class="muted" style="font-weight:400">(seluruh toko)</span>'}</label>
         <div class="row" style="gap:6px;flex-wrap:nowrap"><input class="f" data-link value="${esc(s.link || '')}" placeholder="${s.product ? 'kosong = pakai link toko' : 'https://wa.me/c/62…'}" style="flex:1;min-width:0"><button class="btn sm" data-savelink>Simpan</button></div>
         <div class="small muted">${s.link ? 'Bot mengirim link ini (menggantikan gambar).' : s.catalogItems ? `Bot mengirim ${s.catalogItems} produk dari katalog WhatsApp (lihat daftar di atas). Isi link di sini hanya kalau ingin menggantinya.` : s.fallbackLink ? 'Memakai link katalog toko: ' + esc(s.fallbackLink) : s.product ? (s.files.length ? 'Kosong: bot mengirim gambar di bawah.' : 'Isi link, atau isi link toko di "Katalog umum".') : 'Dipakai untuk semua produk yang belum punya gambar/link sendiri.'}</div>
@@ -1325,7 +1573,7 @@ function renderMedia() {
   });
   $$('[data-savelink]').forEach((b) => b.onclick = async () => {
     const slot = b.closest('.slot').dataset.slot, url = $('[data-link]', b.closest('.slot')).value;
-    try { ({ slots: mediaSlots } = await api('/media/' + encodeURIComponent(slot) + '/link', { method:'PUT', body: JSON.stringify({ url }) })); renderMedia(); toast(url.trim() ? 'Link katalog tersimpan' : 'Link dihapus'); loadStatus(); }
+    try { ({ slots: mediaSlots } = await api('/media/' + encodeURIComponent(slot) + '/link', { method:'PUT', body: JSON.stringify({ url }) })); renderMedia(); toast(url.trim() ? 'Link tersimpan' : 'Link dihapus'); loadStatus(); }
     catch (err) { toast('Belum tersimpan: ' + err.message); }
   });
   $$('[data-del]').forEach((b) => b.onclick = async () => {
@@ -1354,7 +1602,44 @@ async function upload(slot, files) {
 
 /* --------------------------------------------------------- pengaturan --- */
 let settingsLoaded = false;
+function renderAi(ai) {
+  $('#aiState').innerHTML = ai.enabled
+    ? `<span class="pill good"><span class="dot"></span>aktif · ${esc(ai.model)}</span>`
+    : '<span class="pill quiet">mati · kata kunci saja</span>';
+  $('#aiKeyHint').textContent = ai.keyMasked
+    ? `Tersimpan: ${ai.keyMasked} (dari ${ai.keySource}). Kosongkan kalau tidak diubah.`
+    : 'Belum ada kunci.';
+  $('#aiKeyRemove').classList.toggle('hidden', ai.keySource !== 'pengaturan');
+  if (!document.activeElement?.closest('#aiForm')) {
+    $('#aiForm [name=aiModel]').value = ai.model || '';
+    $('#aiForm [name=aiHost]').value = ai.hostSet ? ai.host : '';
+  }
+}
+async function loadAi() { renderAi(await api('/ai')); }
+$('#aiForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value };
+  if (f.aiKey.value.trim()) body.key = f.aiKey.value;
+  try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify(body) })); f.aiKey.value = ''; toast('Pengaturan AI tersimpan dan langsung berlaku'); loadStatus(); }
+  catch (err) { /* shown in the error pop-up */ }
+};
+$('#aiKeyRemove').onclick = async () => {
+  if (!confirm('Hapus kunci API Ollama dari Pengaturan?')) return;
+  renderAi(await api('/ai', { method:'PUT', body: JSON.stringify({ key: '' }) })); toast('Kunci dihapus');
+};
+$('#aiTest').onclick = async (e) => {
+  e.target.disabled = true; $('#aiTestOut').innerHTML = '<span class="muted">Menghubungi Ollama…</span>';
+  try {
+    const r = await api('/ai/test', { method:'POST', body: '{}' });
+    $('#aiModels').innerHTML = r.models.map((m) => `<option value="${esc(m)}">`).join('');
+    $('#aiTestOut').innerHTML = `<span class="pill good"><span class="dot"></span>Tersambung · ${r.ms} ms · ${esc(r.model)}</span>
+      <div style="margin-top:6px">Contoh: <i>"${esc(r.text)}"</i> → dikenali sebagai <b>${esc(INTENT[r.intent] || r.intent)}</b>${r.product ? ' · ' + esc(r.product) : ''}${r.extras?.length ? ' + ' + r.extras.map((x) => esc(INTENT[x] || x)).join(', ') : ''}</div>
+      <div class="muted" style="margin-top:4px">${r.models.length} model tersedia; pilih di kolom Model lalu Simpan.</div>`;
+  } catch (err) { $('#aiTestOut').innerHTML = `<span class="pill warn"><span class="dot"></span>Gagal: ${esc(err.message)}</span>`; }
+  finally { e.target.disabled = false; }
+};
 async function loadPengaturan() {
+  loadAi();
   const [{ values, backupSuggestions, lastBackup }, { text }] = await Promise.all([api('/settings'), api('/recap/preview')]);
   $('#recapPreview').textContent = text || 'Belum ada pelanggan sejak rekap terakhir. Rekap akan berisi daftar pelanggan semalam.';
   $('#recapAtHint').textContent = values.recapAt ? '' : `sekarang: ${values.activeUntil}`;
@@ -1366,11 +1651,12 @@ async function loadPengaturan() {
   // Do not overwrite what someone is typing when the page refreshes.
   if (!settingsLoaded || !document.activeElement?.closest('form')) {
     const set = (form, name, v) => { const el = $(`${form} [name=${name}]`); if (el) el.value = v ?? ''; };
-    for (const n of ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours']) set('#settingsForm', n, values[n]);
+    for (const n of ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses']) set('#settingsForm', n, values[n]);
     set('#settingsForm', 'holidays', (values.holidays || []).map((h) => `${h.from}${h.to !== h.from ? ' - ' + h.to : ''}${h.label ? ' ' + h.label : ''}`).join('\n'));
     set('#recapForm', 'recapTo', (values.recapTo || []).map((n) => '0' + n.slice(2)).join(', '));
     set('#recapForm', 'recapAt', values.recapAt);
     set('#backupForm', 'backupDir', values.backupDir);
+    set('#autoForm', 'autoMessages', values.autoMessages);
     settingsLoaded = true;
   }
 }
@@ -1381,9 +1667,10 @@ async function saveForm(form, fields) {
   catch (err) { toast('Belum tersimpan: ' + err.message); }
   finally { btn.disabled = false; }
 }
-$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'holidays']); };
+$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'holidays']); };
 $('#recapForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['recapTo', 'recapAt']); };
 $('#backupForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['backupDir']); };
+$('#autoForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['autoMessages']); };
 $('#backupNow').onclick = async (e) => {
   e.target.disabled = true;
   try { const r = await api('/backup/now', { method:'POST' }); toast('Backup tersimpan: ' + r.file); }
@@ -1419,7 +1706,8 @@ async function refresh() {
   } finally { busy = false; }
 }
 go(location.hash.slice(1) || 'ringkasan');
-setInterval(() => { if (['ringkasan', 'percakapan'].includes(page) && !document.hidden) refresh(); else loadStatus().catch(() => {}); }, 5000);
+setInterval(() => { if (['ringkasan', 'percakapan'].includes(page) && !document.hidden) refresh(); else loadStatus().catch(() => {}); pollErrors(); }, 5000);
+pollErrors();
 </script>
 </body>
 </html>

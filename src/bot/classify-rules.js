@@ -147,7 +147,7 @@ export function findProduct(text) {
 }
 
 // Indonesian, Javanese ("kulo Budi saking Purworejo", "nami kula Sri") and Sundanese ("abdi Asep ti Garut").
-const LEAD = '(?:(?:ini\\s+)?(?:dengan|dgn|kalih|kaliyan)|saya|aku|sy|ak|gw|gue|ini|namaku|nama\\s+(?:saya|aku|sy)|nama|perkenalkan|kenalin|nami\\s+(?:kulo|kula|abdi)|kulo|kula|abdi|asmanipun|jenengku|jenenge\\s+aku|aranku)';
+const LEAD = '(?:(?:ini\\s+)?(?:dengan|dgn|kalih|kaliyan)|(?:perkenalkan|kenalin|kenalkan),?\\s+(?:nama\\s+)?(?:saya|aku|kami)|saya|aku|sy|ak|gw|gue|ini|namaku|nama\\s+(?:saya|aku|sy)|nama|perkenalkan|kenalin|nami\\s+(?:kulo|kula|abdi)|kulo|kula|abdi|asmanipun|jenengku|jenenge\\s+aku|aranku)';
 const NAME = "([\\p{L}']+(?:\\s+[\\p{L}']+){0,2}?)";
 const ORIGIN_LEAD = '(?:dari|dr|asal(?:\\s+dari)?|tinggal\\s+di|domisili|di|saking|seko|soko|teko|ti|ten|teng|neng|nang)';
 const STOP = '(?=\\s+(?:mau|mo|ingin|pengen|pgn|kak|min|ya|yaa|nih|mohon|izin|ijin|tanya|nanya|butuh|perlu|pesan|pesen|order|bikin|buat|minta|kalau|kalo|untuk|utk|ada|badhe|bade|ajeng|arep|hoyong|nyuwun|takon|damel|wonten|mas|mbak|mba|pak|bu|nggih|njih)\\b|\\s*$)';
@@ -214,7 +214,7 @@ const NOT_FUZZY = new Set([
     'besar', 'kecil', 'minta', 'semua', 'sedikit', 'banyak', 'untuk', 'dengan', 'ingin', 'pesan', 'kirim', 'bikin', 'warna', 'logo', 'kamu',
     'kapan', 'tapi', 'bisa', 'boleh', 'lihat', 'liat', 'model', 'bahan', 'jumlah', 'tempat', 'bayar', 'transfer', 'nanti', 'besok', 'hari',
     'pakai', 'pake', 'kayak', 'kaya', 'masih', 'cari', 'dulu', 'lagi', 'tolong', 'mohon', 'info', 'tahu', 'paham', 'ditunggu', 'tunggu',
-    'gimana', 'dimana', 'bagaimana', 'kenapa', 'mengapa', 'berapa', 'siapa', 'kapan', 'teman', 'tidak', 'nggak', 'bukan', 'karena',
+    'beragam', 'macam', 'borong', 'borongan', 'grosir', 'grosiran', 'partai', 'gimana', 'dimana', 'bagaimana', 'kenapa', 'mengapa', 'berapa', 'siapa', 'kapan', 'teman', 'tidak', 'nggak', 'bukan', 'karena',
     'sekarang', 'sudah', 'semoga', 'nomor', 'warna', 'kirim', 'dikirim', 'sablon', 'bordir', 'gambar', 'desain', 'design',
 ]);
 
@@ -245,6 +245,24 @@ function onlyPhrases(normalised, phrases, fillers, allowEmpty = false) {
 
 const GREETING_FILLERS = new Set(['kak', 'min', 'mas', 'mbak', 'mba', 'admin', 'gan', 'sis', 'bu', 'pak', 'selamat', 'ya', 'nih', 'pagi', 'siang', 'sore', 'malam', 'wr', 'wb', 'semua', 'dulu']);
 
+// A number with a unit is an amount anywhere ("kemeja 2000 pcs"); a bare
+// number only when the bot asked how many ("SMA 1" is not one piece).
+const QUANTITY_UNIT = /(?:^|\s)(\d{1,6}\s*(?:pcs|pc|buah|bh|potong|ptg|lembar|lbr|set|pasang|orang|org|stel|setel|lusin|kodi|an|anan|biji))(?=\s|$)/;
+// Whether they said they have a design ("desainnya sudah ada", "nanti saya kirim filenya")
+// or none ("belum ada desain", "dereng wonten desaine"). Matched on normalised text.
+const DESIGN_NONE = / (?:belum|tidak|gak|nggak|enggak) (?:ada |punya |memiliki |kepikiran |dapat )?(?:desain|design|referensi|konsep|gambaran|logo)/;
+const DESIGN_READY = / (?:sudah|udah) (?:ada |punya |jadi |siap )?(?:desain|design|file|gambar|referensi|logo)| (?:desain|design|file|filenya|desainnya|designnya) (?:sudah|udah) (?:ada|jadi|siap)| (?:kirim|kirimkan|kirimin) (?:file|filenya|desain|desainnya|gambar)/;
+
+const designStatus = (normalised) => (DESIGN_NONE.test(normalised) ? 'none' : DESIGN_READY.test(normalised) ? 'ready' : null);
+
+const QUANTITY_NAMED =/(?:^|\s)((?:se|satu |dua |tiga |empat |lima |setengah )?(?:lusin|kodi)|ratusan|puluhan)(?=\s|$)/;
+
+function quantityText(normalised, bare) {
+    const found = normalised.match(QUANTITY_UNIT) ?? normalised.match(QUANTITY_NAMED) ?? (bare ? normalised.match(QUANTITY) : null);
+
+    return found ? found[1].trim() : null;
+}
+
 export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
     const normalised = normalise(text);
     const product = findProduct(normalised);
@@ -273,6 +291,9 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
                 intent,
                 product,
                 sizeVariant,
+                quantity: quantityText(normalised, step === 'awaiting_quantity'),
+                design: designStatus(normalised),
+                text,
                 ...intro,
                 extras: [...faqs, ...(wantsProduct ? ['product'] : [])].filter((extra) => extra !== intent),
                 patterns,
@@ -281,8 +302,11 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
             productKeys(),
         );
 
+    // A bare number is an amount only when the bot asked how many ("SMA 1 Purworejo" is not one piece).
     const quantity = () =>
-        QUANTITY.test(normalised) || QUANTITY_WORDS.some((w) => normalised.includes(w)) || mentions(normalised, keywordsFor('quantity'));
+        (step === 'awaiting_quantity' ? QUANTITY.test(normalised) : QUANTITY_UNIT.test(normalised)) ||
+        QUANTITY_WORDS.some((w) => normalised.includes(w)) ||
+        mentions(normalised, keywordsFor('quantity'));
 
     // Answers to the bot's own question come first: "belum ada" after "what
     // design?" means no reference, not a greeting or an unknown message.
@@ -296,10 +320,16 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
         return result('quantity');
     }
 
+    // "Mau ngobrol sama admin": a person was asked for; nothing else matters.
+    if (mentions(normalised, keywordsFor('human'))) return result('human');
+
     // Answer patterns (the team's and the seeded Lokasi, Pengiriman, ...) come before the built-in answers.
     if (patterns.length) return result('custom');
 
     // Questions the spec answers at any point in the conversation.
+    // "Belum ada desain" says they have none; it is not a request for design examples.
+    if (faqs[0] === 'design_reference' && DESIGN_NONE.test(normalised)) return result('no_reference');
+
     if (faqs.length) return result(faqs[0]);
 
     if (product) return result('product');

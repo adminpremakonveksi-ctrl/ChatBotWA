@@ -14,13 +14,13 @@ import { activePatterns, deletePattern, listPatterns, missingBuiltins, resetPatt
 import { createProduct, deleteProduct, listProducts, productKeywords, updateProduct } from '../src/bot/products.js';
 import { createMedia } from '../src/bot/media.js';
 import { migrationIds, runMigrations } from '../src/migrations.js';
-import { SEED_PATTERNS, SEED_PRODUCTS } from '../src/seeds.js';
+import { SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS } from '../src/seeds.js';
 import { seedText } from './helpers.js';
 
 const c = (text, step = 'awaiting_product') => classifyWithRules({ text, step });
 
 test('a fresh install is seeded: products, keywords, answer patterns, examples', () => {
-    assert.equal(listProducts().length, SEED_PRODUCTS.length);
+    assert.equal(listProducts().length, SEED_PRODUCTS.length + SEED_NEW_PRODUCTS.length);
     assert.ok(customKeywords().filter((k) => k.source === 'bawaan').length > 200);
     assert.deepEqual(activePatterns().filter((p) => p.builtin).map((p) => p.name).sort(), ['Lokasi', 'Minimal order', 'Pengiriman', 'Ragu / takut ditipu']);
 
@@ -128,7 +128,7 @@ test('upgrading an existing client database keeps everything the team changed', 
     assert.equal(old.prepare(`SELECT COUNT(*) AS n FROM custom_keywords WHERE intent IN ('trust','location')`).get().n, 0);
     assert.ok(old.prepare(`SELECT 1 FROM custom_keywords WHERE phrase = 'belum kepikiran desain'`).get(), 'old team keyword normalised');
     assert.ok(old.prepare(`SELECT 1 FROM custom_keywords WHERE phrase = 'baju panitia' AND source = 'tim'`).get(), 'team product keyword kept');
-    assert.equal(old.prepare('SELECT COUNT(*) AS n FROM products').get().n, SEED_PRODUCTS.length);
+    assert.equal(old.prepare('SELECT COUNT(*) AS n FROM products').get().n, SEED_PRODUCTS.length + SEED_NEW_PRODUCTS.length);
     assert.equal(old.prepare(`SELECT COUNT(*) AS n FROM custom_keywords WHERE "phrase" = 'contoh foto'`).get().n, 0, 'no fresh-install examples on an existing install');
 
     // Running again does nothing: each migration runs once.

@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 
 import { Bot } from './bot/bot.js';
-import { aiEnabled } from './bot/classify-ai.js';
+import { aiProvider } from './bot/classify.js';
 import { catalogStatus, setItemProduct } from './bot/catalog.js';
 import { addPatternKeyword, createPattern, deletePattern, getPattern, listPatterns, missingBuiltins, resetPattern, restoreBuiltin, updatePattern } from './bot/patterns.js';
 import { classifyWithRules, findPattern, normalise } from './bot/classify-rules.js';
@@ -15,10 +15,13 @@ import { createProduct, deleteProduct, listProducts, productKeywords, productNam
 import { listTemplates, render, resetTemplate, templateText, updateTemplate } from './bot/replies.js';
 import { holidayOn, isBotActive, localClock, nextChange } from './bot/schedule.js';
 import { resetSimulation, simulate } from './bot/simulator.js';
-import { analytics, listConversations, loadConversation, markHandover, messagesOf, resetConversation, stats, unrecognised } from './bot/store.js';
+import { analytics, dismissKey, dismissText, dismissedTexts, listConversations, loadConversation, markHandover, messagesOf, resetConversation, stats, suggestPhrase, unrecognised } from './bot/store.js';
 import { config, root } from './config.js';
 import { db, describeDatabase, getSetting, now, run } from './db.js';
 import { logger } from './logger.js';
+import { errorsSince, latestErrorId } from './errors.js';
+import { aiSettings, listOllamaModels, loadAiSettings, updateAiSettings } from './ai-settings.js';
+import { classifyWithOllama } from './bot/classify-ollama.js';
 import { backup, buildRecap, sendTestRecap, startMaintenance } from './maintenance.js';
 import { manager } from './manager.js';
 import { backupSuggestions, currentSettings, loadSettings, updateSettings } from './settings.js';
@@ -41,11 +44,25 @@ const requireApiKey = (req, res, next) => {
     next();
 };
 
+const VERSION = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
+
 const wrap = (handler) => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
 
-app.get('/health', (req, res) => res.json({ ok: true, botActive: isBotActive(), ai: aiEnabled() }));
+/** What the console shows: keywords always first, the AI only for what they miss. */
+const aiLabel = () => {
+    const provider = aiProvider();
+    if (provider === 'ollama') return `kata kunci + Ollama (${config.ollama.model}) untuk pesan yang tidak dikenali`;
+
+    return 'kata kunci saja';
+};
+
+app.get('/health', (req, res) => res.json({ ok: true, botActive: isBotActive(), ai: aiProvider() }));
 
 app.use(requireApiKey);
+
+// New errors and warnings since the id the console last showed (the error pop-up polls this).
+// Behind the API key: stacks and logged details may name customers.
+app.get('/errors', (req, res) => res.json({ errors: errorsSince(req.query.after), latest: latestErrorId(), version: VERSION }));
 
 /* -------------------------------------------------------------- console --- */
 
@@ -81,7 +98,7 @@ app.get('/info', wrap(async (req, res) => {
         clock: localClock(new Date(), config.bot.timezone),
         holiday: holidayOn(),
         forceMode: config.bot.forceMode || null,
-        ai: aiEnabled() ? `AI (${config.ai.model}), cadangan kata kunci` : 'kata kunci saja',
+        ai: aiLabel(),
         jerseyPromo: Boolean(templateText('jerseyPromo')),
         promoPamphlet: media.has('promo', 'jersey'),
         handoverHours: config.bot.handoverHours,
@@ -361,6 +378,29 @@ app.get('/settings', wrap(async (req, res) => {
     res.json({ values: currentSettings(), backupSuggestions: backupSuggestions(), lastBackup: getSetting('backup:last') ?? getSetting('job:backup') });
 }));
 
+/* ------------------------------------------------------------------ AI --- */
+
+app.get('/ai', wrap(async (req, res) => res.json(aiSettings())));
+
+app.put('/ai', wrap(async (req, res) => {
+    const settings = updateAiSettings(req.body ?? {});
+
+    logger.info({ model: settings.model, host: settings.host, key: settings.keySource }, 'pengaturan AI diubah dari konsol');
+    res.json(settings);
+}));
+
+// "Tes koneksi": the models on offer, and one real label for a sample message.
+app.post('/ai/test', wrap(async (req, res) => {
+    if (!aiProvider()) throw Object.assign(new Error('Isi dulu kunci API Ollama (atau alamat Ollama lokal), lalu Simpan'), { statusCode: 422 });
+
+    const models = await listOllamaModels();
+    const text = String(req.body?.text || 'mas, menawi kulo mundhut kaos saged dikintun dumugi Makassar?');
+    const started = Date.now();
+    const result = await classifyWithOllama({ text, step: 'awaiting_product' });
+
+    res.json({ models, text, intent: result.intent, product: result.product, extras: result.extras, ms: Date.now() - started, model: config.ollama.model });
+}));
+
 app.put('/settings', wrap(async (req, res) => {
     const values = updateSettings(req.body ?? {});
 
@@ -386,13 +426,28 @@ app.get('/analytics', wrap(async (req, res) => {
 
 /** Messages the bot did not understand, and whether today's keywords would catch them. */
 app.get('/unrecognised', wrap(async (req, res) => {
+    const hidden = new Set(dismissedTexts());
     const rows = unrecognised(Number(req.query.days ?? 30)).map((row) => {
         const now = classifyWithRules({ text: row.text, step: 'awaiting_product' });
 
-        return { ...row, nowIntent: now.intent, nowProduct: now.product };
+        return {
+            ...row,
+            nowIntent: now.intent,
+            nowProduct: now.product,
+            nowPattern: now.pattern?.name ?? null,
+            suggest: suggestPhrase(row.text),
+            dismissed: hidden.has(dismissKey(row.text)),
+        };
     });
 
     res.json({ messages: rows });
+}));
+
+// "Abaikan" in Latih bot: a message that is CS's job (DP, a complaint) leaves the list; "Pulihkan" brings it back.
+app.post('/unrecognised/dismiss', wrap(async (req, res) => {
+    dismissText(req.body?.text, req.body?.undo === true);
+
+    res.json({ ok: true });
 }));
 
 app.get('/keywords', wrap(async (req, res) => {
@@ -457,13 +512,25 @@ app.delete('/products/:key', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
+// Errors go back raw, with where and when, so the console can show them as they are.
 app.use((error, req, res, next) => {
-    if (error.type === 'entity.too.large') {
-        return res.status(413).json({ error: 'File lebih dari 15 MB' });
-    }
+    const status = error.type === 'entity.too.large' ? 413 : error.statusCode ?? 500;
+    const message = error.type === 'entity.too.large' ? 'File lebih dari 15 MB' : error.message;
+    const detail = {
+        status,
+        method: req.method,
+        path: req.originalUrl,
+        time: new Date().toISOString().replace('T', ' ').slice(0, 19),
+        name: error.name,
+        code: error.code,
+        // A server fault shows its stack; a refused input (4xx) only its reason.
+        stack: status >= 500 ? error.stack : undefined,
+    };
 
-    logger.error({ err: error.message }, 'request gagal');
-    res.status(error.statusCode ?? 500).json({ error: error.message });
+    if (status >= 500) logger.error({ err: error.message, stack: error.stack, path: req.originalUrl, method: req.method }, 'request gagal');
+    else logger.info({ err: error.message, path: req.originalUrl, status }, 'request ditolak');
+
+    res.status(status).json({ error: message, detail });
 });
 
 /* ----------------------------------------------------------------- boot --- */
@@ -473,12 +540,13 @@ const bot = new Bot();
 async function main() {
     describeDatabase();
     loadSettings();
+    loadAiSettings();
 
     logger.info(
         {
             bot: config.bot.botName,
             cs: config.bot.csName,
-            ai: aiEnabled() ? config.ai.model : 'mati (kata kunci saja)',
+            ai: aiLabel(),
             jamAktif: `Sen-Sab ${config.bot.activeFrom}-${config.bot.activeUntil}, Minggu 24 jam`,
             rekap: config.recap.to.length ? `${config.recap.at} ke ${config.recap.to.join(', ')}` : 'mati',
             backup: `${config.maintenance.backupAt} ke ${config.maintenance.backupDir}`,
@@ -505,9 +573,19 @@ async function main() {
 
     const missing = media.checklist().filter((item) => !item.ok);
     if (missing.length) {
-        logger.warn({ belumAda: missing.map((item) => item.expected) }, `${missing.length} file media belum ada (lihat tab Media di konsol)`);
+        logger.warn({ quiet: true, belumAda: missing.map((item) => item.expected) }, `${missing.length} file media belum ada (lihat tab Media di konsol)`);
     }
 }
+
+// Anything unexpected is logged first (so it reaches the console pop-up and
+// logs/bot.log), then the process exits as Node would: the launcher's service
+// loop starts a fresh bot, instead of a half-broken one holding the port.
+const crash = (label) => (reason) => {
+    logger.error({ err: reason?.message ?? String(reason), stack: reason?.stack }, label);
+    setTimeout(() => process.exit(1), 500).unref();
+};
+process.on('unhandledRejection', crash('error tak tertangani (promise), bot dinyalakan ulang'));
+process.on('uncaughtException', crash('error tak tertangani, bot dinyalakan ulang'));
 
 for (const signal of ['SIGINT', 'SIGTERM']) {
     process.on(signal, async () => {

@@ -41,7 +41,7 @@ test('"ok" and "makasih" never hand over in the middle of the flow', () => {
 
     // After the quantity question it closes the flow politely: [7] + [8].
     const done = step({ step: 'awaiting_quantity', product: 'kaos' }, 'nggih matur nuwun');
-    assert.deepEqual(texts(done.actions), [replies.waitForCs(), replies.socials()]);
+    assert.deepEqual(texts(done.actions), [replies.waitForCs(), replies.socials(), replies.handoverNotice()]);
 });
 
 test('price questions: which product, the catalog, or [4]; never a number', () => {
@@ -55,8 +55,8 @@ test('price questions: which product, the catalog, or [4]; never a number', () =
     assert.deepEqual(r.actions.map((a) => a.kind ?? a.type), ['katalog'], 'the catalog again: it has the price list');
 
     r = step({ step: 'awaiting_quantity', product: 'kaos' }, 'biayanya berapa?');
-    assert.equal(r.conv.step, 'handed_over', 'design products: CS gives the price');
-    assert.deepEqual(texts(r.actions), [replies.waitForCs()]);
+    assert.equal(r.conv.step, 'awaiting_quantity', 'design products: explained, the flow goes on');
+    assert.deepEqual(texts(r.actions), [replies.priceDesign('Kaos')]);
 });
 
 test('a Javanese customer goes through the whole flow', () => {
@@ -75,5 +75,17 @@ test('a Javanese customer goes through the whole flow', () => {
 
     r = step(r.conv, 'kinten-kinten 35 pcs');
     assert.equal(r.conv.step, 'handed_over');
-    assert.deepEqual(texts(r.actions), [replies.waitForCs(), replies.socials()]);
+    assert.deepEqual(texts(r.actions), [replies.waitForCs(), replies.socials(), replies.handoverNotice()]);
+});
+
+test('at the quantity question: a question not understood is asked again; "belum tahu" ends the flow', () => {
+    let r = step({ step: 'awaiting_quantity', product: 'kaos' }, 'xyz qwerty');
+    assert.deepEqual(texts(r.actions), [replies.clarify()]);
+    assert.equal(r.conv.step, 'awaiting_quantity');
+
+    r = step({ step: 'awaiting_quantity', product: 'kaos' }, 'belum tau kak jumlahnya');
+    assert.equal(r.conv.step, 'handed_over');
+
+    r = step({ step: 'awaiting_quantity', product: 'kaos' }, 'sama admin aja deh');
+    assert.equal(r.conv.step, 'handed_over', 'asking for a person');
 });

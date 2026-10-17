@@ -4,6 +4,7 @@ import path from 'node:path';
 
 import { config, root } from './config.js';
 import { all, setSetting } from './db.js';
+import { autoMessages, setAutoMessages } from './bot/auto-messages.js';
 
 /**
  * Settings the team changes from the console, so nobody has to edit .env.
@@ -112,6 +113,15 @@ const FIELDS = {
         get: () => config.bot.handoverHours,
         set: (v) => (config.bot.handoverHours = v),
     },
+    maxMisses: {
+        validate: (v) => {
+            const n = Number(v);
+            if (!Number.isInteger(n) || n < 1 || n > 10) fail('Batas tidak paham: 1-10 pesan');
+            return n;
+        },
+        get: () => config.bot.maxMisses,
+        set: (v) => (config.bot.maxMisses = v),
+    },
     jerseyPromo: {
         validate: (v) => {
             const text = String(v ?? '').replace(/\r\n/g, '\n').trim();
@@ -132,6 +142,16 @@ const FIELDS = {
         },
     },
     backupDir: { validate: folder, get: () => config.maintenance.backupDir, set: (v) => (config.maintenance.backupDir = v) },
+    // WhatsApp Business automatic messages (Salam, Pesan tidak di tempat), blocks separated by ---.
+    autoMessages: {
+        validate: (v) => {
+            const text = String(v ?? '').replace(/\r\n/g, '\n');
+            if (text.length > 10000) fail('Pesan otomatis maksimal 10000 huruf');
+            return text;
+        },
+        get: () => autoMessages().join('\n---\n'),
+        set: (v) => setAutoMessages(v),
+    },
 };
 
 /** Applies stored settings on boot. A stored value that no longer validates is skipped, not fatal. */

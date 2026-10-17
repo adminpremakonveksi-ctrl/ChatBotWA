@@ -1,4 +1,5 @@
-import { all, get, now, run } from '../db.js';
+import { all, db, get, now, run } from '../db.js';
+import { rememberRemoved } from '../migrations.js';
 import { cleanPhrase, slugify } from '../text.js';
 
 /**
@@ -10,6 +11,8 @@ import { cleanPhrase, slugify } from '../text.js';
  * kind 'design'  = priced by quantity and design, so the bot asks for a
  *                  design reference instead (SPEK-CHATBOT.md, main flow).
  * sizeChart      = needs a size chart file in Media.
+ * questions      = follow-up questions the bot asks one by one once the
+ *                  product is known ("kemeja apa?", "ukuran apa saja?").
  *
  * A product's keywords live with all other keywords (custom_keywords,
  * intent 'product'), so "Latih bot" and the classifier see one list.
@@ -34,10 +37,23 @@ export function listProducts() {
         sizeChart: Boolean(row.size_chart),
         builtin: Boolean(row.builtin),
         position: row.position,
+        questions: parseStored(row.questions),
     }));
 
     return cache;
 }
+
+function parseStored(value) {
+    try {
+        const list = JSON.parse(value ?? '[]');
+        return Array.isArray(list) ? list.filter((q) => typeof q === 'string' && q.trim()) : [];
+    } catch {
+        return [];
+    }
+}
+
+/** A product's follow-up questions, in order. */
+export const productQuestions = (key) => getProduct(key)?.questions ?? [];
 
 export const productKeys = () => listProducts().map((p) => p.key);
 
@@ -85,19 +101,28 @@ function validFields(values, current = {}) {
     const catalog = values.catalog === undefined ? current.catalog : Boolean(values.catalog);
     const sizeChart = values.sizeChart === undefined ? current.sizeChart : Boolean(values.sizeChart);
 
-    return { name, catalog, sizeChart };
+    // One question per line (or an array); at most 6, so a customer is not interrogated.
+    const questions = values.questions === undefined
+        ? current.questions ?? []
+        : (Array.isArray(values.questions) ? values.questions : String(values.questions).split('\n'))
+            .map((q) => String(q).trim())
+            .filter(Boolean);
+    if (questions.length > 6) fail('Maksimal 6 pertanyaan lanjutan per produk');
+    if (questions.some((q) => q.length > 500)) fail('Satu pertanyaan maksimal 500 huruf');
+
+    return { name, catalog, sizeChart, questions };
 }
 
 export function createProduct(values) {
-    const { name, catalog, sizeChart } = validFields(values);
+    const { name, catalog, sizeChart, questions } = validFields(values);
 
     let key = slugify(name) || 'produk';
     for (let i = 2; get('SELECT 1 FROM products WHERE "key" = ?', [key]); i++) key = `${slugify(name)}-${i}`;
 
     const position = (get('SELECT MAX(position) AS p FROM products')?.p ?? -1) + 1;
     run(
-        `INSERT INTO products ("key", name, kind, size_chart, position, builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?)`,
-        [key, name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, position, now(), now()],
+        `INSERT INTO products ("key", name, kind, size_chart, position, builtin, questions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+        [key, name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, position, JSON.stringify(questions), now(), now()],
     );
 
     const taken = values.keywords === undefined ? [] : setKeywords(key, values.keywords);
@@ -108,9 +133,9 @@ export function createProduct(values) {
 
 export function updateProduct(key, values) {
     const current = getProduct(key) ?? fail('Produk tidak ditemukan', 404);
-    const { name, catalog, sizeChart } = validFields(values, current);
+    const { name, catalog, sizeChart, questions } = validFields(values, current);
 
-    run(`UPDATE products SET name = ?, kind = ?, size_chart = ?, updated_at = ? WHERE "key" = ?`, [name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, now(), key]);
+    run(`UPDATE products SET name = ?, kind = ?, size_chart = ?, questions = ?, updated_at = ? WHERE "key" = ?`, [name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, JSON.stringify(questions), now(), key]);
 
     const taken = values.keywords === undefined ? [] : setKeywords(key, values.keywords);
     changed();
@@ -123,7 +148,10 @@ export function updateProduct(key, values) {
  * catalog link. Conversations that mentioned it keep the old key as text.
  */
 export function deleteProduct(key) {
-    getProduct(key) ?? fail('Produk tidak ditemukan', 404);
+    const product = getProduct(key) ?? fail('Produk tidak ditemukan', 404);
+
+    // A built-in product the team deleted stays deleted through later updates.
+    if (product.builtin) rememberRemoved(db, 'product', key);
 
     run(`DELETE FROM custom_keywords WHERE intent = 'product' AND product = ?`, [key]);
     run(`DELETE FROM settings WHERE "key" LIKE 'catmap:%' AND value = ?`, [key]);

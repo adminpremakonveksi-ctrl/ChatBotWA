@@ -18,6 +18,7 @@ export const INTENTS = [
     'price', //            asks the price without naming a product
     'ask_first', //        "mau nanya2 dulu": announces a question, asks nothing yet
     'ack', //              "ok", "siap", "makasih": nothing to answer
+    'human', //            asks for a person (admin, CS, a phone call): handed over at once
     'custom', //           matches an answer pattern the team built (carries `pattern`)
     'other', //            anything else - handed to CS
 ];
@@ -38,6 +39,10 @@ const NOT_A_NAME = new Set([
     'pinten', 'sampun', 'dereng', 'matur', 'nuwun', 'suwun', 'sugeng', 'dalu', 'enjing', 'sonten', 'punten', 'hoyong',
     'damel', 'takon', 'nyuwun', 'pripun', 'piye', 'mboten', 'ora', 'niki', 'iki', 'mriki', 'mangke', 'riyin', 'ngapunten',
     'monggo', 'mangga', 'sami', 'ten', 'teng', 'neng', 'oke', 'sip', 'mantap', 'makasih',
+    // Words after "saya" that are not a name ("saya kirim filenya", "saya kabari nanti")
+    'kirim', 'kirimkan', 'kirimin', 'file', 'filenya', 'nanti', 'kabari', 'kabarin', 'hubungi', 'transfer', 'bayar', 'cek',
+    'lihat', 'liat', 'tunggu', 'coba', 'ambil', 'pakai', 'pake', 'masih', 'belum', 'sedang', 'lagi', 'cuma', 'hanya', 'juga',
+    'desain', 'design', 'desainnya', 'gambar', 'logo', 'ukuran', 'warna', 'harga', 'kami', 'kita',
 ]);
 
 /**
@@ -83,7 +88,7 @@ export function normaliseResult(result, productKeys) {
 
     // Further things the same message asked, answered before the main intent.
     const extras = [...new Set(Array.isArray(result?.extras) ? result.extras : [])].filter(
-        (extra) => INTENTS.includes(extra) && extra !== intent && !['greeting', 'introduction', 'other', 'ack', 'ask_first'].includes(extra),
+        (extra) => INTENTS.includes(extra) && extra !== intent && !['greeting', 'introduction', 'other', 'ack', 'ask_first', 'human'].includes(extra),
     );
 
     return {
@@ -93,8 +98,14 @@ export function normaliseResult(result, productKeys) {
         name: cleanName(result?.name),
         origin: cleanOrigin(result?.origin),
         sizeVariant,
+        // "2000 pcs", "2 lusin": the amount as the customer wrote it, for CS.
+        quantity: typeof result?.quantity === 'string' && result.quantity.trim() ? result.quantity.trim().slice(0, 40) : null,
         patterns,
         pattern: intent === 'custom' ? patterns[0] : null,
+        // "none" (no design yet) / "ready" (they have one) when the message says so.
+        design: ['none', 'ready'].includes(result?.design) ? result.design : null,
+        // The message itself: a follow-up answer is stored for CS as written.
+        text: typeof result?.text === 'string' ? result.text : '',
         source: result?.source ?? 'rules',
     };
 }

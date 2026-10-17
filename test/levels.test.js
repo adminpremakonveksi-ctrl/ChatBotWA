@@ -225,6 +225,16 @@ const CASES = [
     [5, 'awaiting_product', 'Bagaimana ketentuan minimal pemesanan untuk jaket?', 'pola:Minimal order'],
     [5, 'awaiting_product', 'Saya sedang membandingkan beberapa vendor konveksi', 'ask_first'],
     [5, 'awaiting_product', 'Terima kasih atas penjelasannya, sangat membantu', 'ack'],
+
+    // fourth round (migration 007, jas almamater, krama)
+    [1, 'awaiting_product', 'almet', 'product:jas-almamater'],
+    [2, 'awaiting_product', 'harga borongan brp kak', 'price'],
+    [2, 'awaiting_product', 'oke nanti saya kabari ya kak', 'ack'],
+    [3, 'awaiting_product', 'Saya mau pesan Kemeja 2000 PCS', 'product:kemeja'],
+    [3, 'awaiting_product', 'Kalau tidak sesuai ada garansinya?', 'pola:Ragu / takut ditipu'],
+    [4, 'awaiting_product', 'badhe damel jas almamater kangge kampus', 'product:jas-almamater'],
+    [4, 'awaiting_product', 'menawi kulo mundhut kaos saged dikintun dumugi Makassar?', 'pola:Pengiriman'],
+    [5, 'awaiting_product', 'Kami masih menimbang beberapa penawaran', 'ask_first'],
 ];
 
 /**

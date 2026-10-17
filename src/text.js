@@ -55,7 +55,7 @@ export const REGIONAL = {
     // want, make, buy, send, can, ask
     badhe: 'mau', bade: 'mau', ajeng: 'mau', arep: 'mau', hoyong: 'mau', kepengin: 'pengen', pengin: 'pengen',
     damel: 'bikin', ndamel: 'bikin', gawe: 'bikin', nggawe: 'bikin', digawe: 'dibikin', didamel: 'dibikin',
-    tumbas: 'beli', tuku: 'beli', mbayar: 'bayar',
+    tumbas: 'beli', tuku: 'beli', mundhut: 'beli', mendet: 'ambil', njupuk: 'ambil', dumugi: 'sampai', menawi: 'kalau', nek: 'kalau', ngadamel: 'bikin', ngadamelkeun: 'bikin', mbayar: 'bayar',
     kintun: 'kirim', ngintun: 'kirim', dikintun: 'dikirim',
     saged: 'bisa', iso: 'bisa', isa: 'bisa', tiasa: 'bisa',
     takon: 'tanya', tangklet: 'tanya', tanglet: 'tanya', naros: 'tanya',

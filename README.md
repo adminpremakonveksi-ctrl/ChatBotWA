@@ -83,7 +83,12 @@ Balasan **selalu** naskah tetap dari spesifikasi; yang pintar hanya bagian menge
 - **Bisa diajari tim** lewat halaman Latih bot, dan **pola jawaban** buatan tim dipakai sebelum jawaban bawaan.
 - **Katalog WhatsApp Business**: produk yang cocok dikirim sebagai link produk (maks. 3, promo didahulukan).
 - **Anti-ulang**: kalimat yang sama paling banyak 2x per pelanggan dalam 10 menit; lebih dari itu diserahkan ke CS.
-- **AI opsional** (`ANTHROPIC_API_KEY`) untuk bahasa yang tidak tertangkap kata kunci; kalau AI gagal, kembali ke kata kunci.
+- **AI opsional: Ollama** (Ollama Cloud dengan `OLLAMA_API_KEY`, atau Ollama lokal dengan `OLLAMA_HOST`), hanya untuk pesan yang tidak tertangkap kata kunci; kalau AI gagal, kembali ke kata kunci.
+- **Tidak gampang menyerah**: pesan yang tidak dipahami dibalas "Maaf kak, belum paham…" dulu; baru diserahkan ke CS setelah 3x berturut-turut (atur di Pengaturan), atau kalau pelanggan minta bicara dengan admin/CS.
+- **Bahasa Jawa dan Sunda** dimengerti: "pinten regane", "lokasine ten pundi", "kulo Slamet saking Kutoarjo".
+- **Pertanyaan lanjutan per produk** ("kemeja jenis apa? ukurannya apa saja?"), jawabannya muncul di Percakapan dan rekap pagi.
+- **Salam otomatis WhatsApp Business** dikenali, tidak dikira CS yang membalas.
+- **Setiap error tampil** sebagai kotak merah berisi detail mentahnya, untuk difoto dan dikirim ke developer.
 
 ## Tugas harian otomatis
 
@@ -113,13 +118,15 @@ Untuk mencoba di siang hari, isi `BOT_FORCE=always` di `.env`.
 
 ## Mengenali maksud pelanggan
 
-Tanpa `ANTHROPIC_API_KEY`, bot mengenali maksud dari kata kunci
-(`src/bot/classify-rules.js`). Cara ini gratis dan offline, tetapi tidak akan
-pernah menangkap semua cara orang bertanya; yang tidak dikenali diserahkan ke CS.
+Bot selalu mengenali maksud dari kata kunci dulu (`src/bot/classify-rules.js`):
+gratis, offline, instan, dan diuji untuk lima gaya chat (singkat/typo, santai,
+standar, Jawa/Sunda, formal) di `test/levels.test.js`.
 
-Dengan `ANTHROPIC_API_KEY`, maksud dikenali oleh AI. AI hanya memberi label,
-tidak pernah menulis balasan. Kalau AI gagal (internet putus, limit, dsb.), bot
-otomatis kembali ke kata kunci.
+Kalau Ollama diatur (`OLLAMA_API_KEY` untuk Ollama Cloud, atau `OLLAMA_HOST`
+untuk Ollama lokal; model di `OLLAMA_MODEL`, bawaan `gemma4:31b`), pesan yang
+**tidak** dikenali kata kunci ditanyakan ke AI. AI hanya memberi label, tidak
+pernah menulis balasan; label di luar daftar ditolak. Kalau AI gagal (internet
+putus, limit, dsb.), bot tetap memakai hasil kata kunci.
 
 ## Isi media
 

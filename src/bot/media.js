@@ -131,10 +131,9 @@ export function createMedia(dir = config.mediaDir) {
         return found ? [found] : [];
     };
 
-    const slotId = (kind, product) => (product ? `${kind}:${product}` : kind);
 
-    /** The link stored on exactly this catalog slot. */
-    const ownLink = (kind, product = null) => (kind === 'katalog' ? getSetting(`link:${slotId(kind, product)}`) : null);
+    /** The link stored on exactly this slot ("katalog:jersey", "size-chart:kaos:reguler"). */
+    const ownLink = (kind, product = null, variant = null) => getSetting(`link:${[kind, product, variant].filter(Boolean).join(':')}`);
 
     /**
      * Links to send for a catalog; when there are any they replace its pictures.
@@ -144,8 +143,13 @@ export function createMedia(dir = config.mediaDir) {
      *   3. none, so the uploaded pictures are sent,
      *   4. the shop-wide catalog link, when there are no pictures either.
      */
-    const links = (kind, product = null) => {
-        if (kind !== 'katalog') return [];
+    const links = (kind, product = null, variant = null) => {
+        // Every other slot (size chart, review, promo): its own link, if the team set one.
+        if (kind !== 'katalog') {
+            const own = kind === 'pola' ? null : ownLink(kind, product, variant);
+
+            return own ? [own] : [];
+        }
 
         const own = ownLink(kind, product);
         if (own) return [own];
@@ -162,7 +166,7 @@ export function createMedia(dir = config.mediaDir) {
 
     const link = (kind, product = null) => links(kind, product)[0] ?? null;
 
-    const has = (kind, product = null, variant = null) => files(kind, product, variant).length > 0 || links(kind, product).length > 0;
+    const has = (kind, product = null, variant = null) => files(kind, product, variant).length > 0 || links(kind, product, variant).length > 0;
 
     const relative = (file) => path.relative(dir, file).replace(/\\/g, '/');
 
@@ -177,19 +181,21 @@ export function createMedia(dir = config.mediaDir) {
         slotDefinitions().map((slot) => ({
             ...slot,
             files: files(slot.kind, slot.product, slot.variant).map(describe),
-            linkable: slot.kind === 'katalog',
-            link: ownLink(slot.kind, slot.product),
+            linkable: true,
+            link: ownLink(slot.kind, slot.product, slot.variant),
             // How many WhatsApp catalog items the bot sends for this product.
             catalogItems: slot.kind === 'katalog' && slot.product && !ownLink(slot.kind, slot.product) ? catalogLinksFor(slot.product).length : 0,
             // What the bot actually sends when this slot has nothing of its own.
             fallbackLink: slot.kind === 'katalog' && slot.product && !ownLink(slot.kind, slot.product) && !catalogLinksFor(slot.product).length && files(slot.kind, slot.product).length === 0 ? ownLink('katalog', null) : null,
         }));
 
-    /** Saves or clears a WhatsApp catalog link on a catalog slot. */
+    /**
+     * Saves or clears a slot's link. Catalog slots take WhatsApp catalog links
+     * only; the others (size chart, review, promo) any https link, e.g. a
+     * Google Drive or Instagram post.
+     */
     const setLink = (id, value) => {
         const slot = findSlot(id);
-
-        if (slot.kind !== 'katalog') throw Object.assign(new Error('Link hanya untuk katalog'), { statusCode: 422 });
 
         let url = String(value ?? '').trim();
 
@@ -201,6 +207,22 @@ export function createMedia(dir = config.mediaDir) {
 
         if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
         url = url.replace(/^http:\/\//i, 'https://');
+
+        if (slot.kind !== 'katalog') {
+            let parsed = null;
+            try {
+                parsed = new URL(url);
+            } catch {
+                /* invalid below */
+            }
+            if (!parsed || !parsed.hostname.includes('.') || /\s/.test(url)) {
+                throw Object.assign(new Error('Link tidak valid. Tempel link lengkap, mis. https://drive.google.com/...'), { statusCode: 422 });
+            }
+
+            setSetting(`link:${slot.id}`, url);
+
+            return url;
+        }
 
         // Only WhatsApp catalog/product links: the bot never sends customers anywhere else from here.
         if (!/^https:\/\/(wa\.me\/(c|p)\/[\w/-]+|api\.whatsapp\.com\/[\w?=&/.-]+)$/i.test(url)) {

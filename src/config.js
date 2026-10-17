@@ -58,6 +58,8 @@ export const config = {
 
         // After handover the bot stays silent on that number this long.
         handoverHours: number('HANDOVER_HOURS', 24),
+        // Messages in a row the bot may fail to understand before CS takes over.
+        maxMisses: number('MAX_MISSES', 3),
         // A conversation idle this long starts over from the greeting.
         resetHours: number('RESET_HOURS', 24),
 
@@ -94,10 +96,13 @@ export const config = {
         atSetting: text('REKAP_JAM'),
     },
 
-    ai: {
-        // Empty disables AI; intent recognition then falls back to keywords.
-        apiKey: text('ANTHROPIC_API_KEY'),
-        model: text('AI_MODEL', 'claude-opus-5-5'),
-        timeoutMs: number('AI_TIMEOUT_MS', 20000),
+    // Ollama: Ollama Cloud with an API key (ollama.com), or a local Ollama
+    // (OLLAMA_HOST=http://localhost:11434, no key).
+    ollama: {
+        apiKey: text('OLLAMA_API_KEY', text('API_URL_OLLAMA')),
+        host: text('OLLAMA_HOST', 'https://ollama.com').replace(/\/+$/, ''),
+        hostSet: Boolean(text('OLLAMA_HOST')),
+        model: text('OLLAMA_MODEL', 'gemma4:31b'),
+        timeoutMs: number('OLLAMA_TIMEOUT_MS', 20000),
     },
 };

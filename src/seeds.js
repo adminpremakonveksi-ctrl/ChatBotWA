@@ -649,7 +649,7 @@ export const SEED_ADDITIONS = [
                 'minta dibuatkan desain', 'bisa bantu desain', 'desain dari sana', 'desain dari prema', 'belum ada logo',
             ],
             has_reference: [
-                'ada desain', 'sudah ada desain', 'udah ada desain', 'desain sendiri', 'sudah jadi', 'udah jadi', 'filenya ada',
+                'sudah ada desain', 'udah ada desain', 'desain sendiri', 'sudah jadi', 'udah jadi', 'filenya ada',
                 'file nya ada', 'ada gambarnya', 'nanti saya kirim', 'nanti aku kirim', 'saya kirim', 'aku kirim', 'seperti contoh',
                 'kayak contoh', 'mirip', 'warna', 'logo', 'tulisan', 'nomor punggung', 'nama punggung',
             ],
@@ -668,7 +668,7 @@ export const SEED_ADDITIONS = [
             'tote-bag': ['tas belanja', 'tas seminar'],
         },
         patterns: {
-            location: ['lokasi toko', 'alamat toko', 'alamat lengkap', 'posisi toko', 'patokan', 'rute', 'purworejo mana', 'bisa ke tempat', 'boleh datang', 'kunjungan', 'jam operasional', 'jam kerja', 'buka sampai', 'tutup jam', 'minggu buka', 'tempat dimana', 'toko dimana', 'alamat dimana', 'dimana alamat', 'dimana lokasi', 'dimana toko', 'dimana tempat', 'posisi dimana', 'daerah mana'],
+            location: ['lokasi toko', 'alamat toko', 'alamat lengkap', 'posisi toko', 'patokan', 'rute', 'purworejo mana', 'bisa ke tempat', 'boleh datang', 'kunjungan', 'jam operasional', 'jam kerja', 'buka sampai', 'tutup jam', 'minggu buka', 'tempat dimana', 'toko dimana', 'alamat dimana', 'dimana alamat', 'dimana lokasi', 'dimana toko', 'dimana tempat', 'daerah mana'],
             shipping: ['bisa cod', 'cod', 'jne', 'jnt', 'j&t', 'sicepat', 'kargo', 'cargo', 'kirim luar negeri', 'sampai berapa hari', 'estimasi pengiriman', 'kirim ke luar', 'pengiriman', 'dikirim dari mana', 'kirimnya dari mana', 'dari mana kirim', 'antar ke', 'diantar', 'dikirim pakai'],
             trust: ['aman ga', 'beneran ada', 'toko asli', 'asli gak', 'pernah order', 'feedback', 'ulasan', 'rating', 'takut kecewa', 'kualitas', 'ditipu', 'dibohongi', 'bohong', 'tertipu'],
             moq: ['minimal pesan', 'minimal order', 'minimal berapa', 'min berapa', 'paling sedikit berapa', 'bisa 1', 'bisa satu', 'bisa 2', 'bisa dua', 'pesan 1', 'order 1', 'beli 1', 'beli satu', 'gak banyak', 'nggak banyak', 'sedikit saja', 'pesan sedikit', 'order sedikit', 'beli sedikit', 'sedikit bisa', 'pesan satuan', 'order satuan', 'jumlah minimal', 'minimal jumlah', 'pesan satu', 'order satu', 'beli satu', 'pesan dua', 'satu bisa', 'satu saja'],
@@ -806,6 +806,55 @@ SEED_ADDITIONS.push({
     },
 });
 
+// Third round: phrasings seen in real chats and from the Ollama tests.
+SEED_ADDITIONS.push({
+    migration: '007_more_variations',
+    keywords: {
+        // Asks for a person: the one quick way to CS.
+        human: [
+            'mau ngobrol sama admin', 'ngobrol sama admin', 'sama admin aja', 'sama cs aja', 'bicara dengan cs', 'bicara dengan admin',
+            'ngobrol sama cs', 'chat sama admin', 'minta nomor cs', 'minta nomor admin', 'nomor cs', 'nomor admin', 'nomor wa admin',
+            'minta dihubungi', 'tolong hubungi', 'telpon aja', 'bisa telpon', 'bisa ditelpon', 'bisa telepon', 'bisa ditelepon',
+            'video call', 'sama orang aja', 'dengan manusia', 'sama manusia', 'bukan bot', 'jangan bot', 'admin asli', 'cs asli',
+            'tolong admin', 'panggil admin', 'panggilkan admin', 'hubungi admin', 'minta admin', 'mau sama admin', 'mau sama cs',
+            'langsung ke admin', 'langsung ke cs', 'oper ke admin', 'sambungkan ke admin', 'badhe kalih admin', 'kalih admin mawon',
+        ],
+        greeting: ['selamat pagi kak', 'selamat malam kak', 'malam min', 'pagi min', 'assalamualaikum kak', 'halo prema', 'halo konveksi', 'permisi kak', 'permisi min'],
+        price: [
+            'harga borongan', 'harga grosiran', 'harga partai', 'potongan', 'diskon kalau banyak', 'murah kalau banyak', 'harga khusus',
+            'harga kaos', 'harga jersey', 'harga jaket', 'harga hoodie', 'harga kemeja', 'harga pdh', 'harga pdl', 'harga topi',
+            'cek harga', 'info harga', 'tanya harga',
+        ],
+        ask_first: [
+            'mau konsul', 'konsultasi dulu', 'mau tanya2', 'tanya2 dulu', 'tanya tanya kak', 'nanya nanya kak', 'ada yang mau ditanyakan',
+            'mau nanya sesuatu', 'mau tanya sesuatu', 'boleh minta waktunya', 'minta info dulu', 'cari referensi dulu', 'cuma mau tau',
+            'sekedar info', 'sekadar info', 'buat perbandingan', 'masih nimbang', 'masih menimbang', 'lagi survei harga',
+        ],
+        ack: [
+            'oke kak siap', 'siap kak terima kasih', 'baik kak terima kasih', 'okee kak', 'okeyy', 'sipp kak', 'mantap kak makasih',
+            'baik terima kasih', 'baiklah kak', 'iya kak siap', 'iya kak makasih', 'ok noted', 'noted thanks', 'oke ditunggu',
+            'siap ditunggu', 'saya tunggu kabarnya', 'ditunggu kabarnya', 'ditunggu infonya', 'oke nanti saya kabari', 'nanti saya kabari',
+            'nanti dikabari', 'nanti saya hubungi lagi', 'nanti saya chat lagi', 'kabar kabar ya',
+        ],
+        size_chart: ['ukuran lengkap', 'detail ukuran', 'ukuran badan', 'lingkar badan', 'ukuran baju', 'ukuran kaos', 'ukuran jersey', 'ukuran kemeja', 'standar ukuran', 'ukuran standar', 'all size', 'allsize'],
+        design_reference: ['contoh kaos', 'contoh jaket', 'contoh hoodie', 'contoh kemeja', 'contoh pdh', 'contoh pdl', 'hasil jahitan', 'foto asli', 'real pict', 'real picture', 'foto real', 'katalog jersey', 'katalog kaos'],
+        no_reference: ['belum ada sama sekali', 'masih nol', 'serah kakak', 'terserah admin', 'bebas kak', 'ngikut aja', 'ikut kakak', 'dibuatkan saja', 'buatkan saja', 'tolong dibuatkan'],
+        quantity: ['satu organisasi', 'satu himpunan', 'satu jurusan', 'satu fakultas', 'satu divisi', 'satu keluarga', 'satu rombongan', 'seluruh karyawan', 'seluruh anggota', 'seluruh siswa'],
+    },
+    products: {
+        'jas-almamater': ['jas alumni', 'jas wisuda', 'jas organisasi kampus', 'almet'],
+        kemeja: ['kemeja seragam kantor', 'kemeja dinas', 'kemeja pria', 'kemeja wanita', 'hem seragam'],
+        kaos: ['kaos seragam', 'kaos sablon dtf', 'kaos dtf', 'kaos plastisol', 'kaos rubber', 'kaos combed'],
+        jersey: ['jersey printing', 'jersey sublim', 'jersey sublimasi', 'jersey full printing'],
+    },
+    patterns: {
+        location: ['alamatnya mana', 'lokasinya mana', 'tokonya mana', 'posisinya dimana', 'ada toko offline', 'toko offline', 'bisa cod di tempat', 'datang ke tempat', 'mampir ke toko', 'mau ke toko', 'mau ke tempat', 'jam berapa bisa ke sana', 'buka jam berapa'],
+        shipping: ['kirim ke luar kota', 'kirim antar provinsi', 'bisa kirim ke', 'kirim pakai ekspedisi', 'ongkir ke', 'ongkos kirim ke', 'berapa ongkirnya', 'pengiriman berapa lama', 'kirim berapa hari', 'sampai berapa lama'],
+        trust: ['sudah terpercaya', 'pernah kena tipu', 'takut ketipu', 'takut zonk', 'ada jaminan', 'garansinya', 'bergaransi', 'kalau rusak', 'kalau cacat', 'kalau tidak sesuai', 'ada testimoni', 'review pelanggan'],
+        moq: ['minimal pemesanannya', 'minimal ordernya', 'minimum ordernya', 'min ordernya', 'satu pcs bisa', 'satu biji bisa', 'pesan sedikit bisa', 'sedikit bisa ga', 'minimal berapa pcs', 'paling sedikit berapa pcs'],
+    },
+});
+
 // Every addition is part of the full seed lists too.
 for (const add of SEED_ADDITIONS) {
     for (const [intent, phrases] of Object.entries(add.keywords ?? {})) {
@@ -820,3 +869,37 @@ for (const add of SEED_ADDITIONS) {
         if (pattern) pattern.keywords = [...new Set([...pattern.keywords, ...phrases])];
     }
 }
+
+/**
+ * Follow-up questions per product, asked one by one after the product is
+ * known (catalog products: after the catalog), so CS gets a usable order
+ * instead of only "kemeja 2000 pcs". Editable per product in the console.
+ * Products with a size chart also get the size question.
+ */
+export const SIZE_QUESTION = 'Untuk ukurannya apa saja kak, dan masing-masing berapa pcs? Misal S 10, M 20, L 15 😉';
+
+export const SEED_QUESTIONS = {
+    jersey: ['Jersey-nya untuk olahraga apa kak? Misal futsal, voli, basket, badminton, esport 😊'],
+    kaos: ['Kaosnya mau lengan pendek atau lengan panjang kak? Sablonnya di bagian mana saja? 😊'],
+    pdl: ['PDL/PDH-nya mau model apa kak? Misal PDL 2in1, PDH lengan panjang atau lengan pendek 😊'],
+    kemeja: ['Kemejanya mau jenis apa kak? Misal PDH, kemeja kerja, kemeja batik, lengan pendek atau lengan panjang 😊'],
+    polo: ['Polo shirt-nya mau lengan pendek atau lengan panjang kak? Logonya disablon atau dibordir? 😊'],
+    jaket: ['Jaketnya mau model apa kak? Misal bomber, varsity, parasut, coach 😊'],
+    hoodie: ['Hoodie-nya mau model apa kak? Pakai resleting (zipper) atau tidak? 😊'],
+    topi: ['Topinya mau model apa kak? Misal baseball, trucker, snapback, bucket hat 😊'],
+    'jas-almamater': ['Jas almamaternya warna apa kak? Logonya dibordir atau disablon? 😊'],
+};
+
+/** Products added after the first release (migration 006). */
+export const SEED_NEW_PRODUCTS = [
+    {
+        key: 'jas-almamater',
+        name: 'Jas Almamater',
+        catalog: false,
+        sizeChart: true,
+        keywords: ['jas almamater', 'almamater', 'jas kampus', 'jas angkatan', 'jas organisasi', 'jas himpunan', 'jas bem', 'blazer'],
+    },
+];
+
+/** The questions a seeded product starts with. */
+export const seedQuestions = (product) => [...(SEED_QUESTIONS[product.key] ?? []), ...(product.sizeChart ? [SIZE_QUESTION] : [])];

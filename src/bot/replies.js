@@ -21,6 +21,21 @@ export const TEMPLATES = {
             'Halo Kak {nama}, terima kasih sudah menghubungi Prema Konveksi. Sembari menunggu CS {cs} online, izinkan saya {bot} selaku AI Agent untuk membantu kakak ya.\n\n' +
             'Kak {nama} mau informasi tentang produk apa nih? Kami siap bantu 😉',
     },
+    // The shop's own WhatsApp Business Salam, as the bot's first message. Not in
+    // the spec; the client asked for it. Empty = the spec's [2] below.
+    welcome: {
+        group: 'Sapaan',
+        label: 'Salam pembuka (menggantikan [2])',
+        when: 'Pesan pertama pelanggan yang belum memperkenalkan diri. Kosongkan untuk memakai [2] dari spesifikasi.',
+        vars: [],
+        optional: true,
+        text:
+            'Halo kak 👋! Saya {bot}, Narahubung Prema Konveksi. Sebelumnya ini dengan kak *siapa* dan *darimana* ya?\n\n' +
+            'Rencana mau pesan/tanya-tanya produk apa nih?\n' +
+            '- Kaos Sablon/Polo\n- Kemeja PDH/PDL\n- Rompi\n- Jaket\n- Jersey\n- Lanyard & ID Card\n- Jas Almamater\n- Produk lainnya\n\n' +
+            '-------\n\n*no call, text only*\n\n' +
+            '_nb. Khusus hari MINGGU pelayanan melalui CS sedikit slow response, terima kasih_',
+    },
     greetUnknown: {
         group: 'Sapaan',
         label: '[2] Pelanggan belum memperkenalkan diri',
@@ -132,12 +147,49 @@ export const TEMPLATES = {
         text: 'Harga untuk produk apa ya kak? Biar aku bantu kirim info yang sesuai 😉',
     },
 
+    clarify: {
+        group: 'Penutup',
+        label: 'Belum paham, tanya ulang',
+        when: 'Pesan yang tidak dipahami bot. Bot menanyakan ulang dulu; baru diserahkan ke CS setelah beberapa kali berturut-turut (atur jumlahnya di Pengaturan).',
+        vars: [],
+        text: 'Maaf kak, {bot} belum paham maksudnya 🙏 Boleh dijelaskan lagi dengan kalimat lain? Misalnya mau tanya produk, harga, ukuran, lokasi, atau pengiriman 😊',
+    },
+    handoverNotice: {
+        group: 'Penutup',
+        label: 'Dioper ke CS',
+        when: 'Bubble terakhir setiap kali bot menyerahkan pelanggan ke CS (alur selesai, pertanyaan tidak dikenali, pesan berulang). Tidak dikirim kalau CS sendiri yang membalas dari HP. Kosongkan untuk mematikan.',
+        vars: [],
+        optional: true,
+        text: 'Ok, request nya kami alihkan ke CS kami di waktu kerja ya kak 🙏',
+    },
+
     sizeChartWhich: {
         group: 'Pertanyaan umum',
         label: 'Size chart: tanya produknya',
         when: 'Pelanggan minta size chart tanpa menyebut produk.',
         vars: [],
         text: 'Size chart untuk produk apa ya kak? Biar aku bantu kirim yang sesuai 😉',
+    },
+    sizeChartMissing: {
+        group: 'Pertanyaan umum',
+        label: 'Size chart: belum ada filenya',
+        when: 'Pelanggan minta size chart produk yang file/link-nya belum diisi di halaman Media. Bot tidak menutup chat; CS mengirimkannya nanti.',
+        vars: ['produk'],
+        text: 'Untuk size chart {produk} nanti dikirimkan CS {cs} ya kak 🙏',
+    },
+    priceDesign: {
+        group: 'Pertanyaan umum',
+        label: 'Harga: produk tergantung desain',
+        when: 'Pelanggan menanyakan harga lagi untuk produk yang harganya tergantung jumlah & desain. Bot menjelaskan lalu melanjutkan alur, tidak menutup chat.',
+        vars: ['produk'],
+        text: 'Untuk harga {produk} bergantung dengan jumlah pemesanan dan desain kak. Nanti CS {cs} hitungkan setelah datanya lengkap ya 😊',
+    },
+    sizeChartLink: {
+        group: 'Pertanyaan umum',
+        label: 'Size chart: link',
+        when: 'Kalau slot size chart di halaman Media diisi link (bukan gambar), bot mengirim kalimat ini dengan link-nya.',
+        vars: ['link', 'produk'],
+        text: 'Berikut size chart {produk} ya kak 👇\n{link}',
     },
     sizeChartNote: {
         group: 'Pertanyaan umum',
@@ -244,7 +296,8 @@ export function listTemplates() {
 /** The engine's view: one function per bubble, same names as before. */
 export const replies = {
     greetKnown: (nama) => render('greetKnown', { nama }),
-    greetUnknown: () => render('greetUnknown'),
+    // The team's Salam when set, else the spec's [2].
+    greetUnknown: () => render('welcome') ?? render('greetUnknown'),
     afterIntro: (nama) => render('afterIntro', { nama }),
     askDesign: (produk) => render('askDesign', { produk }),
     askQuantity: () => render('askQuantity'),
@@ -254,9 +307,14 @@ export const replies = {
     portfolio: () => render('portfolio'),
     jerseyTemplates: () => render('jerseyTemplates'),
     waitForCs: () => render('waitForCs'),
+    handoverNotice: () => render('handoverNotice'),
+    clarify: () => render('clarify'),
+    sizeChartMissing: (produk) => render('sizeChartMissing', { produk }),
+    priceDesign: (produk) => render('priceDesign', { produk }),
     socials: () => render('socials'),
     jerseyPromo: () => render('jerseyPromo'),
     catalogLink: (link, produk) => render('catalogLink', { link, produk }),
+    sizeChartLink: (link, produk) => render('sizeChartLink', { link, produk }),
     sizeChartWhich: () => render('sizeChartWhich'),
     sizeChartNote: () => render('sizeChartNote'),
 };
