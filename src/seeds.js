@@ -775,7 +775,7 @@ SEED_ADDITIONS.push({
             'ambil langsung', 'pickup', 'pick up', 'datang ke toko', 'datang ke konveksi', 'ke lokasi', 'ke workshop', 'survei tempat',
             'lihat bahan langsung', 'cek bahan langsung', 'pegang bahan', 'kirim lokasi', 'kirim shareloc', 'minta lokasi', 'minta alamat',
             'minta maps', 'link maps', 'google map', 'titik', 'purworejo sebelah mana', 'agus salim', 'dekat mana', 'deket mana',
-            'lokasine', 'alamate', 'panggenanipun', 'nggone ning endi',  'kantore', 'wonten pundi', 'dimana kak',
+            'lokasine', 'alamate', 'panggenanipun', 'nggone ning endi', 'wonten pundi', 'dimana kak',
         ],
         shipping: [
             'ongkirnya', 'ongkir berapa', 'ongkos kirimnya', 'biaya kirim', 'biaya pengiriman', 'kirim pakai', 'kirim lewat', 'via apa',
@@ -798,7 +798,7 @@ SEED_ADDITIONS.push({
         moq: [
             'min pesan berapa', 'minimal pemesanan', 'minimum pemesanan', 'minimum order', 'min beli', 'minimal beli', 'minimal produksi',
             'minimum produksi', 'jumlah minimum', 'jumlah minimal', 'paling sedikit', 'paling dikit', 'syarat minimal', 'ketentuan minimal',
-            'harus berapa', 'harus banyak', 'wajib berapa', 'bisa satuan kah', 'terima satuan', 'menerima satuan', 'satuan bisa', 'pcs aja',
+            'harus berapa', 'harus banyak', 'wajib berapa', 'bisa satuan kah', 'terima satuan', 'menerima satuan', 'satuan bisa',
             'cuma 5', 'cuma 6', 'cuma 10', 'hanya 5', 'hanya 6', 'hanya 10', 'cuma butuh', 'hanya butuh', 'cuma perlu', 'butuh sedikit',
             'jumlah sedikit', 'jumlahnya sedikit', 'dikit doang', 'sedikit doang', 'ga banyak', 'tidak banyak', 'sak pcs', 'sakpcs', 'siji wae',
             'setunggal mawon', 'sekedhik mawon', 'minimale', 'minimal pinten', 'paling sithik', 'paling sekedhik', 'sabaraha minimal',
@@ -855,6 +855,39 @@ SEED_ADDITIONS.push({
     },
 });
 
+// Fourth round, from testing odd messages (migration 008). `remove` takes out
+// seeded phrases that proved to catch the wrong thing on installs that have them.
+SEED_ADDITIONS.push({
+    migration: '008_odd_messages',
+    keywords: {
+        human: [
+            'tolong telpon saya', 'telpon saya', 'telepon saya', 'hubungi saya', 'call saya', 'wa saya', 'chat saya', 'langsung telpon',
+            'lama banget', 'lama sekali', 'lambat banget', 'lemot', 'kok lama', 'kok ga dibalas', 'kok gak dibales', 'gak dibales', 'dicuekin',
+            'goblok', 'bodoh', 'tolol', 'bego', 'anjir', 'anjing', 'bangsat', 'kampret', 'payah', 'ga becus', 'gak becus', 'cepetan', 'buruan',
+            'kecewa banget', 'mau komplain', 'komplain', 'keluhan', 'nggak puas', 'gak puas',
+        ],
+        about_bot: [
+            'kamu bot', 'ini bot', 'bot ya', 'bot kah', 'robot ya', 'ini robot', 'kamu robot', 'dibalas bot', 'dibalas robot', 'balasan otomatis',
+            'kamu manusia', 'ini manusia', 'manusia bukan', 'orang beneran', 'orang asli', 'kamu ai', 'pakai ai', 'chatbot ya', 'ini chatbot',
+        ],
+        price: ['how much', 'berapa duit', 'berapa duwit'],
+        // Clear questions only CS can answer: noted for CS, the chat goes on.
+        cs_question: [
+            'bisa dp', 'dp dulu', 'dp nya', 'dp berapa', 'pakai dp', 'sistem dp', 'down payment', 'uang muka', 'bayar dulu',
+            'cara bayar', 'cara pembayaran', 'metode pembayaran', 'pembayarannya', 'bayarnya gimana', 'bayar pakai', 'bisa transfer',
+            'transfer ke', 'rekening', 'norek', 'no rek', 'nomor rekening', 'qris', 'bisa cicil', 'dicicil', 'bayar tempo', 'bisa tempo',
+            'lama pengerjaan', 'pengerjaannya', 'proses pengerjaan', 'berapa lama jadi', 'berapa hari jadi', 'kapan jadi', 'kapan selesai',
+            'kapan bisa diambil', 'estimasi pengerjaan', 'estimasi jadi', 'proses berapa lama', 'produksi berapa lama', 'deadline', 'bisa kejar',
+            'urgent', 'kilat', 'express', 'status pesanan', 'pesanan saya', 'orderan saya', 'sudah sampai mana', 'resi saya', 'nomor resi',
+            'nota', 'invoice', 'faktur', 'kwitansi', 'revisi', 'direvisi', 'revisi desain', 'ganti desain', 'tukar ukuran', 'barang rusak', 'barangnya rusak',
+            'jahitan lepas', 'warna luntur', 'salah ukuran', 'salah kirim',
+        ],
+    },
+    remove: {
+        patterns: { location: ['kantore', 'omahe'], moq: ['pcs aja'] },
+    },
+});
+
 // Every addition is part of the full seed lists too.
 for (const add of SEED_ADDITIONS) {
     for (const [intent, phrases] of Object.entries(add.keywords ?? {})) {
@@ -867,6 +900,10 @@ for (const add of SEED_ADDITIONS) {
     for (const [builtin, phrases] of Object.entries(add.patterns ?? {})) {
         const pattern = SEED_PATTERNS.find((p) => p.builtin === builtin);
         if (pattern) pattern.keywords = [...new Set([...pattern.keywords, ...phrases])];
+    }
+    for (const [builtin, phrases] of Object.entries(add.remove?.patterns ?? {})) {
+        const pattern = SEED_PATTERNS.find((p) => p.builtin === builtin);
+        if (pattern) pattern.keywords = pattern.keywords.filter((k) => !phrases.includes(k));
     }
 }
 
@@ -903,3 +940,2045 @@ export const SEED_NEW_PRODUCTS = [
 
 /** The questions a seeded product starts with. */
 export const seedQuestions = (product) => [...(SEED_QUESTIONS[product.key] ?? []), ...(product.sizeChart ? [SIZE_QUESTION] : [])];
+
+/**
+ * Every word list the bot reads (dictionary, fillers, cities, units, ...),
+ * stored in the database by migration 009 (table word_lists) and edited in
+ * the console (Latih bot > Kamus). pairs: [word, meaning]; otherwise words.
+ * The logic that uses them stays in code; the vocabulary is data.
+ */
+export const SEED_WORDS = {
+    "singkatan": {
+        "label": "Singkatan chat",
+        "help": "Ditulis ulang sebelum dicocokkan: \"brp\" dibaca \"berapa\". Hanya singkatan yang artinya pasti.",
+        "pairs": true,
+        "words": [
+            [
+                "brp",
+                "berapa"
+            ],
+            [
+                "brapa",
+                "berapa"
+            ],
+            [
+                "berapaan",
+                "berapa"
+            ],
+            [
+                "brpa",
+                "berapa"
+            ],
+            [
+                "gmn",
+                "gimana"
+            ],
+            [
+                "gmna",
+                "gimana"
+            ],
+            [
+                "gimn",
+                "gimana"
+            ],
+            [
+                "bgmn",
+                "bagaimana"
+            ],
+            [
+                "bgmna",
+                "bagaimana"
+            ],
+            [
+                "dmn",
+                "dimana"
+            ],
+            [
+                "dmna",
+                "dimana"
+            ],
+            [
+                "dimn",
+                "dimana"
+            ],
+            [
+                "mana2",
+                "mana"
+            ],
+            [
+                "bs",
+                "bisa"
+            ],
+            [
+                "bsa",
+                "bisa"
+            ],
+            [
+                "bisaa",
+                "bisa"
+            ],
+            [
+                "gk",
+                "gak"
+            ],
+            [
+                "ggk",
+                "gak"
+            ],
+            [
+                "g",
+                "gak"
+            ],
+            [
+                "ga",
+                "gak"
+            ],
+            [
+                "nggk",
+                "nggak"
+            ],
+            [
+                "engga",
+                "nggak"
+            ],
+            [
+                "ngga",
+                "nggak"
+            ],
+            [
+                "kaga",
+                "gak"
+            ],
+            [
+                "tdk",
+                "tidak"
+            ],
+            [
+                "tak",
+                "tidak"
+            ],
+            [
+                "blm",
+                "belum"
+            ],
+            [
+                "blom",
+                "belum"
+            ],
+            [
+                "belom",
+                "belum"
+            ],
+            [
+                "udh",
+                "udah"
+            ],
+            [
+                "udah",
+                "udah"
+            ],
+            [
+                "dah",
+                "udah"
+            ],
+            [
+                "sdh",
+                "sudah"
+            ],
+            [
+                "sudh",
+                "sudah"
+            ],
+            [
+                "klo",
+                "kalau"
+            ],
+            [
+                "kalo",
+                "kalau"
+            ],
+            [
+                "kl",
+                "kalau"
+            ],
+            [
+                "kalu",
+                "kalau"
+            ],
+            [
+                "yg",
+                "yang"
+            ],
+            [
+                "dgn",
+                "dengan"
+            ],
+            [
+                "utk",
+                "untuk"
+            ],
+            [
+                "untk",
+                "untuk"
+            ],
+            [
+                "tp",
+                "tapi"
+            ],
+            [
+                "jg",
+                "juga"
+            ],
+            [
+                "sm",
+                "sama"
+            ],
+            [
+                "aja",
+                "aja"
+            ],
+            [
+                "aj",
+                "aja"
+            ],
+            [
+                "ajh",
+                "aja"
+            ],
+            [
+                "pesen",
+                "pesan"
+            ],
+            [
+                "psn",
+                "pesan"
+            ],
+            [
+                "mesen",
+                "pesan"
+            ],
+            [
+                "bkin",
+                "bikin"
+            ],
+            [
+                "bikinin",
+                "bikin"
+            ],
+            [
+                "bkn",
+                "bikin"
+            ],
+            [
+                "mau",
+                "mau"
+            ],
+            [
+                "mo",
+                "mau"
+            ],
+            [
+                "pgn",
+                "pengen"
+            ],
+            [
+                "pngn",
+                "pengen"
+            ],
+            [
+                "mnta",
+                "minta"
+            ],
+            [
+                "mnt",
+                "minta"
+            ],
+            [
+                "tny",
+                "tanya"
+            ],
+            [
+                "tnya",
+                "tanya"
+            ],
+            [
+                "nnya",
+                "nanya"
+            ],
+            [
+                "hrg",
+                "harga"
+            ],
+            [
+                "hrga",
+                "harga"
+            ],
+            [
+                "harganya",
+                "harga"
+            ],
+            [
+                "ongkos",
+                "ongkos"
+            ],
+            [
+                "okr",
+                "ongkir"
+            ],
+            [
+                "lok",
+                "lokasi"
+            ],
+            [
+                "loc",
+                "lokasi"
+            ],
+            [
+                "almt",
+                "alamat"
+            ],
+            [
+                "alamt",
+                "alamat"
+            ],
+            [
+                "pcs",
+                "pcs"
+            ],
+            [
+                "psc",
+                "pcs"
+            ],
+            [
+                "pc",
+                "pcs"
+            ],
+            [
+                "biji",
+                "pcs"
+            ],
+            [
+                "sz",
+                "size"
+            ],
+            [
+                "siz",
+                "size"
+            ],
+            [
+                "ukrn",
+                "ukuran"
+            ],
+            [
+                "ukr",
+                "ukuran"
+            ],
+            [
+                "mksh",
+                "makasih"
+            ],
+            [
+                "mks",
+                "makasih"
+            ],
+            [
+                "trims",
+                "makasih"
+            ],
+            [
+                "thx",
+                "makasih"
+            ],
+            [
+                "tq",
+                "makasih"
+            ],
+            [
+                "kk",
+                "kak"
+            ],
+            [
+                "kakk",
+                "kak"
+            ],
+            [
+                "ka",
+                "kak"
+            ],
+            [
+                "kaka",
+                "kak"
+            ],
+            [
+                "riyin",
+                "dulu"
+            ],
+            [
+                "disik",
+                "dulu"
+            ],
+            [
+                "dhisik",
+                "dulu"
+            ],
+            [
+                "dlu",
+                "dulu"
+            ],
+            [
+                "sya",
+                "saya"
+            ],
+            [
+                "saia",
+                "saya"
+            ],
+            [
+                "aq",
+                "aku"
+            ],
+            [
+                "tw",
+                "tau"
+            ],
+            [
+                "pieces",
+                "pcs"
+            ],
+            [
+                "piece",
+                "pcs"
+            ],
+            [
+                "rb",
+                "ribu"
+            ],
+            [
+                "rbu",
+                "ribu"
+            ]
+        ]
+    },
+    "bahasa_daerah": {
+        "label": "Bahasa Jawa / Sunda",
+        "help": "Diterjemahkan ke bahasa Indonesia sebelum dicocokkan: \"pinten\" dibaca \"berapa\". Kata kunci cukup ditulis dalam bahasa Indonesia.",
+        "pairs": true,
+        "words": [
+            [
+                "pinten",
+                "berapa"
+            ],
+            [
+                "piro",
+                "berapa"
+            ],
+            [
+                "pira",
+                "berapa"
+            ],
+            [
+                "pirang",
+                "berapa"
+            ],
+            [
+                "sabaraha",
+                "berapa"
+            ],
+            [
+                "pripun",
+                "gimana"
+            ],
+            [
+                "piye",
+                "gimana"
+            ],
+            [
+                "kepiye",
+                "gimana"
+            ],
+            [
+                "kepripun",
+                "gimana"
+            ],
+            [
+                "kumaha",
+                "gimana"
+            ],
+            [
+                "nopo",
+                "apa"
+            ],
+            [
+                "napa",
+                "apa"
+            ],
+            [
+                "opo",
+                "apa"
+            ],
+            [
+                "naon",
+                "apa"
+            ],
+            [
+                "pundi",
+                "mana"
+            ],
+            [
+                "endi",
+                "mana"
+            ],
+            [
+                "ngendi",
+                "mana"
+            ],
+            [
+                "pundhi",
+                "mana"
+            ],
+            [
+                "wonten",
+                "ada"
+            ],
+            [
+                "onten",
+                "ada"
+            ],
+            [
+                "enten",
+                "ada"
+            ],
+            [
+                "ono",
+                "ada"
+            ],
+            [
+                "aya",
+                "ada"
+            ],
+            [
+                "mboten",
+                "tidak"
+            ],
+            [
+                "mpun",
+                "sudah"
+            ],
+            [
+                "ora",
+                "tidak"
+            ],
+            [
+                "teu",
+                "tidak"
+            ],
+            [
+                "ndak",
+                "tidak"
+            ],
+            [
+                "gag",
+                "gak"
+            ],
+            [
+                "dereng",
+                "belum"
+            ],
+            [
+                "durung",
+                "belum"
+            ],
+            [
+                "acan",
+                "belum"
+            ],
+            [
+                "sampun",
+                "sudah"
+            ],
+            [
+                "uwis",
+                "sudah"
+            ],
+            [
+                "wis",
+                "sudah"
+            ],
+            [
+                "wes",
+                "sudah"
+            ],
+            [
+                "parantos",
+                "sudah"
+            ],
+            [
+                "nggih",
+                "iya"
+            ],
+            [
+                "inggih",
+                "iya"
+            ],
+            [
+                "injih",
+                "iya"
+            ],
+            [
+                "njih",
+                "iya"
+            ],
+            [
+                "enggih",
+                "iya"
+            ],
+            [
+                "badhe",
+                "mau"
+            ],
+            [
+                "bade",
+                "mau"
+            ],
+            [
+                "ajeng",
+                "mau"
+            ],
+            [
+                "arep",
+                "mau"
+            ],
+            [
+                "hoyong",
+                "mau"
+            ],
+            [
+                "kepengin",
+                "pengen"
+            ],
+            [
+                "pengin",
+                "pengen"
+            ],
+            [
+                "damel",
+                "bikin"
+            ],
+            [
+                "ndamel",
+                "bikin"
+            ],
+            [
+                "gawe",
+                "bikin"
+            ],
+            [
+                "nggawe",
+                "bikin"
+            ],
+            [
+                "digawe",
+                "dibikin"
+            ],
+            [
+                "didamel",
+                "dibikin"
+            ],
+            [
+                "tumbas",
+                "beli"
+            ],
+            [
+                "tuku",
+                "beli"
+            ],
+            [
+                "mundhut",
+                "beli"
+            ],
+            [
+                "mendet",
+                "ambil"
+            ],
+            [
+                "njupuk",
+                "ambil"
+            ],
+            [
+                "dumugi",
+                "sampai"
+            ],
+            [
+                "menawi",
+                "kalau"
+            ],
+            [
+                "nek",
+                "kalau"
+            ],
+            [
+                "ngadamel",
+                "bikin"
+            ],
+            [
+                "ngadamelkeun",
+                "bikin"
+            ],
+            [
+                "mbayar",
+                "bayar"
+            ],
+            [
+                "kintun",
+                "kirim"
+            ],
+            [
+                "ngintun",
+                "kirim"
+            ],
+            [
+                "dikintun",
+                "dikirim"
+            ],
+            [
+                "saged",
+                "bisa"
+            ],
+            [
+                "iso",
+                "bisa"
+            ],
+            [
+                "isa",
+                "bisa"
+            ],
+            [
+                "tiasa",
+                "bisa"
+            ],
+            [
+                "takon",
+                "tanya"
+            ],
+            [
+                "tangklet",
+                "tanya"
+            ],
+            [
+                "tanglet",
+                "tanya"
+            ],
+            [
+                "naros",
+                "tanya"
+            ],
+            [
+                "kulo",
+                "saya"
+            ],
+            [
+                "kula",
+                "saya"
+            ],
+            [
+                "abdi",
+                "saya"
+            ],
+            [
+                "panjenengan",
+                "kamu"
+            ],
+            [
+                "sampeyan",
+                "kamu"
+            ],
+            [
+                "njenengan",
+                "kamu"
+            ],
+            [
+                "saking",
+                "dari"
+            ],
+            [
+                "seko",
+                "dari"
+            ],
+            [
+                "soko",
+                "dari"
+            ],
+            [
+                "ten",
+                "di"
+            ],
+            [
+                "teng",
+                "di"
+            ],
+            [
+                "neng",
+                "di"
+            ],
+            [
+                "nang",
+                "di"
+            ],
+            [
+                "ning",
+                "di"
+            ],
+            [
+                "mriki",
+                "sini"
+            ],
+            [
+                "kene",
+                "sini"
+            ],
+            [
+                "mrika",
+                "sana"
+            ],
+            [
+                "kono",
+                "sana"
+            ],
+            [
+                "panggenan",
+                "tempat"
+            ],
+            [
+                "panggonan",
+                "tempat"
+            ],
+            [
+                "panggenane",
+                "tempat"
+            ],
+            [
+                "panggonane",
+                "tempat"
+            ],
+            [
+                "nggone",
+                "tempat"
+            ],
+            [
+                "sekedhik",
+                "sedikit"
+            ],
+            [
+                "sekedik",
+                "sedikit"
+            ],
+            [
+                "sithik",
+                "sedikit"
+            ],
+            [
+                "sitik",
+                "sedikit"
+            ],
+            [
+                "setitik",
+                "sedikit"
+            ],
+            [
+                "saeutik",
+                "sedikit"
+            ],
+            [
+                "kathah",
+                "banyak"
+            ],
+            [
+                "akeh",
+                "banyak"
+            ],
+            [
+                "seueur",
+                "banyak"
+            ],
+            [
+                "sedoyo",
+                "semua"
+            ],
+            [
+                "kabeh",
+                "semua"
+            ],
+            [
+                "regane",
+                "harga"
+            ],
+            [
+                "regine",
+                "harga"
+            ],
+            [
+                "reginipun",
+                "harga"
+            ],
+            [
+                "hargane",
+                "harga"
+            ],
+            [
+                "hargine",
+                "harga"
+            ],
+            [
+                "hargana",
+                "harga"
+            ],
+            [
+                "regi",
+                "harga"
+            ],
+            [
+                "rego",
+                "harga"
+            ],
+            [
+                "reregan",
+                "harga"
+            ],
+            [
+                "larang",
+                "mahal"
+            ],
+            [
+                "ukurane",
+                "ukuran"
+            ],
+            [
+                "alamate",
+                "alamat"
+            ],
+            [
+                "lokasine",
+                "lokasi"
+            ],
+            [
+                "desaine",
+                "desain"
+            ],
+            [
+                "kaose",
+                "kaos"
+            ],
+            [
+                "ongkire",
+                "ongkir"
+            ],
+            [
+                "minimale",
+                "minimal"
+            ],
+            [
+                "klambi",
+                "baju"
+            ],
+            [
+                "bal",
+                "bola"
+            ],
+            [
+                "kathok",
+                "celana"
+            ],
+            [
+                "clono",
+                "celana"
+            ],
+            [
+                "apik",
+                "bagus"
+            ],
+            [
+                "sae",
+                "bagus"
+            ],
+            [
+                "tenan",
+                "beneran"
+            ],
+            [
+                "ngapusi",
+                "nipu"
+            ],
+            [
+                "diapusi",
+                "ditipu"
+            ],
+            [
+                "suwe",
+                "lama"
+            ],
+            [
+                "dangu",
+                "lama"
+            ],
+            [
+                "cepet",
+                "cepat"
+            ],
+            [
+                "gedhe",
+                "besar"
+            ],
+            [
+                "cilik",
+                "kecil"
+            ],
+            [
+                "mangke",
+                "nanti"
+            ],
+            [
+                "mengko",
+                "nanti"
+            ],
+            [
+                "kangge",
+                "untuk"
+            ],
+            [
+                "kanggo",
+                "untuk"
+            ],
+            [
+                "kagem",
+                "untuk"
+            ],
+            [
+                "dados",
+                "jadi"
+            ],
+            [
+                "dadi",
+                "jadi"
+            ],
+            [
+                "siji",
+                "satu"
+            ],
+            [
+                "setunggal",
+                "satu"
+            ],
+            [
+                "loro",
+                "dua"
+            ],
+            [
+                "kalih",
+                "dua"
+            ],
+            [
+                "telu",
+                "tiga"
+            ],
+            [
+                "tigo",
+                "tiga"
+            ],
+            [
+                "papat",
+                "empat"
+            ],
+            [
+                "sekawan",
+                "empat"
+            ],
+            [
+                "limo",
+                "lima"
+            ],
+            [
+                "gangsal",
+                "lima"
+            ],
+            [
+                "manut",
+                "ikut"
+            ],
+            [
+                "mawon",
+                "aja"
+            ],
+            [
+                "wae",
+                "aja"
+            ],
+            [
+                "bae",
+                "aja"
+            ],
+            [
+                "mung",
+                "cuma"
+            ],
+            [
+                "namung",
+                "cuma"
+            ],
+            [
+                "kanca",
+                "teman"
+            ],
+            [
+                "konco",
+                "teman"
+            ],
+            [
+                "rencang",
+                "teman"
+            ],
+            [
+                "niki",
+                "ini"
+            ],
+            [
+                "iki",
+                "ini"
+            ],
+            [
+                "niku",
+                "itu"
+            ],
+            [
+                "kuwi",
+                "itu"
+            ],
+            [
+                "iku",
+                "itu"
+            ],
+            [
+                "dalu",
+                "malam"
+            ],
+            [
+                "enjing",
+                "pagi"
+            ],
+            [
+                "sonten",
+                "sore"
+            ],
+            [
+                "sugeng",
+                "selamat"
+            ],
+            [
+                "kulonuwun",
+                "permisi"
+            ],
+            [
+                "suwun",
+                "makasih"
+            ],
+            [
+                "nuwun",
+                "makasih"
+            ],
+            [
+                "maturnuwun",
+                "makasih"
+            ],
+            [
+                "ngapunten",
+                "maaf"
+            ],
+            [
+                "sepurane",
+                "maaf"
+            ],
+            [
+                "sepuntene",
+                "maaf"
+            ]
+        ]
+    },
+    "frasa": {
+        "label": "Frasa",
+        "help": "Beberapa kata yang artinya satu: \"matur nuwun\" dibaca \"makasih\".",
+        "pairs": true,
+        "words": [
+            [
+                "matur nuwun",
+                "makasih"
+            ],
+            [
+                "matur suwun",
+                "makasih"
+            ],
+            [
+                "hatur nuhun",
+                "makasih"
+            ],
+            [
+                "nuwun sewu",
+                "permisi"
+            ],
+            [
+                "kulo nuwun",
+                "permisi"
+            ],
+            [
+                "kula nuwun",
+                "permisi"
+            ],
+            [
+                "kados pundi",
+                "gimana"
+            ],
+            [
+                "di mana",
+                "dimana"
+            ],
+            [
+                "nyuwun pirsa",
+                "tanya"
+            ],
+            [
+                "nyuwun sewu",
+                "permisi"
+            ]
+        ]
+    },
+    "kota": {
+        "label": "Nama kota / daerah",
+        "help": "Jawaban perkenalan tanpa \"dari\": \"budi jogja\" dibaca nama Budi, asal Jogja.",
+        "words": [
+            "purworejo",
+            "kutoarjo",
+            "kebumen",
+            "magelang",
+            "wonosobo",
+            "temanggung",
+            "jogja",
+            "yogya",
+            "yogyakarta",
+            "jogjakarta",
+            "sleman",
+            "bantul",
+            "kulonprogo",
+            "wates",
+            "gunungkidul",
+            "klaten",
+            "solo",
+            "surakarta",
+            "semarang",
+            "salatiga",
+            "kendal",
+            "banjarnegara",
+            "purbalingga",
+            "purwokerto",
+            "banyumas",
+            "cilacap",
+            "gombong",
+            "muntilan",
+            "mungkid",
+            "boyolali",
+            "sragen",
+            "karanganyar",
+            "sukoharjo",
+            "wonogiri",
+            "pati",
+            "kudus",
+            "jepara",
+            "demak",
+            "rembang",
+            "blora",
+            "grobogan",
+            "pekalongan",
+            "batang",
+            "pemalang",
+            "tegal",
+            "brebes",
+            "jakarta",
+            "bandung",
+            "surabaya",
+            "malang",
+            "bogor",
+            "depok",
+            "bekasi",
+            "tangerang",
+            "cirebon",
+            "madiun",
+            "kediri",
+            "ngawi",
+            "ponorogo",
+            "pacitan",
+            "medan",
+            "makassar",
+            "palembang",
+            "lampung",
+            "bali",
+            "denpasar",
+            "balikpapan",
+            "samarinda",
+            "pontianak",
+            "banjarmasin",
+            "manado",
+            "padang",
+            "pekanbaru",
+            "batam",
+            "jambi",
+            "bengkulu",
+            "aceh",
+            "ambon",
+            "jayapura",
+            "kupang",
+            "mataram"
+        ]
+    },
+    "bukan_nama": {
+        "label": "Bukan nama orang",
+        "help": "Kata yang tidak pernah dianggap nama pelanggan (\"saya kirim filenya\" bukan nama \"Kirim\").",
+        "words": [
+            "mau",
+            "mo",
+            "ingin",
+            "pengen",
+            "pgn",
+            "pingin",
+            "tanya",
+            "nanya",
+            "kak",
+            "ka",
+            "kakak",
+            "min",
+            "admin",
+            "mas",
+            "mbak",
+            "mba",
+            "bu",
+            "pak",
+            "dari",
+            "dr",
+            "asal",
+            "di",
+            "ada",
+            "lagi",
+            "bisa",
+            "boleh",
+            "sudah",
+            "udah",
+            "belum",
+            "ya",
+            "yaa",
+            "iya",
+            "nih",
+            "ini",
+            "itu",
+            "saya",
+            "aku",
+            "sy",
+            "ak",
+            "gw",
+            "gue",
+            "butuh",
+            "perlu",
+            "cari",
+            "nyari",
+            "pesan",
+            "pesen",
+            "order",
+            "bikin",
+            "buat",
+            "minta",
+            "halo",
+            "hai",
+            "hallo",
+            "permisi",
+            "selamat",
+            "malam",
+            "pagi",
+            "siang",
+            "sore",
+            "tadi",
+            "yang",
+            "dan",
+            "atau",
+            "juga",
+            "mohon",
+            "tolong",
+            "info",
+            "informasi",
+            "kok",
+            "apa",
+            "gimana",
+            "bagaimana",
+            "berapa",
+            "terima",
+            "kasih",
+            "makasih",
+            "oke",
+            "ok",
+            "siap",
+            "baik",
+            "sama",
+            "dengan",
+            "dgn",
+            "tidak",
+            "gak",
+            "ga",
+            "nggak",
+            "enggak",
+            "assalamualaikum",
+            "waalaikumsalam",
+            "salam",
+            "kenal",
+            "kulo",
+            "kula",
+            "badhe",
+            "bade",
+            "ajeng",
+            "arep",
+            "nggih",
+            "njih",
+            "inggih",
+            "saking",
+            "seko",
+            "soko",
+            "wonten",
+            "nopo",
+            "pinten",
+            "sampun",
+            "dereng",
+            "matur",
+            "nuwun",
+            "suwun",
+            "sugeng",
+            "dalu",
+            "enjing",
+            "sonten",
+            "punten",
+            "hoyong",
+            "damel",
+            "takon",
+            "nyuwun",
+            "pripun",
+            "piye",
+            "mboten",
+            "ora",
+            "niki",
+            "iki",
+            "mriki",
+            "mangke",
+            "riyin",
+            "ngapunten",
+            "monggo",
+            "mangga",
+            "sami",
+            "ten",
+            "teng",
+            "neng",
+            "sip",
+            "mantap",
+            "kirim",
+            "kirimkan",
+            "kirimin",
+            "file",
+            "filenya",
+            "nanti",
+            "kabari",
+            "kabarin",
+            "hubungi",
+            "transfer",
+            "bayar",
+            "cek",
+            "lihat",
+            "liat",
+            "tunggu",
+            "coba",
+            "ambil",
+            "pakai",
+            "pake",
+            "masih",
+            "sedang",
+            "cuma",
+            "hanya",
+            "desain",
+            "design",
+            "desainnya",
+            "gambar",
+            "logo",
+            "ukuran",
+            "warna",
+            "harga",
+            "kami",
+            "kita",
+            "sya",
+            "saia",
+            "aq",
+            "telpon",
+            "telepon",
+            "aja"
+        ]
+    },
+    "bukan_typo": {
+        "label": "Kata umum (bukan typo)",
+        "help": "Kata sehari-hari yang tidak boleh dikira typo nama produk atau kata kunci (\"baik\" bukan \"batik\").",
+        "words": [
+            "baik",
+            "kasih",
+            "terima",
+            "makasih",
+            "siap",
+            "mana",
+            "sama",
+            "saja",
+            "kalau",
+            "harga",
+            "tanya",
+            "nanya",
+            "belum",
+            "sudah",
+            "bagus",
+            "besar",
+            "kecil",
+            "minta",
+            "semua",
+            "sedikit",
+            "banyak",
+            "untuk",
+            "dengan",
+            "ingin",
+            "pesan",
+            "kirim",
+            "bikin",
+            "warna",
+            "logo",
+            "kamu",
+            "kapan",
+            "tapi",
+            "bisa",
+            "boleh",
+            "lihat",
+            "liat",
+            "model",
+            "bahan",
+            "jumlah",
+            "tempat",
+            "bayar",
+            "transfer",
+            "nanti",
+            "besok",
+            "hari",
+            "pakai",
+            "pake",
+            "kayak",
+            "kaya",
+            "masih",
+            "cari",
+            "dulu",
+            "lagi",
+            "tolong",
+            "mohon",
+            "info",
+            "tahu",
+            "paham",
+            "ditunggu",
+            "tunggu",
+            "beragam",
+            "macam",
+            "borong",
+            "borongan",
+            "grosir",
+            "grosiran",
+            "partai",
+            "gimana",
+            "dimana",
+            "bagaimana",
+            "kenapa",
+            "mengapa",
+            "berapa",
+            "siapa",
+            "teman",
+            "tidak",
+            "nggak",
+            "bukan",
+            "karena",
+            "sekarang",
+            "semoga",
+            "nomor",
+            "dikirim",
+            "sablon",
+            "bordir",
+            "gambar",
+            "desain",
+            "design"
+        ]
+    },
+    "pengisi_oke": {
+        "label": "Kata pengisi \"ok/makasih\"",
+        "help": "Kata yang boleh ikut dalam pesan \"ok kak makasih ya\" tanpa mengubah artinya.",
+        "words": [
+            "kak",
+            "min",
+            "mas",
+            "mbak",
+            "mba",
+            "bu",
+            "pak",
+            "gan",
+            "sis",
+            "ya",
+            "nih",
+            "deh",
+            "dong",
+            "kok",
+            "banyak",
+            "sekali",
+            "ok",
+            "yang",
+            "kalau",
+            "begitu",
+            "gitu",
+            "sudah",
+            "udah",
+            "atas",
+            "info",
+            "infonya",
+            "informasi",
+            "informasinya",
+            "penjelasannya",
+            "bantuannya",
+            "responnya",
+            "balasannya",
+            "jawabannya",
+            "to",
+            "lho",
+            "loh",
+            "yo",
+            "sanget",
+            "nggeh",
+            "sangat",
+            "membantu",
+            "terbantu",
+            "bermanfaat",
+            "jelas",
+            "lengkap",
+            "kakak",
+            "semuanya",
+            "kembali"
+        ]
+    },
+    "pengisi_sapaan": {
+        "label": "Kata pengisi sapaan",
+        "help": "Kata yang boleh ikut dalam sapaan \"selamat malam kak\".",
+        "words": [
+            "kak",
+            "min",
+            "mas",
+            "mbak",
+            "mba",
+            "admin",
+            "gan",
+            "sis",
+            "bu",
+            "pak",
+            "selamat",
+            "ya",
+            "nih",
+            "pagi",
+            "siang",
+            "sore",
+            "malam",
+            "wr",
+            "wb",
+            "semua",
+            "dulu"
+        ]
+    },
+    "pengisi_saran": {
+        "label": "Kata dibuang dari saran",
+        "help": "Dibuang saat Latih bot menyarankan inti kata kunci (\"mas\", \"kak\", \"ya\").",
+        "words": [
+            "kak",
+            "ka",
+            "kakak",
+            "min",
+            "admin",
+            "mas",
+            "mbak",
+            "mba",
+            "bu",
+            "pak",
+            "gan",
+            "sis",
+            "om",
+            "bang",
+            "dek",
+            "ya",
+            "yaa",
+            "yah",
+            "dong",
+            "deh",
+            "sih",
+            "nih",
+            "tuh",
+            "kok",
+            "lho",
+            "loh",
+            "to",
+            "kah",
+            "gitu",
+            "gini",
+            "aja",
+            "halo",
+            "hai",
+            "permisi",
+            "saya",
+            "aku",
+            "gue",
+            "gw",
+            "ini",
+            "itu",
+            "yang",
+            "nya",
+            "nggih",
+            "iya",
+            "tolong",
+            "mohon"
+        ]
+    },
+    "kata_pesan": {
+        "label": "Kata ingin memesan",
+        "help": "Tanda pelanggan ingin memesan, sehingga produk yang disebut ikut diproses (\"mau bikin jersey, minimal berapa?\").",
+        "words": [
+            "mau",
+            "ingin",
+            "pengen",
+            "pgn",
+            "pingin",
+            "bikin",
+            "buat",
+            "pesan",
+            "pesen",
+            "order",
+            "produksi",
+            "harga",
+            "cetak",
+            "butuh",
+            "nyari",
+            "cari"
+        ]
+    },
+    "kata_buat": {
+        "label": "Kata minta dibuatkan",
+        "help": "Tanda pelanggan minta dibuatkan atau membeli sesuatu; kalau produknya tidak dikenal, dijawab \"dicek CS\".",
+        "words": [
+            "bikin",
+            "buat",
+            "dibuat",
+            "dibikin",
+            "pesan",
+            "order",
+            "produksi",
+            "cetak",
+            "beli",
+            "jual",
+            "jahit",
+            "sablon",
+            "melayani",
+            "menerima pembuatan",
+            "terima pesanan"
+        ]
+    },
+    "satuan": {
+        "label": "Satuan jumlah",
+        "help": "Angka dengan satuan ini dibaca jumlah pesanan (\"50 pcs\", \"2 lusin\").",
+        "words": [
+            "pcs",
+            "pc",
+            "psc",
+            "biji",
+            "buah",
+            "bh",
+            "potong",
+            "ptg",
+            "lembar",
+            "lbr",
+            "set",
+            "pasang",
+            "orang",
+            "org",
+            "stel",
+            "setel",
+            "lusin",
+            "kodi",
+            "an",
+            "anan"
+        ]
+    },
+    "awal_nama": {
+        "label": "Awal perkenalan",
+        "help": "Kata sebelum nama: \"saya Budi\", \"kulo Slamet\", \"perkenalkan saya Dimas\".",
+        "words": [
+            "ini dengan",
+            "dengan",
+            "dgn",
+            "kalih",
+            "kaliyan",
+            "perkenalkan nama saya",
+            "perkenalkan saya",
+            "perkenalkan aku",
+            "perkenalkan kami",
+            "kenalin saya",
+            "kenalkan saya",
+            "saya",
+            "sya",
+            "saia",
+            "aku",
+            "aq",
+            "sy",
+            "ak",
+            "gw",
+            "gue",
+            "ini",
+            "namaku",
+            "nama saya",
+            "nama aku",
+            "nama sy",
+            "nama",
+            "perkenalkan",
+            "kenalin",
+            "nami kulo",
+            "nami kula",
+            "nami abdi",
+            "kulo",
+            "kula",
+            "abdi",
+            "asmanipun",
+            "jenengku",
+            "jenenge aku",
+            "aranku"
+        ]
+    },
+    "awal_asal": {
+        "label": "Awal asal daerah",
+        "help": "Kata sebelum asal: \"dari Jogja\", \"saking Kutoarjo\".",
+        "words": [
+            "asal dari",
+            "tinggal di",
+            "dari",
+            "dr",
+            "asal",
+            "domisili",
+            "di",
+            "saking",
+            "seko",
+            "soko",
+            "teko",
+            "ti",
+            "ten",
+            "teng",
+            "neng",
+            "nang"
+        ]
+    },
+    "penghenti_nama": {
+        "label": "Kata setelah nama",
+        "help": "Nama berhenti sebelum kata ini: \"saya Budi mau pesan\" -> Budi.",
+        "words": [
+            "mau",
+            "mo",
+            "ingin",
+            "pengen",
+            "pgn",
+            "kak",
+            "min",
+            "ya",
+            "yaa",
+            "nih",
+            "mohon",
+            "izin",
+            "ijin",
+            "tanya",
+            "nanya",
+            "butuh",
+            "perlu",
+            "pesan",
+            "pesen",
+            "order",
+            "bikin",
+            "buat",
+            "minta",
+            "kalau",
+            "kalo",
+            "untuk",
+            "utk",
+            "ada",
+            "badhe",
+            "bade",
+            "ajeng",
+            "arep",
+            "hoyong",
+            "nyuwun",
+            "takon",
+            "damel",
+            "wonten",
+            "mas",
+            "mbak",
+            "mba",
+            "pak",
+            "bu",
+            "nggih",
+            "njih"
+        ]
+    },
+    "kata_tidak": {
+        "label": "Kata \"belum/tidak\"",
+        "help": "Dipakai mengenali \"belum ada desain\".",
+        "words": [
+            "belum",
+            "tidak",
+            "gak",
+            "nggak",
+            "enggak"
+        ]
+    },
+    "kata_sudah": {
+        "label": "Kata \"sudah\"",
+        "help": "Dipakai mengenali \"desain sudah ada\".",
+        "words": [
+            "sudah",
+            "udah"
+        ]
+    },
+    "kata_punya": {
+        "label": "Kata \"ada/punya\"",
+        "help": "Kata di antara \"belum/sudah\" dan \"desain\": \"belum PUNYA desain\".",
+        "words": [
+            "ada",
+            "punya",
+            "memiliki",
+            "kepikiran",
+            "dapat",
+            "jadi",
+            "siap"
+        ]
+    },
+    "kata_desain": {
+        "label": "Kata desain",
+        "help": "Yang dimaksud dengan desain: \"belum ada LOGO\", \"kirim FILEnya\".",
+        "words": [
+            "desain",
+            "design",
+            "referensi",
+            "konsep",
+            "gambaran",
+            "logo",
+            "file",
+            "filenya",
+            "gambar",
+            "desainnya",
+            "designnya"
+        ]
+    },
+    "kata_kirim": {
+        "label": "Kata kirim",
+        "help": "\"Nanti saya KIRIM filenya\" = desain sudah ada.",
+        "words": [
+            "kirim",
+            "kirimkan",
+            "kirimin"
+        ]
+    },
+    "jawaban_belum_pasti": {
+        "label": "Jawaban jumlah belum pasti",
+        "help": "Saat ditanya jumlah, jawaban berisi kata ini (\"belum tahu\", \"nanti dikabari\") menutup alur seperti biasa.",
+        "words": [
+            "belum",
+            "blm",
+            "tau",
+            "tahu",
+            "bingung",
+            "nanti",
+            "terserah",
+            "kurang",
+            "sekitar",
+            "kira"
+        ]
+    },
+    "minta_size_chart": {
+        "label": "Minta size chart",
+        "help": "Saat ditanya ukuran, pesan berisi ini dianggap minta size chart, bukan jawaban.",
+        "words": [
+            "chart",
+            "cart",
+            "tabel",
+            "?",
+            "minta size",
+            "minta ukuran",
+            "minta daftar",
+            "kirim size",
+            "kirim ukuran",
+            "kirimin size",
+            "kirimin ukuran",
+            "kirimkan size",
+            "lihat size",
+            "lihat ukuran",
+            "liat size",
+            "liat ukuran",
+            "ada size",
+            "ada ukuran"
+        ]
+    },
+    "varian_ukuran": {
+        "label": "Varian size chart",
+        "help": "Kata yang memilih size chart selain reguler.",
+        "pairs": true,
+        "words": [
+            [
+                "oversize",
+                "oversize"
+            ],
+            [
+                "over size",
+                "oversize"
+            ],
+            [
+                "oversized",
+                "oversize"
+            ],
+            [
+                "boxy",
+                "boxy"
+            ]
+        ]
+    },
+    "nama_lampiran": {
+        "label": "Nama kiriman",
+        "help": "Dipakai di balasan \"{lampiran} sudah diterima\".",
+        "pairs": true,
+        "words": [
+            [
+                "gambar",
+                "gambarnya"
+            ],
+            [
+                "video",
+                "videonya"
+            ],
+            [
+                "file",
+                "filenya"
+            ],
+            [
+                "lokasi",
+                "lokasinya"
+            ],
+            [
+                "kontak",
+                "kontaknya"
+            ]
+        ]
+    }
+};

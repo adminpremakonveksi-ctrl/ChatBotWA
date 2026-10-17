@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import { config } from '../config.js';
+import { recordActivity } from '../activity.js';
 import { logger } from '../logger.js';
 import { classify as defaultClassify } from './classify.js';
 import { isAutoMessage } from './auto-messages.js';
@@ -50,8 +51,9 @@ export class Bot {
      * @param transport  { newMessageId() -> string, send(jid, action, messageId) -> Promise }
      *                   action is { type: 'text', text } or { type: 'file', file }
      */
-    onIncoming(sessionKey, transport, { jid, id, text = '', hasImage = false, selfTest = false }) {
-        this.store.logMessage({ sessionKey, jid, direction: 'in', waMessageId: id, text });
+    onIncoming(sessionKey, transport, { jid, id, text = '', hasImage = false, hasAudio = false, attachment = null, quoted = null, selfTest = false }) {
+        // A picture, location or file without words is logged by what it is, so CS sees it in Percakapan.
+        this.store.logMessage({ sessionKey, jid, direction: 'in', waMessageId: id, text: text || attachment?.note || '' });
 
         // The self-chat test answers at any hour, so the team can try the bot by day.
         if (!selfTest && !this.isActive()) {
@@ -72,10 +74,13 @@ export class Bot {
         }
 
         const key = `${sessionKey}|${jid}`;
-        const buffer = this.buffers.get(key) ?? { texts: [], hasImage: false, timer: null, selfTest };
+        const buffer = this.buffers.get(key) ?? { texts: [], hasImage: false, hasAudio: false, attachments: [], quoted: null, timer: null, selfTest };
 
         if (text) buffer.texts.push(text);
         buffer.hasImage ||= hasImage;
+        buffer.hasAudio ||= hasAudio;
+        if (attachment) buffer.attachments.push(attachment);
+        if (quoted) buffer.quoted = quoted;
 
         buffer.run = () => this.handle(sessionKey, transport, jid, buffer);
 
@@ -154,7 +159,7 @@ export class Bot {
         return next;
     }
 
-    async handle(sessionKey, transport, jid, { texts, hasImage, selfTest = false }) {
+    async handle(sessionKey, transport, jid, { texts, hasImage, hasAudio = false, attachments = [], quoted = null, selfTest = false }) {
         // The night may have ended while we were waiting.
         if (!selfTest && !this.isActive()) return;
 
@@ -166,8 +171,15 @@ export class Bot {
         const classified = await this.classify({
             text,
             hasImage,
+            hasAudio,
+            attachments,
+            quoted,
+            // Who is asking: limits how often the AI is asked for one customer.
+            who: `${sessionKey}|${jid}`,
             step: conversation.step,
             knownProduct: conversation.product,
+            // The last few lines before this message, so the AI gets "yang tadi", "itu".
+            history: this.store.recentHistory?.(sessionKey, jid, texts.length) ?? [],
         });
 
         // Team patterns show up by name in Statistik ("pola: Ukuran").
@@ -188,6 +200,15 @@ export class Bot {
             { jid, step: conversation.step, intent: classified.intent, product: classified.product, via: classified.source, next: patch.step ?? conversation.step },
             'pesan dikenali',
         );
+
+        // The Log page: what the bot made of this message and where the conversation went.
+        const who = this.store.phoneOf(jid) ? `+${this.store.phoneOf(jid)}` : jid.split('@')[0];
+        const label = classified.intent === 'custom' ? `pola ${classified.pattern?.name}` : classified.intent;
+        recordActivity({
+            source: 'bot',
+            action: `Pesan dari ${who} dikenali sebagai ${label}${classified.product ? ` (${classified.product})` : ''}${classified.source && classified.source !== 'rules' ? ` lewat ${classified.source}` : ''}`,
+            detail: `"${text.slice(0, 120)}" · ${conversation.step} → ${patch.step ?? conversation.step}`,
+        });
 
         let handover = null;
 
@@ -231,7 +252,7 @@ export class Bot {
             // 10 minutes is not sent again. Stops spam answers, and two bots
             // answering each other forever (a quick way to get a number banned).
             // "Belum paham, tanya ulang" may repeat on purpose; the miss count (Pengaturan) limits it.
-            const clarifying = action.type === 'text' && action.text === replies.clarify();
+            const clarifying = action.type === 'text' && replies.isClarify(action.text);
             if (!clarifying && this.store.recentlySent(sessionKey, jid, logText, REPEAT_WINDOW_MINUTES) >= REPEAT_LIMIT) {
                 suppressed++;
                 continue;
@@ -276,6 +297,7 @@ export class Bot {
 
         if (handover) {
             this.store.markHandover(sessionKey, jid, handover);
+            recordActivity({ source: 'bot', action: `Diserahkan ke CS: ${who}`, detail: handover });
         }
     }
 

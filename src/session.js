@@ -215,11 +215,18 @@ export class Session {
                 continue;
             }
 
-            const hasImage = ['imageMessage', 'documentMessage', 'videoMessage', 'stickerMessage'].includes(contentType);
+            // What came with (or instead of) words. A sticker is a reaction, not a design.
+            const attachment = Session.attachmentOf(contentType, content);
+            const hasImage = ['gambar', 'video', 'file'].includes(attachment?.kind);
+            // A voice note: the bot cannot listen, it asks them to type.
+            const hasAudio = attachment?.kind === 'suara';
+
+            // The message they replied to (WhatsApp "reply"), so the AI knows what "yang ini" means.
+            const quoted = Session.quotedText(content);
 
             this.log.info({ from: jid, type: contentType, text, selfTest }, selfTest ? 'pesan uji dari nomor sendiri' : 'pesan masuk');
 
-            this.bot.onIncoming(this.key, this, { jid, id: message.key.id, text, hasImage, selfTest });
+            this.bot.onIncoming(this.key, this, { jid, id: message.key.id, text, hasImage, hasAudio, attachment, quoted, selfTest });
         }
     }
 
@@ -252,6 +259,49 @@ export class Session {
         }
 
         await this.socket.sendMessage(jid, Session.content(action), { messageId });
+    }
+
+    /**
+     * What a message carries besides text, in the words the console and the
+     * reply use: { kind: 'gambar' | 'video' | 'file' | 'suara' | 'stiker' | 'lokasi' | 'kontak', note }.
+     * `note` is what CS needs to see (a maps link for a shared location).
+     */
+    static attachmentOf(contentType, content) {
+        switch (contentType) {
+            case 'imageMessage':
+                return { kind: 'gambar', note: '[gambar dari pelanggan]' };
+            case 'videoMessage':
+                return { kind: 'video', note: '[video dari pelanggan]' };
+            case 'documentMessage':
+            case 'documentWithCaptionMessage':
+                return { kind: 'file', note: `[file dari pelanggan: ${content?.documentMessage?.fileName ?? 'dokumen'}]` };
+            case 'audioMessage':
+                return { kind: 'suara', note: '[pesan suara]' };
+            case 'stickerMessage':
+                return { kind: 'stiker', note: null };
+            case 'locationMessage':
+            case 'liveLocationMessage': {
+                const loc = content?.locationMessage ?? content?.liveLocationMessage ?? {};
+                const at = loc.degreesLatitude != null ? ` https://maps.google.com/?q=${loc.degreesLatitude},${loc.degreesLongitude}` : '';
+
+                return { kind: 'lokasi', note: `[lokasi pelanggan${loc.name ? `: ${loc.name}` : ''}]${at}` };
+            }
+            case 'contactMessage':
+            case 'contactsArrayMessage':
+                return { kind: 'kontak', note: `[kontak dikirim: ${content?.contactMessage?.displayName ?? 'beberapa kontak'}]` };
+            default:
+                return null;
+        }
+    }
+
+    /** Text of the message they replied to, if any (first 300 characters). */
+    static quotedText(content) {
+        const quoted = Object.values(content ?? {}).find((part) => part?.contextInfo?.quotedMessage)?.contextInfo?.quotedMessage;
+        if (!quoted) return null;
+
+        const text = quoted.conversation ?? quoted.extendedTextMessage?.text ?? quoted.imageMessage?.caption ?? quoted.videoMessage?.caption ?? '';
+
+        return text ? String(text).slice(0, 300) : null;
     }
 
     static content(action) {

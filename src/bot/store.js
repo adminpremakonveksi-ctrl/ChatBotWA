@@ -2,10 +2,11 @@ import { config } from '../config.js';
 import { all, get, now, run } from '../db.js';
 import { utcOffsetMinutes } from './schedule.js';
 import { normalise } from '../text.js';
+import { wordSet } from './words.js';
 
 const local = () => `${utcOffsetMinutes() >= 0 ? '+' : ''}${utcOffsetMinutes()} minutes`;
 
-const COLUMNS = ['step', 'name', 'origin', 'product', 'return_step', 'handed_over_at', 'handover_reason', 'last_message_at', 'quantity', 'details', 'detail_index', 'misses'];
+const COLUMNS = ['step', 'name', 'origin', 'product', 'return_step', 'handed_over_at', 'handover_reason', 'last_message_at', 'quantity', 'details', 'detail_index', 'misses', 'notes'];
 
 const toDate = (stamp) => (stamp ? new Date(`${stamp.replace(' ', 'T')}Z`) : null);
 
@@ -25,7 +26,7 @@ export function loadConversation(sessionKey, jid, at = new Date()) {
     const row = get('SELECT * FROM conversations WHERE session_key = ? AND jid = ?', [sessionKey, jid]);
 
     if (!row) {
-        return { step: 'new', name: null, origin: null, product: null, return_step: null, quantity: null, details: null, detail_index: null, misses: 0 };
+        return { step: 'new', name: null, origin: null, product: null, return_step: null, quantity: null, details: null, detail_index: null, misses: 0, notes: null };
     }
 
     const expired =
@@ -34,7 +35,7 @@ export function loadConversation(sessionKey, jid, at = new Date()) {
             : row.step !== 'new' && hoursSince(row.last_message_at, at) >= config.bot.resetHours;
 
     if (expired) {
-        return { ...row, step: 'new', product: null, return_step: null, handed_over_at: null, handover_reason: null, quantity: null, details: null, detail_index: null, misses: 0 };
+        return { ...row, step: 'new', product: null, return_step: null, handed_over_at: null, handover_reason: null, quantity: null, details: null, detail_index: null, misses: 0, notes: null };
     }
 
     return row;
@@ -58,7 +59,7 @@ export function saveConversation(sessionKey, jid, values) {
 export function resetConversation(sessionKey, jid) {
     run(
         `UPDATE conversations SET step = 'new', product = NULL, return_step = NULL, handed_over_at = NULL, handover_reason = NULL,
-         quantity = NULL, details = NULL, detail_index = NULL, misses = 0
+         quantity = NULL, details = NULL, detail_index = NULL, misses = 0, notes = NULL
          WHERE session_key = ? AND jid = ?`,
         [sessionKey, jid],
     );
@@ -248,16 +249,12 @@ export function analytics(days = 30) {
 
 /* ------------------------------------------------- Latih bot helpers --- */
 
-// Words that carry no meaning of their own in a customer message.
-const FILLERS = new Set([
-    'kak', 'ka', 'kakak', 'min', 'admin', 'mas', 'mbak', 'mba', 'bu', 'pak', 'gan', 'sis', 'om', 'bang', 'dek',
-    'ya', 'yaa', 'yah', 'dong', 'deh', 'sih', 'nih', 'tuh', 'kok', 'lho', 'loh', 'to', 'kah', 'gitu', 'gini', 'aja',
-    'halo', 'hai', 'permisi', 'saya', 'aku', 'gue', 'gw', 'ini', 'itu', 'yang', 'nya', 'nggih', 'iya', 'tolong', 'mohon',
-]);
+// Words that carry no meaning of their own (Kamus: "Kata dibuang dari saran").
+const FILLERS = () => wordSet('pengisi_saran');
 
 /** The core of a message to teach as a keyword: "Mau nanya2 dulu mas" -> "mau nanya nanya dulu". */
 export function suggestPhrase(text) {
-    const words = normalise(text).trim().split(' ').filter((w) => w && !FILLERS.has(w));
+    const words = normalise(text).trim().split(' ').filter((w) => w && !FILLERS().has(w));
 
     return words.slice(0, 6).join(' ').slice(0, 60);
 }
@@ -287,4 +284,35 @@ export function dismissText(text, undo = false) {
          ON CONFLICT("key") DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
         [DISMISSED, JSON.stringify(list.slice(-500)), now()],
     );
+}
+
+/**
+ * The conversation just before the message being answered, oldest first, for
+ * the AI: [{ who: 'pelanggan' | 'bot' | 'cs', text }]. `skip` = how many of the
+ * latest incoming lines are the message itself (already logged).
+ */
+export function recentHistory(sessionKey, jid, skip = 1, limit = 6) {
+    const rows = all(
+        `SELECT direction, text FROM message_log
+         WHERE session_key = ? AND jid = ? AND direction IN ('in', 'out', 'cs') AND TRIM(COALESCE(text, '')) <> ''
+         ORDER BY id DESC LIMIT ?`,
+        [sessionKey, jid, limit + skip],
+    );
+
+    // Drop the message itself (its lines are the newest incoming ones).
+    let dropped = 0;
+    const before = rows.filter((row) => {
+        if (dropped < skip && row.direction === 'in') {
+            dropped++;
+
+            return false;
+        }
+
+        return true;
+    });
+
+    return before
+        .slice(0, limit)
+        .reverse()
+        .map((row) => ({ who: row.direction === 'in' ? 'pelanggan' : row.direction === 'cs' ? 'cs' : 'bot', text: String(row.text).slice(0, 300) }));
 }

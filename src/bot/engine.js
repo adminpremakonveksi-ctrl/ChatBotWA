@@ -2,6 +2,7 @@ import { hasCatalog, productKeywords, productName, productQuestions } from './pr
 import { textVersions } from './patterns.js';
 import { config } from '../config.js';
 import { normalise } from '../text.js';
+import { wordMap, wordSet } from './words.js';
 import { fillText, replies } from './replies.js';
 
 /**
@@ -30,6 +31,13 @@ import { fillText, replies } from './replies.js';
 // patterns, which include the seeded Lokasi, Pengiriman, Ragu and Minimal order.
 const FAQ = new Set(['size_chart', 'design_reference', 'custom']);
 
+// A message containing one of a list's words (Kamus), as typed (lowercase).
+const saysAny = (text, list) => {
+    const lower = ` ${String(text ?? '').toLowerCase()} `;
+
+    return [...wordSet(list)].some((w) => lower.includes(w));
+};
+
 export function decide(conversation, classified, media, { random = Math.random } = {}) {
     const conv = { step: 'new', name: null, origin: null, product: null, return_step: null, ...conversation };
     const r = classified;
@@ -39,7 +47,11 @@ export function decide(conversation, classified, media, { random = Math.random }
     const state = () => ({ ...conv, ...patch });
 
     const say = (text) => text && actions.push({ type: 'text', text });
-    const send = (kind, product = null, variant = null) => actions.push({ type: 'media', kind, product, variant });
+    // The same file/catalog once per reply, however many questions asked for it.
+    const send = (kind, product = null, variant = null) => {
+        if (actions.some((a) => a.type === 'media' && a.kind === kind && a.product === product && a.variant === variant)) return;
+        actions.push({ type: 'media', kind, product, variant });
+    };
 
     const handover = (reason) => {
         // Every handover by the bot ends with the same line, so the customer knows CS takes over.
@@ -71,7 +83,7 @@ export function decide(conversation, classified, media, { random = Math.random }
         }
 
         patch.misses = misses;
-        say(replies.clarify());
+        say(replies.clarify(misses - 1));
     };
 
     /** [7] + [8], then CS takes over. */
@@ -83,6 +95,30 @@ export function decide(conversation, classified, media, { random = Math.random }
 
     const remember = (key, value) => {
         if (value) patch[key] = value;
+    };
+
+    /** Something for CS to answer or look at (a question, a picture), kept on the conversation. */
+    const note = (text) => {
+        let notes = [];
+        try {
+            notes = JSON.parse(state().notes ?? '[]');
+        } catch {
+            /* start over */
+        }
+        if (!notes.includes(text)) patch.notes = JSON.stringify([...notes, text].slice(-10));
+    };
+
+    // What they sent besides words, as CS should read it (a maps link for a location).
+    const attachmentNotes = () => (r.attachments ?? []).map((a) => a.note).filter(Boolean);
+
+    /** A picture, file, location or contact without words: received, noted for CS, the chat goes on. */
+    const received = () => {
+        const notes = attachmentNotes();
+        for (const n of notes.length ? notes : ['[gambar dari pelanggan]']) note(n);
+
+        const kind = r.attachments?.[0]?.kind ?? 'gambar';
+        // How the reply names it (Kamus: "Nama kiriman"): "lokasinya sudah Mawar terima".
+        say(replies.imageReceived(wordMap('nama_lampiran').get(kind) ?? 'kirimannya'));
     };
 
     const details = () => {
@@ -287,11 +323,11 @@ export function decide(conversation, classified, media, { random = Math.random }
      * instead; "ok" waits. "M 10, L 20" mentions sizes but is an answer.
      */
     const isDetailAnswer = () => {
-        if (['custom', 'price', 'ask_first', 'ack', 'greeting', 'introduction', 'human'].includes(r.intent)) return false;
+        if (['custom', 'price', 'ask_first', 'ack', 'greeting', 'introduction', 'human', 'voice', 'cs_question', 'about_bot', 'product_unknown'].includes(r.intent)) return false;
         // "Ada contoh desainnya?" is their question; "belum ada desain" is an answer.
         if (r.intent === 'design_reference' && !r.design) return false;
         // "Ukuran campur, nanti dikabari" answers the size question; "size chartnya ada?" asks for the chart.
-        if (r.intent === 'size_chart' && /chart|cart|tabel|\?|(minta|kirim\w*|lihat|liat|ada)\s+(size|ukuran|daftar)/i.test(String(r.text ?? ''))) return false;
+        if (r.intent === 'size_chart' && saysAny(r.text, 'minta_size_chart')) return false;
 
         // Another product named: an answer when the question itself offers it
         // ("Kemejanya jenis apa? Misal PDH ..." -> "PDH lengan panjang"), a
@@ -314,6 +350,38 @@ export function decide(conversation, classified, media, { random = Math.random }
             return handover('minta bicara dengan CS');
         }
 
+        if (r.intent === 'voice') {
+            say(replies.voiceNote());
+
+            return;
+        }
+
+        // A picture outside the design step: received, noted for CS (at a follow-up question it is the answer).
+        if (r.intent === 'image' && state().step !== 'awaiting_detail') return received();
+
+        // "Bisa DP dulu?": noted for CS, the flow waits where it was.
+        if (r.intent === 'cs_question') {
+            note(String(r.text ?? '').slice(0, 300));
+            say(replies.csQuestion());
+
+            return;
+        }
+
+        // "Kamu bot ya?": answered honestly; the flow waits where it was.
+        if (r.intent === 'about_bot') {
+            say(replies.aboutBot());
+
+            return;
+        }
+
+        // A product the shop does not list: CS checks it, the bot names what it makes, the chat stays open.
+        if (r.intent === 'product_unknown' || (r.intent === 'product' && !r.product)) {
+            say(replies.productUnknown());
+            if (['new', 'awaiting_intro'].includes(state().step)) patch.step = 'awaiting_product';
+
+            return;
+        }
+
         // An amount said in passing ("desain logo, 50 pcs") is kept for CS and not asked again.
         if (r.quantity && !state().quantity) patch.quantity = r.quantity;
 
@@ -321,7 +389,7 @@ export function decide(conversation, classified, media, { random = Math.random }
             const i = state().detail_index ?? 0;
             const question = productQuestions(state().product)[i] ?? '';
 
-            const answer = String(r.text ?? '').trim();
+            const answer = String(r.text ?? '').trim() || attachmentNotes().join(' ') || '[gambar]';
             // Kept with the answer: whether it said anything about their design.
             const design = r.design ?? (r.intent === 'no_reference' ? 'none' : null);
             patch.details = JSON.stringify([...details(), { q: question, a: answer.slice(0, 500), ...(design ? { design } : {}) }]);
@@ -433,7 +501,7 @@ export function decide(conversation, classified, media, { random = Math.random }
                 if (r.intent === 'greeting') return;
                 // A question the bot did not get is asked again, not taken as the end of the order.
                 // "Belum tahu", "nanti dikabari" are an answer: the flow ends as usual.
-                if (r.intent === 'other' && !/\b(belum|blm|tau|tahu|bingung|nanti|terserah|kurang|sekitar|kira)/i.test(String(r.text ?? ''))) {
+                if (r.intent === 'other' && !saysAny(r.text, 'jawaban_belum_pasti')) {
                     return notUnderstood('jawaban jumlah tidak dipahami');
                 }
                 // Kept as they wrote it, for CS.
@@ -490,6 +558,14 @@ export function decide(conversation, classified, media, { random = Math.random }
                 remember('quantity', r.quantity);
 
                 answerFaqs();
+                if (r.intent === 'about_bot') say(replies.aboutBot());
+                if (r.intent === 'product_unknown') say(replies.productUnknown());
+                if (r.intent === 'voice') say(replies.voiceNote());
+                if (r.intent === 'image') received();
+                if (r.intent === 'cs_question') {
+                    note(String(r.text ?? '').slice(0, 300));
+                    say(replies.csQuestion());
+                }
             }
 
             break;
@@ -512,7 +588,7 @@ export function decide(conversation, classified, media, { random = Math.random }
                 else handle();
             } else if (r.intent === 'greeting' || r.intent === 'ack') {
                 // still waiting for the introduction
-            } else if (r.intent === 'ask_first' || r.intent === 'price' || r.intent === 'human') {
+            } else if (['ask_first', 'price', 'human', 'about_bot', 'product_unknown', 'cs_question', 'image', 'voice'].includes(r.intent)) {
                 // They want to get to their question; do not insist on the introduction.
                 patch.step = 'awaiting_product';
                 handle();
@@ -525,6 +601,13 @@ export function decide(conversation, classified, media, { random = Math.random }
 
         default:
             handle();
+    }
+
+    // A question only CS can answer, next to something the bot did answer
+    // ("minimal berapa? bisa DP?"): noted for CS and said so, once.
+    if (r.csQuestion && r.intent !== 'cs_question' && patch.step !== 'handed_over' && conv.step !== 'handed_over') {
+        note(String(r.text ?? '').slice(0, 300));
+        if (!actions.some((a) => a.text === replies.csQuestion())) say(replies.csQuestion());
     }
 
     // A message that was understood starts the count of misses over; one that

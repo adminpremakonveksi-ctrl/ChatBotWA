@@ -1,5 +1,5 @@
-import { SEED_ADDITIONS, SEED_KEYWORDS, SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS, seedQuestions } from './seeds.js';
-import { cleanPhrase, textRulesVersion } from './text.js';
+import { SEED_ADDITIONS, SEED_KEYWORDS, SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS, SEED_WORDS, seedQuestions } from './seeds.js';
+import { cleanPhrase, setDictionary, textRulesVersion } from './text.js';
 
 /**
  * Numbered schema migrations with their seeders. Each runs once per database
@@ -270,7 +270,92 @@ CREATE TABLE IF NOT EXISTS products (
             syncSeeds(db, '007_more_variations');
         },
     },
+
+    {
+        // From testing odd messages: anger and "call me" go to CS, "kamu bot?" is
+        // answered, and two seeded phrases that caught the wrong thing are removed.
+        id: '008_odd_messages',
+        up(db) {
+            // Questions only CS can answer ("bisa DP?"), noted for CS while the bot carries on.
+            if (!hasColumn(db, 'conversations', 'notes')) db.exec('ALTER TABLE conversations ADD COLUMN notes TEXT');
+            syncSeeds(db, '008_odd_messages');
+        },
+    },
+
+    {
+        // Every word list the bot reads (dictionary, fillers, cities, units, ...)
+        // in the database, editable in the console (Latih bot > Kamus).
+        id: '009_word_lists',
+        up(db) {
+            db.exec(`
+CREATE TABLE IF NOT EXISTS word_lists (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    list TEXT NOT NULL,
+    word TEXT NOT NULL,
+    value TEXT,
+    source TEXT NOT NULL DEFAULT 'bawaan',
+    created_at TEXT,
+    UNIQUE (list, word)
+);`);
+
+            const insert = db.prepare(`INSERT OR IGNORE INTO word_lists (list, word, value, source, created_at) VALUES (?, ?, ?, 'bawaan', ?)`);
+            for (const [list, meta] of Object.entries(SEED_WORDS)) {
+                for (const entry of meta.words) {
+                    const [word, value] = Array.isArray(entry) ? entry : [entry, null];
+                    insert.run(list, String(word).toLowerCase().trim(), value == null ? null : String(value).toLowerCase().trim(), stamp());
+                }
+            }
+        },
+    },
+
+    {
+        // What happened, in order: pages opened and changes made in the console,
+        // what the bot did with each message, notes the team writes for the
+        // developer. The Log page shows it; a photo of it explains a request.
+        id: '010_activity_log',
+        up(db) {
+            db.exec(`
+CREATE TABLE IF NOT EXISTS activity_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    at TEXT NOT NULL,
+    source TEXT NOT NULL,
+    page TEXT,
+    action TEXT NOT NULL,
+    detail TEXT
+);
+CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log (at);`);
+        },
+    },
 ];
+
+/** Reads the dictionary lists from the database into normalise() (once the table exists). */
+export function loadDictionary(db) {
+    const exists = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'word_lists'`).get();
+    if (!exists) return false;
+
+    const pairs = (list) => db.prepare('SELECT word, value FROM word_lists WHERE list = ?').all(list);
+    setDictionary({ shorthand: pairs('singkatan'), regional: pairs('bahasa_daerah'), phrase: pairs('frasa') });
+
+    return true;
+}
+
+/**
+ * Keywords are stored the way messages are compared. When the comparison
+ * rules change (a dictionary edit, an update), re-store them, so keywords
+ * never stop matching.
+ */
+export function syncTextRules(db) {
+    const version = textRulesVersion();
+    const saved = db.prepare(`SELECT value FROM settings WHERE "key" = 'text:rules'`).get()?.value;
+    if (saved === version) return false;
+
+    db.transaction(() => {
+        renormaliseKeywords(db);
+        db.prepare(`INSERT OR REPLACE INTO settings ("key", value, updated_at) VALUES ('text:rules', ?, ?)`).run(version, stamp());
+    })();
+
+    return true;
+}
 
 /** Re-stores keywords the way messages are now compared; drops the duplicates that makes. */
 function renormaliseKeywords(db) {
@@ -302,6 +387,17 @@ export function syncSeeds(db, migration) {
 }
 
 function applySeed(db, add) {
+    // Word lists (Kamus): new words, unless the team deleted them.
+    for (const [list, entries] of Object.entries(add.words ?? {})) {
+        for (const entry of entries) {
+            const [word, value] = Array.isArray(entry) ? entry : [entry, null];
+            const key = String(word).toLowerCase().trim();
+            if (db.prepare('SELECT 1 FROM seed_removed WHERE kind = ? AND value = ?').get(`word:${list}`, key)) continue;
+            db.prepare(`INSERT OR IGNORE INTO word_lists (list, word, value, source, created_at) VALUES (?, ?, ?, 'bawaan', ?)`)
+                .run(list, key, value == null ? null : String(value).toLowerCase().trim(), stamp());
+        }
+    }
+
 
     const removed = (kind, value) => Boolean(db.prepare('SELECT 1 FROM seed_removed WHERE kind = ? AND value = ?').get(kind, value));
     const insert = db.prepare(`INSERT OR IGNORE INTO custom_keywords (phrase, intent, product, source, created_at) VALUES (?, ?, ?, 'bawaan', ?)`);
@@ -330,6 +426,17 @@ function applySeed(db, add) {
             db.prepare('UPDATE patterns SET keywords = ?, updated_at = ? WHERE id = ?').run(JSON.stringify([...current, ...fresh]), stamp(), row.id);
         }
     }
+
+    // Seeded phrases that proved to catch the wrong thing ("kantore" -> Lokasi).
+    for (const [builtin, phrases] of Object.entries(add.remove?.patterns ?? {})) {
+        const row = db.prepare('SELECT id, keywords FROM patterns WHERE builtin = ?').get(builtin);
+        if (!row) continue;
+
+        const drop = phrases.map(cleanPhrase);
+        const current = JSON.parse(row.keywords || '[]');
+        const kept = current.filter((k) => !drop.includes(k));
+        if (kept.length !== current.length) db.prepare('UPDATE patterns SET keywords = ?, updated_at = ? WHERE id = ?').run(JSON.stringify(kept), stamp(), row.id);
+    }
 }
 
 /** Remembers that the team removed a built-in seed, so no later migration re-adds it. */
@@ -355,17 +462,9 @@ export function runMigrations(db) {
         applied.push(migration.id);
     }
 
-    // Keywords are stored the way messages are compared. When the comparison
-    // rules change (new shorthand, Javanese words, ...), re-store them, so an
-    // update never leaves a client with keywords that can no longer match.
-    const version = textRulesVersion();
-    const saved = db.prepare(`SELECT value FROM settings WHERE "key" = 'text:rules'`).get()?.value;
-    if (saved !== version) {
-        db.transaction(() => {
-            renormaliseKeywords(db);
-            db.prepare(`INSERT OR REPLACE INTO settings ("key", value, updated_at) VALUES ('text:rules', ?, ?)`).run(version, stamp());
-        })();
-    }
+    // The dictionary the team edited, then keywords re-stored if it changed.
+    loadDictionary(db);
+    syncTextRules(db);
 
     return applied;
 }

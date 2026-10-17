@@ -7,6 +7,7 @@ import path from 'node:path';
 import test from 'node:test';
 import vm from 'node:vm';
 
+import { INTENTS } from '../src/bot/intents.js';
 import { TEMPLATES } from '../src/bot/replies.js';
 import { root } from '../src/config.js';
 import { SEED_ADDITIONS, SEED_KEYWORDS, SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS } from '../src/seeds.js';
@@ -96,6 +97,30 @@ test('no seed phrase has two meanings', () => {
     for (const p of SEED_PATTERNS) p.keywords.forEach((k) => claim(k, `pola ${p.builtin}`));
 
     assert.deepEqual(clashes, []);
+});
+
+test('no word lists are hard-coded in the logic: vocabulary lives in the database (Kamus)', () => {
+    // The files that read customer text. A list of 8+ quoted words there is
+    // vocabulary that belongs in SEED_WORDS (seeds.js) and the table word_lists.
+    const logic = ['src/text.js', 'src/bot/classify-rules.js', 'src/bot/engine.js', 'src/bot/store.js', 'src/bot/intents.js'];
+    const found = [];
+
+    for (const file of logic) {
+        const code = fs.readFileSync(path.join(root, file), 'utf8');
+        for (const match of code.matchAll(/\[((?:\s*'[^'\n]*',?){8,})\s*\]/g)) {
+            const line = code.slice(0, match.index).split('\n').length;
+            const items = [...match[1].matchAll(/'([^']*)'/g)].map((m) => m[1]);
+            const before = code.split('\n').slice(Math.max(0, line - 2), line).join('\n');
+
+            // Intent labels and database columns are the bot's structure, not vocabulary.
+            if (/export const INTENTS|const COLUMNS/.test(before)) continue;
+            if (items.every((item) => INTENTS.includes(item))) continue;
+
+            found.push(`${file}:${line}`);
+        }
+    }
+
+    assert.deepEqual(found, [], 'move these words to SEED_WORDS (seeds.js) and read them with words.js');
 });
 
 test('every seed migration named in SEED_ADDITIONS exists', async () => {

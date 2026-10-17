@@ -2,10 +2,11 @@ import { cleanName, normaliseResult } from './intents.js';
 import { customKeywords } from './keywords.js';
 import { activePatterns } from './patterns.js';
 import { productKeys } from './products.js';
-import { normalise, SHORTHAND } from '../text.js';
+import { wordMap, wordSet, wordsOf } from './words.js';
+import { normalise } from '../text.js';
 
 // Kept here too: callers import them from the classifier.
-export { normalise, SHORTHAND };
+export { normalise };
 
 /**
  * Offline keyword classifier. Always available, costs nothing, and is the
@@ -65,8 +66,15 @@ const nearly = (token, keyword) => {
 const tokens = (haystack) => haystack.trim().split(' ').filter(Boolean);
 
 
-// Words that say "I want to order", so "mau bikin jersey, minimal berapa?" also starts the jersey flow.
-const ORDER_WORDS = ['mau', 'mo ', 'ingin', 'pengen', 'pgn', 'pingin', 'bikin', 'buat', 'pesan', 'pesen', 'order', 'produksi', 'harga', 'cetak', 'butuh', 'nyari', 'cari'];
+// Word lists (Kamus, words.js): what says "I want to order" ("mau bikin jersey,
+// minimal berapa?" also starts the jersey flow), and what asks to have
+// something made (for products the shop does not list).
+const ORDER_WORDS = () => wordsOf('kata_pesan');
+const MAKE_WORDS = () => wordsOf('kata_buat');
+
+/** A word list as a regex alternative; multi-word entries allow any spacing or a comma. */
+const escapeRegex = (word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const alt = (list) => `(?:${wordsOf(list).map((w) => escapeRegex(w).replace(/ +/g, '[\\s,]+')).join('|') || '(?!)'})`;
 
 // Built-in flow answers that are not answer patterns, in the order sent when
 // one message asks several. (Lokasi, Pengiriman, Ragu, Minimal order are patterns.)
@@ -76,7 +84,7 @@ const FAQ_ORDER = ['size_chart', 'design_reference'];
 const keywordScore = (normalised, keyword) => {
     const exact = /\d$/.test(keyword) ? normalised.includes(` ${keyword} `) : normalised.includes(` ${keyword}`);
 
-    return exact ? keyword.length + 1 : tokens(normalised).some((token) => !NOT_FUZZY.has(token) && nearly(token, keyword)) ? keyword.length : 0;
+    return exact ? keyword.length + 1 : tokens(normalised).some((token) => !wordSet('bukan_typo').has(token) && nearly(token, keyword)) ? keyword.length : 0;
 };
 
 /** The keywords of a list that this message hits. */
@@ -92,7 +100,8 @@ export function findPatterns(normalised) {
     for (const pattern of activePatterns()) {
         const score = Math.max(0, ...pattern.keywords.map((keyword) => keywordScore(normalised, keyword)));
 
-        if (score) found.push({ pattern, score, hits: hitsOf(normalised, pattern.keywords) });
+        // exact: a keyword is really in the message, not only a typo-tolerant guess.
+        if (score) found.push({ pattern, score, hits: hitsOf(normalised, pattern.keywords), exact: pattern.keywords.some((k) => keywordScore(normalised, k) === k.length + 1) });
     }
 
     return found.sort((a, b) => b.score - a.score);
@@ -101,16 +110,20 @@ export function findPatterns(normalised) {
 /** The single best pattern for a message, or null ("Coba kalimat" in the console). */
 export const findPattern = (normalised) => findPatterns(normalised)[0]?.pattern ?? null;
 
+const productKeywordsOf = (key) => customKeywords().filter((k) => k.intent === 'product' && k.product === key).map((k) => k.phrase);
+
 /** Keywords of a built-in answer: all in the database (seeded, editable, deletable). */
 const keywordsFor = (intent) => customKeywords().filter((k) => k.intent === intent).map((k) => k.phrase);
 
 
-const QUANTITY = /(?:^|\s)(\d{1,6})\s*(?:pcs|pc|psc|biji|buah|bh|potong|ptg|lembar|lbr|set|pasang|orang|org|stel|setel|lusin|kodi|an|anan)?(?:\s|$)/;
-const QUANTITY_WORDS = [' selusin ', ' lusin', ' sekodi ', ' kodi', ' seratus', ' ratusan', ' puluhan', ' sepuluh ', ' dua puluh', ' tiga puluh', ' lima puluh'];
+// A number, optionally with a unit from the list ("50", "50 pcs", "2 lusin").
+const QUANTITY = () => new RegExp(`(?:^|\\s)(\\d{1,6})\\s*${alt('satuan')}?(?:\\s|$)`);
 
+/** Size chart variant from the list (oversize, boxy); reguler otherwise. */
 const SIZE_VARIANT = (text) => {
-    if (containsPrefix(text, ['oversize', 'over size', 'oversized'])) return 'oversize';
-    if (containsPrefix(text, ['boxy'])) return 'boxy';
+    for (const [word, variant] of wordMap('varian_ukuran')) {
+        if (text.includes(` ${word}`)) return variant;
+    }
 
     return 'reguler';
 };
@@ -137,7 +150,7 @@ export function findProduct(text) {
 
     // No exact hit: allow a typo on single-word product names.
     for (const token of tokens(text)) {
-        if (NOT_FUZZY.has(token)) continue;
+        if (wordSet('bukan_typo').has(token)) continue;
 
         const hit = candidates.find(({ keyword }) => nearly(token, keyword));
         if (hit) return hit.key;
@@ -146,11 +159,12 @@ export function findProduct(text) {
     return null;
 }
 
-// Indonesian, Javanese ("kulo Budi saking Purworejo", "nami kula Sri") and Sundanese ("abdi Asep ti Garut").
-const LEAD = '(?:(?:ini\\s+)?(?:dengan|dgn|kalih|kaliyan)|(?:perkenalkan|kenalin|kenalkan),?\\s+(?:nama\\s+)?(?:saya|aku|kami)|saya|aku|sy|ak|gw|gue|ini|namaku|nama\\s+(?:saya|aku|sy)|nama|perkenalkan|kenalin|nami\\s+(?:kulo|kula|abdi)|kulo|kula|abdi|asmanipun|jenengku|jenenge\\s+aku|aranku)';
+// The words around a name, from the lists (Kamus): Indonesian, Javanese
+// ("kulo Budi saking Purworejo", "nami kula Sri") and Sundanese ("abdi Asep ti Garut").
+const LEAD = () => alt('awal_nama');
 const NAME = "([\\p{L}']+(?:\\s+[\\p{L}']+){0,2}?)";
-const ORIGIN_LEAD = '(?:dari|dr|asal(?:\\s+dari)?|tinggal\\s+di|domisili|di|saking|seko|soko|teko|ti|ten|teng|neng|nang)';
-const STOP = '(?=\\s+(?:mau|mo|ingin|pengen|pgn|kak|min|ya|yaa|nih|mohon|izin|ijin|tanya|nanya|butuh|perlu|pesan|pesen|order|bikin|buat|minta|kalau|kalo|untuk|utk|ada|badhe|bade|ajeng|arep|hoyong|nyuwun|takon|damel|wonten|mas|mbak|mba|pak|bu|nggih|njih)\\b|\\s*$)';
+const ORIGIN_LEAD = () => alt('awal_asal');
+const STOP = () => `(?=\\s+${alt('penghenti_nama')}\\b|\\s*$)`;
 
 /** Pulls a name and origin out of "saya Budi dari Jogja", "Budi, Magelang", ... */
 export function findIntroduction(raw, { lenient = false } = {}) {
@@ -159,14 +173,14 @@ export function findIntroduction(raw, { lenient = false } = {}) {
     let name = null;
     let origin = null;
 
-    const lead = new RegExp(`(?:^|[\\s,.])${LEAD}\\s+(?:kak\\s+|mas\\s+|mbak\\s+|mba\\s+|bu\\s+|pak\\s+|ibu\\s+|bapak\\s+)?${NAME}(?=\\s+${ORIGIN_LEAD}\\b|\\s*[,.]|${STOP})`, 'iu');
+    const lead = new RegExp(`(?:^|[\\s,.])${LEAD()}\\s+(?:kak\\s+|mas\\s+|mbak\\s+|mba\\s+|bu\\s+|pak\\s+|ibu\\s+|bapak\\s+)?${NAME}(?=\\s+${ORIGIN_LEAD()}\\b|\\s*[,.]|${STOP()})`, 'iu');
     const leadMatch = text.match(lead);
 
     if (leadMatch) {
         name = leadMatch[1];
     }
 
-    const originMatch = text.match(new RegExp(`(?:^|[\\s,.])${ORIGIN_LEAD}\\s+([\\p{L}\\p{N} .'-]+?)(?=\\s*[,.]|${STOP})`, 'iu'));
+    const originMatch = text.match(new RegExp(`(?:^|[\\s,.])${ORIGIN_LEAD()}\\s+([\\p{L}\\p{N} .'-]+?)(?=\\s*[,.]|${STOP()})`, 'iu'));
 
     if (originMatch && (name || lenient)) {
         origin = originMatch[1];
@@ -175,7 +189,7 @@ export function findIntroduction(raw, { lenient = false } = {}) {
     if (!name && lenient) {
         // Replying to "ini dengan kak siapa dan darimana ya?" people often
         // answer bare: "Budi", "Budi dari Jogja", "Budi, Magelang".
-        const bare = text.match(new RegExp(`^${NAME}(?:\\s*,\\s*|\\s+${ORIGIN_LEAD}\\s+)([\\p{L}\\p{N} .'-]+)$`, 'iu'));
+        const bare = text.match(new RegExp(`^${NAME}(?:\\s*,\\s*|\\s+${ORIGIN_LEAD()}\\s+)([\\p{L}\\p{N} .'-]+)$`, 'iu'));
 
         if (bare) {
             name = bare[1];
@@ -185,7 +199,7 @@ export function findIntroduction(raw, { lenient = false } = {}) {
             const words = text.split(' ');
             const last = words.at(-1).toLowerCase();
 
-            if (words.length >= 2 && PLACES.has(last)) {
+            if (words.length >= 2 && wordSet('kota').has(last)) {
                 name = words.slice(0, -1).join(' ');
                 origin = words.at(-1);
             } else {
@@ -196,32 +210,6 @@ export function findIntroduction(raw, { lenient = false } = {}) {
 
     return { name, origin };
 }
-
-// Places customers often name bare ("budi jogja"); around Purworejo first, then big cities.
-const PLACES = new Set([
-    'purworejo', 'kutoarjo', 'kebumen', 'magelang', 'wonosobo', 'temanggung', 'jogja', 'yogya', 'yogyakarta', 'jogjakarta', 'sleman',
-    'bantul', 'kulonprogo', 'wates', 'gunungkidul', 'klaten', 'solo', 'surakarta', 'semarang', 'salatiga', 'kendal', 'banjarnegara',
-    'purbalingga', 'purwokerto', 'banyumas', 'cilacap', 'kebumen', 'gombong', 'muntilan', 'mungkid', 'boyolali', 'sragen', 'karanganyar',
-    'sukoharjo', 'wonogiri', 'pati', 'kudus', 'jepara', 'demak', 'rembang', 'blora', 'grobogan', 'pekalongan', 'batang', 'pemalang',
-    'tegal', 'brebes', 'jakarta', 'bandung', 'surabaya', 'malang', 'bogor', 'depok', 'bekasi', 'tangerang', 'cirebon', 'madiun',
-    'kediri', 'ngawi', 'ponorogo', 'pacitan', 'medan', 'makassar', 'palembang', 'lampung', 'bali', 'denpasar', 'balikpapan', 'samarinda',
-    'pontianak', 'banjarmasin', 'manado', 'padang', 'pekanbaru', 'batam', 'jambi', 'bengkulu', 'aceh', 'ambon', 'jayapura', 'kupang', 'mataram',
-]);
-
-// Everyday words a product name must never be "corrected" into ("baik" is not "batik").
-const NOT_FUZZY = new Set([
-    'baik', 'kasih', 'terima', 'makasih', 'siap', 'mana', 'sama', 'saja', 'kalau', 'harga', 'tanya', 'nanya', 'belum', 'sudah', 'bagus',
-    'besar', 'kecil', 'minta', 'semua', 'sedikit', 'banyak', 'untuk', 'dengan', 'ingin', 'pesan', 'kirim', 'bikin', 'warna', 'logo', 'kamu',
-    'kapan', 'tapi', 'bisa', 'boleh', 'lihat', 'liat', 'model', 'bahan', 'jumlah', 'tempat', 'bayar', 'transfer', 'nanti', 'besok', 'hari',
-    'pakai', 'pake', 'kayak', 'kaya', 'masih', 'cari', 'dulu', 'lagi', 'tolong', 'mohon', 'info', 'tahu', 'paham', 'ditunggu', 'tunggu',
-    'beragam', 'macam', 'borong', 'borongan', 'grosir', 'grosiran', 'partai', 'gimana', 'dimana', 'bagaimana', 'kenapa', 'mengapa', 'berapa', 'siapa', 'kapan', 'teman', 'tidak', 'nggak', 'bukan', 'karena',
-    'sekarang', 'sudah', 'semoga', 'nomor', 'warna', 'kirim', 'dikirim', 'sablon', 'bordir', 'gambar', 'desain', 'design',
-]);
-
-// Words that ride along with an acknowledgement without adding anything.
-const ACK_FILLERS = new Set(['kak', 'min', 'mas', 'mbak', 'mba', 'bu', 'pak', 'gan', 'sis', 'ya', 'nih', 'deh', 'dong', 'kok', 'banyak', 'sekali', 'ok', 'yang', 'kalau', 'begitu', 'gitu', 'sudah', 'udah',
-    'atas', 'info', 'infonya', 'informasi', 'informasinya', 'penjelasannya', 'bantuannya', 'responnya', 'balasannya', 'jawabannya', 'to', 'lho', 'loh', 'yo', 'sanget', 'nggeh',
-    'sangat', 'membantu', 'terbantu', 'bermanfaat', 'jelas', 'lengkap', 'kakak', 'semuanya', 'ya', 'kembali']);
 
 /**
  * True when the message is only these phrases plus filler words; with
@@ -243,27 +231,37 @@ function onlyPhrases(normalised, phrases, fillers, allowEmpty = false) {
     return left.every((word) => fillers.has(word)) && (hit || (allowEmpty && !tokens(normalised).length));
 }
 
-const GREETING_FILLERS = new Set(['kak', 'min', 'mas', 'mbak', 'mba', 'admin', 'gan', 'sis', 'bu', 'pak', 'selamat', 'ya', 'nih', 'pagi', 'siang', 'sore', 'malam', 'wr', 'wb', 'semua', 'dulu']);
-
 // A number with a unit is an amount anywhere ("kemeja 2000 pcs"); a bare
 // number only when the bot asked how many ("SMA 1" is not one piece).
-const QUANTITY_UNIT = /(?:^|\s)(\d{1,6}\s*(?:pcs|pc|buah|bh|potong|ptg|lembar|lbr|set|pasang|orang|org|stel|setel|lusin|kodi|an|anan|biji))(?=\s|$)/;
-// Whether they said they have a design ("desainnya sudah ada", "nanti saya kirim filenya")
-// or none ("belum ada desain", "dereng wonten desaine"). Matched on normalised text.
-const DESIGN_NONE = / (?:belum|tidak|gak|nggak|enggak) (?:ada |punya |memiliki |kepikiran |dapat )?(?:desain|design|referensi|konsep|gambaran|logo)/;
-const DESIGN_READY = / (?:sudah|udah) (?:ada |punya |jadi |siap )?(?:desain|design|file|gambar|referensi|logo)| (?:desain|design|file|filenya|desainnya|designnya) (?:sudah|udah) (?:ada|jadi|siap)| (?:kirim|kirimkan|kirimin) (?:file|filenya|desain|desainnya|gambar)/;
+const QUANTITY_UNIT = () => new RegExp(`(?:^|\\s)(\\d{1,6}\\s*${alt('satuan')})(?=\\s|$)`);
 
-const designStatus = (normalised) => (DESIGN_NONE.test(normalised) ? 'none' : DESIGN_READY.test(normalised) ? 'ready' : null);
+// Whether they said they have a design ("desainnya sudah ada", "nanti saya kirim filenya")
+// or none ("belum ada desain", "dereng wonten desaine"), from the word lists. Normalised text.
+const DESIGN_NONE = () => new RegExp(` ${alt('kata_tidak')} (?:${alt('kata_punya')} )?${alt('kata_desain')}`);
+const DESIGN_READY = () =>
+    new RegExp(` ${alt('kata_sudah')} (?:${alt('kata_punya')} )?${alt('kata_desain')}| ${alt('kata_desain')} ${alt('kata_sudah')} ${alt('kata_punya')}| ${alt('kata_kirim')} ${alt('kata_desain')}`);
+
+const designStatus = (normalised) => (DESIGN_NONE().test(normalised) ? 'none' : DESIGN_READY().test(normalised) ? 'ready' : null);
 
 const QUANTITY_NAMED =/(?:^|\s)((?:se|satu |dua |tiga |empat |lima |setengah )?(?:lusin|kodi)|ratusan|puluhan)(?=\s|$)/;
 
+// "2rb pcs", "1,5 ribu", "dua ratus biji", "seratus", "lima puluh orang".
+const QUANTITY_THOUSANDS = /(?:^|\s)(\d{1,4}(?:[.,]\d)?\s*(?:rb|ribu|k)(?:\s+pcs)?)(?=\s|$)/;
+const NUMBER_WORD = '(?:satu|dua|tiga|empat|lima|enam|tujuh|delapan|sembilan)';
+const QUANTITY_WORDS_NUM = new RegExp(`(?:^|\\s)((?:se|${NUMBER_WORD}\\s)(?:ratus|ribu|puluh)(?:\\s${NUMBER_WORD}(?:\\spuluh)?)?(?:\\s(?:pcs|orang|stel|setel|lusin))?)(?=\\s|$)`);
+
 function quantityText(normalised, bare) {
-    const found = normalised.match(QUANTITY_UNIT) ?? normalised.match(QUANTITY_NAMED) ?? (bare ? normalised.match(QUANTITY) : null);
+    const found =
+        normalised.match(QUANTITY_UNIT()) ??
+        normalised.match(QUANTITY_THOUSANDS) ??
+        normalised.match(QUANTITY_WORDS_NUM) ??
+        normalised.match(QUANTITY_NAMED) ??
+        (bare ? normalised.match(QUANTITY()) : null);
 
     return found ? found[1].trim() : null;
 }
 
-export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
+export function classifyWithRules({ text, hasImage = false, hasAudio = false, attachments = [], step = 'new' }) {
     const normalised = normalise(text);
     const product = findProduct(normalised);
     const sizeVariant = SIZE_VARIANT(normalised);
@@ -272,7 +270,13 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
     // Everything the message asks, so one bubble with three questions gets three answers.
     // Answered in the order the customer asked, not by how strongly each matched.
     const at = (f) => Math.min(...f.hits.map((hit) => normalised.indexOf(` ${hit}`)).filter((i) => i >= 0), Infinity);
-    const found = findPatterns(normalised).sort((a, b) => at(a) - at(b));
+    // A pattern matched only by a typo guess never beats a product named exactly
+    // ("seragam batik kantor" is kemeja, not "kantore" -> Lokasi).
+    const found = findPatterns(normalised)
+        .filter((f) => f.exact || !product)
+        .sort((a, b) => at(a) - at(b));
+    // Whether every match here was exact; a guess is checked by the AI when it is on.
+    const guessed = findPatterns(normalised).some((f) => !f.exact);
     const patternHits = found.flatMap((f) => f.hits);
     const patterns = found.map(({ pattern: p }) => ({ id: p.id, name: p.name, bubbles: p.bubbles, after: p.after, builtin: p.builtin }));
 
@@ -283,7 +287,7 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
     const faqs = FAQ_ORDER.filter((intent) =>
         hitsOf(normalised, keywordsFor(intent)).some((hit) => !patternHits.some((p) => overlaps(hit, p))),
     );
-    const wantsProduct = Boolean(product) && containsPrefix(normalised, ORDER_WORDS);
+    const wantsProduct = Boolean(product) && containsPrefix(normalised, ORDER_WORDS());
 
     const result = (intent) =>
         normaliseResult(
@@ -297,6 +301,10 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
                 ...intro,
                 extras: [...faqs, ...(wantsProduct ? ['product'] : [])].filter((extra) => extra !== intent),
                 patterns,
+                // A typo-tolerant guess decided something here: the AI double-checks it when on.
+                csQuestion: mentions(normalised, keywordsFor('cs_question')),
+                attachments,
+                guessed: guessed || (Boolean(product) && !productKeywordsOf(product).some((k) => normalised.includes(` ${k}`))),
                 source: 'rules',
             },
             productKeys(),
@@ -304,17 +312,22 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
 
     // A bare number is an amount only when the bot asked how many ("SMA 1 Purworejo" is not one piece).
     const quantity = () =>
-        (step === 'awaiting_quantity' ? QUANTITY.test(normalised) : QUANTITY_UNIT.test(normalised)) ||
-        QUANTITY_WORDS.some((w) => normalised.includes(w)) ||
+        (step === 'awaiting_quantity' ? QUANTITY().test(normalised) : QUANTITY_UNIT().test(normalised)) ||
+        QUANTITY_THOUSANDS.test(normalised) ||
+        QUANTITY_WORDS_NUM.test(normalised) ||
         mentions(normalised, keywordsFor('quantity'));
 
     // Answers to the bot's own question come first: "belum ada" after "what
     // design?" means no reference, not a greeting or an unknown message.
     if (step === 'awaiting_design') {
         if (hasImage) return result('has_reference');
-        if (mentions(normalised, keywordsFor('no_reference')) && !QUANTITY.test(normalised)) return result('no_reference');
+        if (mentions(normalised, keywordsFor('no_reference')) && !QUANTITY().test(normalised)) return result('no_reference');
         if (mentions(normalised, keywordsFor('has_reference'))) return result('has_reference');
     }
+
+    // A voice note, or a picture with no words outside the design step.
+    if (hasAudio && !normalised.trim()) return result('voice');
+    if (hasImage && !normalised.trim() && step !== 'awaiting_design') return result('image');
 
     if (step === 'awaiting_quantity' && quantity()) {
         return result('quantity');
@@ -323,23 +336,29 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
     // "Mau ngobrol sama admin": a person was asked for; nothing else matters.
     if (mentions(normalised, keywordsFor('human'))) return result('human');
 
+    // "Kamu bot ya?": answered honestly, the bot carries on.
+    if (mentions(normalised, keywordsFor('about_bot'))) return result('about_bot');
+
     // Answer patterns (the team's and the seeded Lokasi, Pengiriman, ...) come before the built-in answers.
     if (patterns.length) return result('custom');
 
     // Questions the spec answers at any point in the conversation.
     // "Belum ada desain" says they have none; it is not a request for design examples.
-    if (faqs[0] === 'design_reference' && DESIGN_NONE.test(normalised)) return result('no_reference');
+    if (faqs[0] === 'design_reference' && DESIGN_NONE().test(normalised)) return result('no_reference');
 
     if (faqs.length) return result(faqs[0]);
 
     if (product) return result('product');
+
+    // "Bisa DP dulu?", "berapa lama pengerjaannya": clear, but only CS can answer.
+    if (mentions(normalised, keywordsFor('cs_question'))) return result('cs_question');
 
     // "harganya berapa?" without a product; then "mau nanya2 dulu" (a question announced, none asked).
     if (mentions(normalised, keywordsFor('price'))) return result('price');
     if (mentions(normalised, keywordsFor('ask_first'))) return result('ask_first');
 
     // "ok kak", "siap makasih", or only an emoji: nothing to answer, nothing to hand over.
-    if (!hasImage && onlyPhrases(normalised, keywordsFor('ack'), ACK_FILLERS, true)) return result('ack');
+    if (!hasImage && onlyPhrases(normalised, keywordsFor('ack'), wordSet('pengisi_oke'), true)) return result('ack');
 
     if (step === 'awaiting_design' && tokens(normalised).length >= 3) {
         // A sentence about what they want is the design description.
@@ -354,13 +373,17 @@ export function classifyWithRules({ text, hasImage = false, step = 'new' }) {
     const words = tokens(normalised);
 
     // Only greetings ("met malam kak", "sugeng dalu mas"), phrases included.
-    if (words.length && words.length <= 6 && onlyPhrases(normalised, keywordsFor('greeting'), GREETING_FILLERS)) {
+    if (words.length && words.length <= 6 && onlyPhrases(normalised, keywordsFor('greeting'), wordSet('pengisi_sapaan'))) {
         return result('greeting');
     }
 
     if (step === 'new' && /^(?:halo|hallo|hai|hi|permisi|assalamu|selamat|pagi|siang|sore|malam)/.test(normalised.trim()) && words.length <= 8) {
         return result('greeting');
     }
+
+    // "Bisa bikin sepatu?", "jual tas ransel?": asks to make or buy something
+    // the shop does not list. CS checks it; the chat is not closed.
+    if (containsPrefix(normalised, MAKE_WORDS()) && words.length <= 12) return result('product_unknown');
 
     return result('other');
 }

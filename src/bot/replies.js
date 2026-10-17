@@ -1,5 +1,6 @@
 import { config } from '../config.js';
 import { all, run, setSetting } from '../db.js';
+import { listProducts } from './products.js';
 
 /**
  * Every sentence the bot can send. The defaults are copied word for word from
@@ -152,7 +153,11 @@ export const TEMPLATES = {
         label: 'Belum paham, tanya ulang',
         when: 'Pesan yang tidak dipahami bot. Bot menanyakan ulang dulu; baru diserahkan ke CS setelah beberapa kali berturut-turut (atur jumlahnya di Pengaturan).',
         vars: [],
-        text: 'Maaf kak, {bot} belum paham maksudnya 🙏 Boleh dijelaskan lagi dengan kalimat lain? Misalnya mau tanya produk, harga, ukuran, lokasi, atau pengiriman 😊',
+        // Versions in turn (1st, 2nd, 3rd miss), separated by a line with ---.
+        text:
+            'Maaf kak, {bot} belum paham maksudnya 🙏 Boleh dijelaskan lagi dengan kalimat lain? Misalnya mau tanya produk, harga, ukuran, lokasi, atau pengiriman 😊\n---\n' +
+            'Mohon maaf kak, {bot} masih kurang menangkap maksudnya 🙏 Boleh diceritakan lagi kakak mau tanya atau pesan apa?\n---\n' +
+            'Maaf kak, bisa diperjelas lagi? 🙏 {bot} bisa bantu soal produk, harga, ukuran, desain, lokasi, dan pengiriman 😊',
     },
     handoverNotice: {
         group: 'Penutup',
@@ -169,6 +174,41 @@ export const TEMPLATES = {
         when: 'Pelanggan minta size chart tanpa menyebut produk.',
         vars: [],
         text: 'Size chart untuk produk apa ya kak? Biar aku bantu kirim yang sesuai 😉',
+    },
+    productUnknown: {
+        group: 'Pertanyaan umum',
+        label: 'Produk yang tidak ada di daftar',
+        when: 'Pelanggan menanyakan produk yang tidak dikenali bot (mis. sepatu, tas ransel). Bot tidak menutup chat; CS mengecek nanti. {daftar_produk} = semua produk di halaman Produk, otomatis.',
+        vars: ['daftar_produk'],
+        text: 'Untuk produk itu nanti dicek dulu oleh CS {cs} ya kak 🙏 Produk yang biasa kami buat antara lain {daftar_produk} 😊',
+    },
+    csQuestion: {
+        group: 'Pertanyaan umum',
+        label: 'Pertanyaan yang dijawab CS',
+        when: 'Pertanyaan yang jelas tetapi hanya CS yang tahu jawabannya: DP, cara bayar, lama pengerjaan, status pesanan, komplain. Bot mencatatnya untuk CS (muncul di Percakapan dan rekap pagi) dan percakapan tetap berjalan.',
+        vars: [],
+        text: 'Pertanyaan kakak sudah {bot} catat ya kak, nanti dijawab langsung oleh CS {cs} begitu online 🙏',
+    },
+    imageReceived: {
+        group: 'Pertanyaan umum',
+        label: 'Gambar / file / lokasi diterima',
+        when: 'Pelanggan mengirim gambar, video, file, lokasi atau kontak tanpa keterangan, di luar langkah desain. {lampiran} = gambarnya / filenya / lokasinya / videonya / kontaknya. Isinya dicatat untuk CS.',
+        vars: ['lampiran'],
+        text: 'Terima kasih kak, {lampiran} sudah {bot} terima. Nanti dicek oleh CS {cs} ya 🙏',
+    },
+    voiceNote: {
+        group: 'Pertanyaan umum',
+        label: 'Pesan suara',
+        when: 'Pelanggan mengirim voice note. Bot tidak bisa mendengar pesan suara.',
+        vars: [],
+        text: 'Maaf kak, {bot} belum bisa mendengar pesan suara 🙏 Boleh diketik saja ya kak?',
+    },
+    aboutBot: {
+        group: 'Pertanyaan umum',
+        label: '"Kamu bot ya?"',
+        when: 'Pelanggan bertanya apakah yang membalas bot atau manusia. Bot menjawab jujur dan tetap membantu.',
+        vars: [],
+        text: 'Yang membalas sekarang {bot}, AI Agent Prema Konveksi, sembari menunggu CS {cs} online kak 😊 Ada yang bisa {bot} bantu? Kalau mau langsung dengan CS, bilang saja ya kak.',
     },
     sizeChartMissing: {
         group: 'Pertanyaan umum',
@@ -238,15 +278,34 @@ export function fillText(text, vars = {}) {
 }
 
 /** Fills {bot}, {cs}, {nama}, {produk}. Null for an empty optional template (step skipped). */
-export function render(key, vars = {}) {
+/**
+ * Fills {bot}, {cs}, {nama}, {produk}. Null for an empty optional template (step skipped).
+ * A template may hold several versions separated by a line with --- (so the
+ * bot does not repeat itself word for word): `version` picks one in turn,
+ * otherwise one is picked at random.
+ */
+const VERSION_LINE = /\n[ \t]*---[ \t]*\n/;
+
+export function render(key, vars = {}, version = null) {
     const text = templateText(key);
 
     if (!text) return null;
 
+    // Exactly "---" on its own line; a longer line of dashes ("-------" in the Salam) is part of the text.
+    const versions = text.split(VERSION_LINE).map((v) => v.trim()).filter(Boolean);
+    const chosen = versions[version == null ? Math.floor(Math.random() * versions.length) : version % versions.length] ?? text;
     const values = { bot: config.bot.botName, cs: config.bot.csName, ...vars };
 
-    return text.replace(/\{(\w+)\}/g, (match, name) => (values[name] != null ? String(values[name]) : match));
+    return chosen.replace(/\{(\w+)\}/g, (match, name) => (values[name] != null ? String(values[name]) : match));
 }
+
+/** Every version of a template, filled ("belum paham" has several). */
+export const renderAll = (key, vars = {}) => {
+    const text = templateText(key) ?? '';
+    const count = text.split(VERSION_LINE).filter((v) => v.trim()).length || 1;
+
+    return Array.from({ length: count }, (_, i) => render(key, vars, i));
+};
 
 const fail = (message) => {
     throw Object.assign(new Error(message), { statusCode: 422 });
@@ -293,6 +352,13 @@ export function listTemplates() {
     }));
 }
 
+/** "Kaos, Jersey, PDL dan Topi": every product on the Produk page, in its order. */
+export function productListText() {
+    const names = listProducts().map((p) => p.name);
+
+    return names.length > 1 ? `${names.slice(0, -1).join(', ')} dan ${names.at(-1)}` : names[0] ?? 'berbagai produk konveksi';
+}
+
 /** The engine's view: one function per bubble, same names as before. */
 export const replies = {
     greetKnown: (nama) => render('greetKnown', { nama }),
@@ -308,8 +374,16 @@ export const replies = {
     jerseyTemplates: () => render('jerseyTemplates'),
     waitForCs: () => render('waitForCs'),
     handoverNotice: () => render('handoverNotice'),
-    clarify: () => render('clarify'),
+    // The n-th version, so a second "belum paham" is worded differently.
+    clarify: (n = 0) => render('clarify', {}, n),
+    isClarify: (text) => renderAll('clarify').includes(text),
     sizeChartMissing: (produk) => render('sizeChartMissing', { produk }),
+    // The products from the Produk page, so a new one is named without editing the template.
+    productUnknown: () => render('productUnknown', { daftar_produk: productListText() }),
+    aboutBot: () => render('aboutBot'),
+    csQuestion: () => render('csQuestion'),
+    imageReceived: (lampiran = 'gambarnya') => render('imageReceived', { lampiran }),
+    voiceNote: () => render('voiceNote'),
     priceDesign: (produk) => render('priceDesign', { produk }),
     socials: () => render('socials'),
     jerseyPromo: () => render('jerseyPromo'),

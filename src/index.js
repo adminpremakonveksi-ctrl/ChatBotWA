@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,6 +21,8 @@ import { config, root } from './config.js';
 import { db, describeDatabase, getSetting, now, run } from './db.js';
 import { logger } from './logger.js';
 import { errorsSince, latestErrorId } from './errors.js';
+import { describeRequest, listActivity, recordActivity } from './activity.js';
+import { WORD_LISTS, addWord, removeWord, updateWord, wordRows } from './bot/words.js';
 import { aiSettings, listOllamaModels, loadAiSettings, updateAiSettings } from './ai-settings.js';
 import { classifyWithOllama } from './bot/classify-ollama.js';
 import { backup, buildRecap, sendTestRecap, startMaintenance } from './maintenance.js';
@@ -59,6 +62,56 @@ const aiLabel = () => {
 app.get('/health', (req, res) => res.json({ ok: true, botActive: isBotActive(), ai: aiProvider() }));
 
 app.use(requireApiKey);
+
+// Every change made in the console goes to the activity log (Log page), with
+// the page it was made on (X-Page, sent by the console). Only what changed is
+// written, never the values (keys, texts).
+app.use((req, res, next) => {
+    if (req.method === 'GET' || req.path === '/activity') return next();
+
+    res.on('finish', () => {
+        recordActivity({
+            source: 'dashboard',
+            page: req.get('X-Page') || null,
+            action: describeRequest(req.method, req.path, req.body),
+            detail: res.statusCode >= 400 ? `gagal (HTTP ${res.statusCode})` : null,
+        });
+    });
+
+    next();
+});
+
+// The Log page: newest first; a page view is logged by the console itself.
+app.get('/activity', wrap(async (req, res) => {
+    res.json({ entries: listActivity({ limit: req.query.limit, source: req.query.source || null, q: String(req.query.q ?? '').slice(0, 80) }) });
+}));
+
+// The technical log for the developer: the last lines of logs/bot.log (written
+// by the auto-start service), as they are.
+app.get('/logs/tail', wrap(async (req, res) => {
+    const file = path.join(root, 'logs', 'bot.log');
+    const lines = Math.min(Number(req.query.lines) || 300, 2000);
+
+    if (!fs.existsSync(file)) return res.json({ file: 'logs/bot.log', exists: false, lines: [] });
+
+    // Only the end of the file: it can grow large between daily clean-ups.
+    const size = fs.statSync(file).size;
+    const length = Math.min(size, 512 * 1024);
+    const handle = fs.openSync(file, 'r');
+    const buffer = Buffer.alloc(length);
+    fs.readSync(handle, buffer, 0, length, size - length);
+    fs.closeSync(handle);
+
+    const text = buffer.toString('utf8').replace(/\x1b\[[0-9;]*m/g, '');
+    res.json({ file: 'logs/bot.log', exists: true, size, lines: text.split(/\r?\n/).filter(Boolean).slice(-lines) });
+}));
+
+app.post('/activity', wrap(async (req, res) => {
+    const page = String(req.body?.page ?? '').slice(0, 40);
+    if (page) recordActivity({ source: 'dashboard', page, action: `Membuka halaman ${page}` });
+
+    res.json({ ok: true });
+}));
 
 // New errors and warnings since the id the console last showed (the error pop-up polls this).
 // Behind the API key: stacks and logged details may name customers.
@@ -109,6 +162,14 @@ app.get('/info', wrap(async (req, res) => {
         backupOutside: !path.resolve(config.maintenance.backupDir).toLowerCase().startsWith(path.resolve(root).toLowerCase()),
         lastBackup: getSetting('backup:last') ?? getSetting('job:backup'),
         mediaMissing: media.checklist().filter((item) => !item.ok).length,
+        // For the Log page's "Info untuk developer".
+        runtime: {
+            node: process.version,
+            os: `${os.type()} ${os.release()} (${os.arch()})`,
+            host: os.hostname(),
+            uptimeMinutes: Math.round(process.uptime() / 60),
+            folder: root,
+        },
     });
 }));
 
@@ -239,11 +300,11 @@ app.get('/recap/preview', wrap(async (req, res) => {
 /* ---------------------------------------------------- simulator & media --- */
 
 app.post('/simulate', wrap(async (req, res) => {
-    const { id, text, hasImage } = req.body ?? {};
+    const { id, text, hasImage, hasAudio } = req.body ?? {};
 
     if (!id) return res.status(422).json({ error: 'Butuh "id"' });
 
-    res.json(await simulate(String(id), { text: String(text ?? '').slice(0, 2000), hasImage: Boolean(hasImage) }));
+    res.json(await simulate(String(id), { text: String(text ?? '').slice(0, 2000), hasImage: Boolean(hasImage), hasAudio: Boolean(hasAudio) }));
 }));
 
 app.post('/simulate/reset', wrap(async (req, res) => {
@@ -479,6 +540,32 @@ app.put('/keywords/:id', wrap(async (req, res) => {
 
 app.delete('/keywords/:id', wrap(async (req, res) => {
     removeKeyword(req.params.id);
+
+    res.json({ ok: true });
+}));
+
+/* --------------------------------------------------------------- Kamus --- */
+
+// Every word list the bot reads (dictionary, fillers, cities, units, ...): see src/bot/words.js.
+app.get('/words', wrap(async (req, res) => {
+    const counts = Object.fromEntries(Object.keys(WORD_LISTS).map((name) => [name, wordRows(name).length]));
+
+    res.json({ lists: Object.entries(WORD_LISTS).map(([name, meta]) => ({ name, ...meta, count: counts[name] })), words: req.query.list ? wordRows(String(req.query.list)) : [] });
+}));
+
+app.post('/words', wrap(async (req, res) => {
+    const word = addWord(req.body ?? {});
+
+    logger.info({ list: word.list, word: word.word }, 'kata ditambah ke kamus dari konsol');
+    res.status(201).json({ word });
+}));
+
+app.put('/words/:id', wrap(async (req, res) => {
+    res.json({ word: updateWord(req.params.id, req.body ?? {}) });
+}));
+
+app.delete('/words/:id', wrap(async (req, res) => {
+    removeWord(req.params.id);
 
     res.json({ ok: true });
 }));

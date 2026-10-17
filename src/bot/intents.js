@@ -1,3 +1,5 @@
+import { wordSet } from './words.js';
+
 /**
  * What a customer message can mean. The engine maps each to fixed spec text;
  * classifiers only choose among these.
@@ -19,31 +21,19 @@ export const INTENTS = [
     'ask_first', //        "mau nanya2 dulu": announces a question, asks nothing yet
     'ack', //              "ok", "siap", "makasih": nothing to answer
     'human', //            asks for a person (admin, CS, a phone call): handed over at once
+    'about_bot', //        "kamu bot ya?": answered honestly, the bot carries on
+    'product_unknown', //  asks for a product the shop does not list (sepatu, mukena)
+    'cs_question', //      a clear question only CS can answer (DP, payment, lead time, order status)
+    'image', //            a picture with no words, outside the design step
+    'voice', //            a voice note (the bot cannot listen)
     'custom', //           matches an answer pattern the team built (carries `pattern`)
     'other', //            anything else - handed to CS
 ];
 
 export const SIZE_VARIANTS = ['reguler', 'boxy', 'oversize'];
 
-const NOT_A_NAME = new Set([
-    'mau', 'mo', 'ingin', 'pengen', 'pgn', 'pingin', 'tanya', 'nanya', 'kak', 'ka', 'kakak', 'min', 'admin',
-    'mas', 'mbak', 'mba', 'bu', 'pak', 'dari', 'dr', 'asal', 'di', 'ada', 'lagi', 'bisa', 'boleh', 'sudah',
-    'udah', 'belum', 'mau', 'ya', 'yaa', 'iya', 'nih', 'ini', 'itu', 'saya', 'aku', 'sy', 'ak', 'gw', 'gue',
-    'butuh', 'perlu', 'cari', 'nyari', 'pesan', 'pesen', 'order', 'bikin', 'buat', 'minta', 'halo', 'hai',
-    'hallo', 'permisi', 'selamat', 'malam', 'pagi', 'siang', 'sore', 'tadi', 'yang', 'dan', 'atau', 'juga',
-    'mohon', 'tolong', 'info', 'informasi', 'kok', 'apa', 'gimana', 'bagaimana', 'berapa', 'terima', 'kasih',
-    'makasih', 'oke', 'ok', 'siap', 'baik', 'sama', 'dengan', 'dgn', 'tidak', 'gak', 'ga', 'nggak', 'enggak',
-    'assalamualaikum', 'waalaikumsalam', 'salam', 'kenal',
-    // Javanese / Sundanese words that are not names
-    'kulo', 'kula', 'badhe', 'bade', 'ajeng', 'arep', 'nggih', 'njih', 'inggih', 'saking', 'seko', 'soko', 'wonten', 'nopo',
-    'pinten', 'sampun', 'dereng', 'matur', 'nuwun', 'suwun', 'sugeng', 'dalu', 'enjing', 'sonten', 'punten', 'hoyong',
-    'damel', 'takon', 'nyuwun', 'pripun', 'piye', 'mboten', 'ora', 'niki', 'iki', 'mriki', 'mangke', 'riyin', 'ngapunten',
-    'monggo', 'mangga', 'sami', 'ten', 'teng', 'neng', 'oke', 'sip', 'mantap', 'makasih',
-    // Words after "saya" that are not a name ("saya kirim filenya", "saya kabari nanti")
-    'kirim', 'kirimkan', 'kirimin', 'file', 'filenya', 'nanti', 'kabari', 'kabarin', 'hubungi', 'transfer', 'bayar', 'cek',
-    'lihat', 'liat', 'tunggu', 'coba', 'ambil', 'pakai', 'pake', 'masih', 'belum', 'sedang', 'lagi', 'cuma', 'hanya', 'juga',
-    'desain', 'design', 'desainnya', 'gambar', 'logo', 'ukuran', 'warna', 'harga', 'kami', 'kita',
-]);
+// Words that are never a name (Kamus: "Bukan nama orang").
+const NOT_A_NAME = () => wordSet('bukan_nama');
 
 /**
  * A name goes straight into a fixed template ("Halo Kak <nama>"), so it must
@@ -55,7 +45,7 @@ export function cleanName(value) {
 
     const words = value.split(/[\s.]+/).filter(Boolean);
 
-    if (!words.length || words.length > 3 || words.some((word) => NOT_A_NAME.has(word.toLowerCase()))) {
+    if (!words.length || words.length > 3 || words.some((word) => NOT_A_NAME().has(word.toLowerCase()))) {
         return null;
     }
 
@@ -88,7 +78,7 @@ export function normaliseResult(result, productKeys) {
 
     // Further things the same message asked, answered before the main intent.
     const extras = [...new Set(Array.isArray(result?.extras) ? result.extras : [])].filter(
-        (extra) => INTENTS.includes(extra) && extra !== intent && !['greeting', 'introduction', 'other', 'ack', 'ask_first', 'human'].includes(extra),
+        (extra) => INTENTS.includes(extra) && extra !== intent && !['greeting', 'introduction', 'other', 'ack', 'ask_first', 'human', 'about_bot', 'product_unknown', 'cs_question', 'image', 'voice'].includes(extra),
     );
 
     return {
@@ -102,8 +92,14 @@ export function normaliseResult(result, productKeys) {
         quantity: typeof result?.quantity === 'string' && result.quantity.trim() ? result.quantity.trim().slice(0, 40) : null,
         patterns,
         pattern: intent === 'custom' ? patterns[0] : null,
+        // The message also asks something only CS can answer ("bisa DP?"), next to its main intent.
+        csQuestion: Boolean(result?.csQuestion) || result?.intent === 'cs_question',
+        // The keyword reading rested on a typo guess (the AI double-checks those).
+        guessed: Boolean(result?.guessed),
         // "none" (no design yet) / "ready" (they have one) when the message says so.
         design: ['none', 'ready'].includes(result?.design) ? result.design : null,
+        // Pictures, files, a location sent with the message: { kind, note } (session.js).
+        attachments: Array.isArray(result?.attachments) ? result.attachments.filter((x) => x && typeof x.kind === 'string').slice(0, 10) : [],
         // The message itself: a follow-up answer is stored for CS as written.
         text: typeof result?.text === 'string' ? result.text : '',
         source: result?.source ?? 'rules',

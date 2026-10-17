@@ -160,7 +160,7 @@ test('not understood: asked again; CS only after 3 in a row (Pengaturan)', () =>
 
     for (const n of [1, 2]) {
         const { actions, patch } = decide(conv, r('other'), media);
-        assert.deepEqual(texts(actions), [replies.clarify()], `miss ${n}: asked again`);
+        assert.deepEqual(texts(actions), [replies.clarify(n - 1)], `miss ${n}: asked again, worded differently each time`);
         assert.equal(patch.misses, n);
         conv = { ...conv, ...patch };
     }

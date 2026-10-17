@@ -278,6 +278,16 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 
 /* toast */
 .toasts { position:fixed; right:20px; bottom:20px; display:flex; flex-direction:column; gap:8px; z-index:60 }
+.logfacts { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px 18px }
+.logfacts div { display:flex; flex-direction:column; gap:2px; min-width:0 } .logfacts b { font-size:13px; overflow-wrap:anywhere }
+.loglist { display:flex; flex-direction:column; font-size:13px }
+.loglist .day { margin:10px 0 4px; font-size:12px; color:var(--ink-3); font-weight:600 }
+.logrow { display:grid; grid-template-columns:72px 150px 1fr; gap:10px; padding:6px 8px; border-left:3px solid transparent; border-bottom:1px solid var(--line-2) }
+.logrow.dashboard { border-left-color:var(--accent) } .logrow.bot { border-left-color:var(--good) }
+.logrow .t { color:var(--ink-3); font-variant-numeric:tabular-nums } .logrow .who { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
+.logrow .what { overflow-wrap:anywhere }
+@media (max-width:700px) { .logrow { grid-template-columns:60px 1fr } .logrow .what { grid-column:1 / -1 } }
+.logpre { margin:0; max-height:420px; overflow:auto; background:var(--panel-2); border-radius:10px; padding:10px; font:12px/1.5 ui-monospace, Consolas, monospace; white-space:pre-wrap; word-break:break-word }
 .helpfab { position:fixed; right:20px; bottom:20px; z-index:900; width:48px; height:48px; border-radius:50% 50% 50% 8px; border:0; background:var(--accent); color:var(--accent-ink); font-size:22px; font-weight:700; cursor:pointer; box-shadow:0 8px 24px rgba(0,0,0,.25) }
 .helpfab:hover { transform:translateY(-2px) }
 .helppanel { position:fixed; right:20px; bottom:80px; z-index:901; width:min(420px, calc(100vw - 32px)); max-height:70vh; overflow:auto; background:var(--panel); color:var(--ink); border:1px solid var(--line); border-radius:14px; padding:16px 18px; box-shadow:0 16px 48px rgba(0,0,0,.3); font-size:13.5px; line-height:1.55 }
@@ -317,6 +327,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
     <button class="nav" data-page="statistik"><svg class="i" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistik</button>
     <button class="nav" data-page="media"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>Media<span class="count hidden" id="navMedia"></span></button>
     <button class="nav" data-page="pengaturan"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Pengaturan</button>
+    <button class="nav" data-page="log"><svg class="i" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Log</button>
     <div class="aside-foot" id="footInfo">Hanya bisa dibuka dari PC ini.</div>
   </aside>
 
@@ -376,6 +387,23 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
             <div class="list-body" id="convList"></div>
           </div>
           <div class="pane" id="convPane"><div class="empty" style="margin:auto">Pilih percakapan di sebelah kiri.</div></div>
+        </div>
+      </section>
+
+      <!-- LOG -->
+      <section data-page="log" class="hidden stack">
+        <div class="card">
+          <div class="row"><h3 style="flex:1">Info untuk developer</h3><span class="small muted" id="logNow"></span></div>
+          <p class="hint">Mau minta fitur atau ada yang aneh? Foto halaman ini (termasuk riwayat di bawah) dan kirim ke developer.</p>
+          <div class="logfacts" id="logFacts"></div>
+        </div>
+        <div class="card">
+          <div class="row" style="gap:8px;flex-wrap:wrap">
+            <div class="row" id="logTabs" style="gap:6px"><button class="chip on" data-tab="aktivitas">Aktivitas</button><button class="chip" data-tab="teknis">Log teknis</button></div>
+            <div class="row" id="logFilters" style="gap:6px;flex:1"><button class="chip on" data-src="">Semua</button><button class="chip" data-src="dashboard">🖥️ Dashboard</button><button class="chip" data-src="bot">🤖 Bot</button></div>
+            <input class="f" id="logSearch" placeholder="Cari…" style="width:180px">
+          </div>
+          <div id="logBody" style="margin-top:12px"></div>
         </div>
       </section>
 
@@ -449,6 +477,17 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
             </div>
             <div class="card"><div class="row"><h3 style="flex:1">Semua kata kunci</h3><input class="f" id="kwSearch" placeholder="Cari…" style="width:140px" oninput="renderKwList()"></div><p class="hint">Bawaan dan buatan tim, semuanya bisa diubah (✎) atau dihapus (✕). Langsung berlaku, tanpa restart.</p><div id="kwList"></div></div>
           </div>
+        </div>
+        <div class="card" id="kamusCard" style="margin-top:16px">
+          <div class="row" style="gap:8px;flex-wrap:wrap"><h3 style="flex:1">Kamus</h3><select class="f" id="kamusList" style="max-width:260px"></select><input class="f" id="kamusSearch" placeholder="Cari…" style="width:140px"></div>
+          <p class="hint">Semua kosakata yang dibaca bot: singkatan, bahasa Jawa/Sunda, nama kota, kata yang bukan nama, satuan jumlah, dan lainnya. Semuanya bisa ditambah, diubah (✎) dan dihapus (✕); langsung berlaku. Mengubah singkatan atau bahasa daerah juga menyesuaikan semua kata kunci.</p>
+          <p class="small" id="kamusHelp" style="margin:0 0 10px"></p>
+          <form id="kamusForm" class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
+            <input class="f" name="word" placeholder="kata" required style="flex:1;min-width:140px">
+            <input class="f hidden" name="value" placeholder="dibaca sebagai…" style="flex:1;min-width:140px">
+            <button class="btn primary">Tambah</button>
+          </form>
+          <div id="kamusRows" class="kwrows" style="max-height:420px;overflow:auto"></div>
         </div>
       </section>
 
@@ -603,7 +642,8 @@ window.addEventListener('unhandledrejection', (ev) => { if (!ev.reason?.shown) s
 const api = async (url, options = {}) => {
   let r;
   try {
-    r = await fetch(url, { headers, ...options });
+    // X-Page: the Log page records changes with the page they were made on.
+    r = await fetch(url, { headers: { ...headers, 'X-Page': TITLES[page] || page }, ...options });
   } catch (error) {
     // The bot is not running or the PC is unreachable.
     const err = new Error(`Tidak bisa menghubungi bot: ${error.message}`);
@@ -643,7 +683,7 @@ const num = (n) => Number(n || 0).toLocaleString('id-ID');
 const toast = (text) => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('#toasts').append(t); setTimeout(() => t.remove(), 3200); };
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
-const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', price:'Tanya harga', ask_first:'Mau tanya dulu', ack:'Oke / makasih', human:'Minta bicara dengan CS', custom:'Pola jawaban', other:'Tidak dikenali' };
+const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', price:'Tanya harga', ask_first:'Mau tanya dulu', ack:'Oke / makasih', human:'Minta bicara dengan CS', about_bot:'"Kamu bot ya?"', product_unknown:'Produk tidak ada di daftar', cs_question:'Pertanyaan untuk CS', image:'Kirim gambar', voice:'Pesan suara', custom:'Pola jawaban', other:'Tidak dikenali' };
 const STEPS = [['new','Sapa'], ['awaiting_intro','Kenalan'], ['awaiting_product','Produk'], ['awaiting_design','Desain'], ['awaiting_quantity','Jumlah'], ['handed_over','Ke CS']];
 const STEP_INDEX = { new:0, awaiting_intro:1, awaiting_product:2, awaiting_size_chart_product:2, awaiting_detail:2, awaiting_design:3, awaiting_quantity:4, handed_over:5 };
 const STEP_LABEL = { new:'baru menyapa', awaiting_intro:'ditanya nama', awaiting_product:'ditanya produk', awaiting_size_chart_product:'ditanya produk size chart', awaiting_detail:'ditanya detail produk', awaiting_design:'ditanya desain', awaiting_quantity:'ditanya jumlah', handed_over:'di CS' };
@@ -714,7 +754,8 @@ const HELP = {
     <li>Kotak kata kunci sudah diisi intinya; rapikan kalau perlu.</li>
     <li>Pilih maksudnya (atau pola jawaban), lalu <b>Ajarkan</b>. Pesan serupa berikutnya langsung dikenali.</li>
     <li><b>Abaikan</b> untuk pesan yang memang urusan CS (DP, komplain). Bisa dipulihkan di bagian "Diabaikan".</li></ol>
-    <div class="tip">Di kanan: semua kata kunci. ✎ untuk mengubah, ✕ untuk menghapus.</div>`,
+    <div class="tip">Di kanan: semua kata kunci. ✎ untuk mengubah, ✕ untuk menghapus.</div>
+    <p style="margin-top:10px"><b>Kamus</b> (bawah): semua kosakata yang dibaca bot. Pilih daftarnya (mis. "Singkatan chat", "Bahasa Jawa / Sunda", "Nama kota"), lalu tambah, ubah (✎) atau hapus (✕). Contoh: tambah singkatan <b>kpn → kapan</b>, atau kota baru supaya "budi sukamaju" dibaca nama Budi dari Sukamaju.</p>`,
   statistik: `<p>Angka percakapan: berapa pesan masuk, berapa yang dikenali bot, jam paling ramai, dan sampai langkah mana pelanggan biasanya berhenti.</p>
     <ul><li>Pilih rentang hari di kanan atas.</li><li>Arahkan kursor ke grafik untuk melihat angkanya.</li></ul>`,
   media: `<p>File dan link yang dikirim bot.</p><ol>
@@ -723,6 +764,12 @@ const HELP = {
     <li>Klik kotak atau seret file ke kotak. Klik × untuk menghapus file.</li>
     <li><b>Katalog WhatsApp Business</b>: sinkronkan supaya bot bisa mengirim produk satu per satu.</li></ol>
     <div class="tip">"belum ada" = pertanyaan itu diserahkan ke CS sampai filenya diisi.</div>`,
+  log: `<p>Catatan semua yang terjadi, untuk dikirim ke developer.</p><ol>
+    <li>Mau minta fitur baru atau ada yang aneh? Buka halaman ini, lalu <b>foto layarnya</b> dan kirim ke developer.</li>
+    <li><b>Info untuk developer</b> di atas: versi, nomor WhatsApp, AI, dan PC ini.</li>
+    <li><b>Aktivitas</b>: halaman yang dibuka dan perubahan yang dilakukan di dashboard (🖥️), dan apa yang dilakukan bot pada setiap pesan (🤖). Yang terbaru di atas. Saring dengan tombol Dashboard/Bot atau kolom Cari.</li>
+    <li><b>Log teknis</b>: error dan catatan mesin bot apa adanya, untuk developer.</li></ol>
+    <div class="tip">Yang dicatat hanya <i>apa</i> yang diubah, bukan isinya: kunci API dan teks tidak masuk log.</div>`,
   pengaturan: `<p>Pengaturan bot. Semua langsung berlaku setelah Simpan.</p><ul>
     <li><b>Nama bot & CS</b>, <b>jam aktif</b>, berapa lama bot diam setelah CS membalas, <b>mode libur</b>.</li>
     <li><b>Bot menyerah setelah</b>: berapa kali bot boleh bilang "belum paham" sebelum menyerahkan ke CS.</li>
@@ -739,7 +786,7 @@ $('#helpBtn').onclick = () => { renderHelp(); $('#helpPanel').classList.toggle('
 $('#helpClose').onclick = () => $('#helpPanel').classList.add('hidden');
 
 /* ------------------------------------------------------------ routing --- */
-const TITLES ={ ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', pola:'Pola jawaban', produk:'Produk', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan' };
+const TITLES ={ ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', pola:'Pola jawaban', produk:'Produk', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan', log:'Log' };
 let page = 'ringkasan';
 function go(p) {
   page = TITLES[p] ? p : 'ringkasan';
@@ -748,8 +795,11 @@ function go(p) {
   $('#pageTitle').textContent = TITLES[page];
   if (!$('#helpPanel').classList.contains('hidden')) renderHelp();
   if (location.hash !== '#' + page) history.replaceState(null, '', location.pathname + location.search + '#' + page);
+  // The Log page shows which pages were opened, in order.
+  if (lastLoggedPage !== page) { lastLoggedPage = page; fetch('/activity', { method:'POST', headers, body: JSON.stringify({ page: TITLES[page] }) }).catch(() => {}); }
   refresh();
 }
+let lastLoggedPage = null;
 $$('.nav').forEach((b) => b.onclick = () => go(b.dataset.page));
 document.addEventListener('click', (e) => { const g = e.target.closest('[data-goto]'); if (g) go(g.dataset.goto); });
 
@@ -902,7 +952,7 @@ function renderConvs() {
     return `<div class="conv who-${whoHas(c)} ${on ? 'on' : ''}" onclick='openConv(...${k})'>
       <div class="ava" style="background:${avaColor(c.jid)}">${esc(initials(c.name))}</div>
       <div style="min-width:0;flex:1"><div class="top"><span class="name">${esc(c.name ? 'Kak ' + c.name : (c.phone ? '+' + c.phone : 'Tanpa nama'))}</span><span class="time">${fmtTime(c.last_message_at)}</span></div>
-        <div class="last">${esc(c.last_text || '—')}</div><div class="row" style="margin-top:5px;gap:5px;flex-wrap:wrap">${state}${c.product_name ? `<span class="pill quiet">${esc(c.product_name)}${c.quantity ? ' · ' + esc(c.quantity) : ''}</span>` : ''}</div></div></div>`;
+        <div class="last">${esc(c.last_text || '—')}</div><div class="row" style="margin-top:5px;gap:5px;flex-wrap:wrap">${state}${c.product_name ? `<span class="pill quiet">${esc(c.product_name)}${c.quantity ? ' · ' + esc(c.quantity) : ''}</span>` : ''}${csNotes(c).length ? `<span class="pill warn" title="${esc(csNotes(c).join(' | '))}">❓ ${csNotes(c).length} untuk CS</span>` : ''}</div></div></div>`;
   }).join('') : '<div class="empty">Tidak ada percakapan.</div>';
 }
 $('#convSearch').oninput = renderConvs;
@@ -910,6 +960,10 @@ $$('#convFilters .chip').forEach((b) => b.onclick = () => { convFilter = b.datas
 $('#hours').onchange = loadConvs;
 function openConvFrom(session, jid) { openKey = [session, jid]; go('percakapan'); }
 
+/** Questions and pictures the bot noted for CS ("bisa DP?"). */
+function csNotes(c) {
+  try { return JSON.parse(c.notes || '[]'); } catch { return []; }
+}
 function whoBanner(c) {
   const who = whoHas(c), w = WHO[who];
   const why = who === 'bot'
@@ -922,11 +976,13 @@ function whoBanner(c) {
 function orderSummary(c, row) {
   let details = [];
   try { details = JSON.parse(c.details || '[]'); } catch {}
-  if (!c.product && !c.quantity && !details.length) return '';
+  const notes = csNotes(c);
+  if (!c.product && !c.quantity && !details.length && !notes.length) return '';
   return `<dl class="order">
     ${c.product ? `<dt>Produk</dt><dd>${esc(row.product_name || c.product)}</dd>` : ''}
     ${c.quantity ? `<dt>Jumlah</dt><dd>${esc(c.quantity)}</dd>` : ''}
     ${details.map((d) => `<dt>${esc(d.q)}</dt><dd>${esc(d.a)}</dd>`).join('')}
+    ${notes.length ? `<dt>❓ Untuk dijawab CS</dt>${notes.map((n) => `<dd>• ${esc(n)}</dd>`).join('')}` : ''}
   </dl>`;
 }
 async function openConv(session, jid, quiet) {
@@ -1348,6 +1404,7 @@ const intentOptions = (sel) => (sel ? '' : '<option value="" selected disabled>p
 const productOptions = (sel) => kwMeta.products.map((p) => `<option value="${p.key}" ${p.key === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 async function loadLatih() {
   const [{ messages }, meta] = await Promise.all([api('/unrecognised'), api('/keywords')]);
+  if (!kamusLists.length) loadKamus();
   // Teaching into a pattern needs no product picker.
   kwMeta = meta;
   // Three piles: still unknown (teach these), known by now (taught, or the bot got smarter), set aside by the team.
@@ -1411,6 +1468,49 @@ function renderKwList() {
         <button class="mini" onclick="editKw(${k.id})" title="Ubah">✎</button><button class="mini" onclick="removeKw(${k.id})" title="Hapus">✕</button></div>`).join('') || '<div class="small muted">Kosong. Tambah lewat formulir di atas.</div>'}</div></details>`;
   }).join('') + `<div class="small muted" style="margin-top:10px">${productCount} kata kunci produk diatur di halaman <a href="#produk" data-goto="produk">Produk</a>. Kata kunci Lokasi, Pengiriman, Ragu, Minimal order ada di <a href="#pola" data-goto="pola">Pola jawaban</a>.</div>`;
 }
+/* ------------------------------------------------------------- kamus --- */
+// Every word list the bot reads (src/bot/words.js): add, change, delete.
+let kamusLists = [], kamusWords = [];
+async function loadKamus(list) {
+  const name = list || $('#kamusList').value || 'singkatan';
+  const r = await api('/words?list=' + encodeURIComponent(name));
+  kamusLists = r.lists; kamusWords = r.words;
+  $('#kamusList').innerHTML = kamusLists.map((l) => `<option value="${esc(l.name)}" ${l.name === name ? 'selected' : ''}>${esc(l.label)} (${l.count})</option>`).join('');
+  renderKamus();
+}
+function renderKamus() {
+  const meta = kamusLists.find((l) => l.name === $('#kamusList').value) || {};
+  $('#kamusHelp').textContent = meta.help || '';
+  $('#kamusForm [name=value]').classList.toggle('hidden', !meta.pairs);
+  $('#kamusForm [name=value]').required = Boolean(meta.pairs);
+  const q = $('#kamusSearch').value.trim().toLowerCase();
+  const rows = kamusWords.filter((w) => !q || w.word.includes(q) || String(w.value || '').includes(q));
+  $('#kamusRows').innerHTML = rows.map((w) => `<div class="kwrow"><span class="kwp">${esc(w.word)}${meta.pairs ? ` <span class="muted">→</span> ${esc(w.value)}` : ''}</span>${w.source === 'tim' ? '<span class="pill good" style="padding:0 7px">tim</span>' : '<span class="pill quiet" style="padding:0 7px">bawaan</span>'}
+    <button class="mini" onclick="editWord(${w.id})" title="Ubah">✎</button><button class="mini" onclick="removeWord(${w.id})" title="Hapus">✕</button></div>`).join('') || '<div class="small muted">Kosong.</div>';
+}
+$('#kamusList').onchange = () => loadKamus($('#kamusList').value);
+$('#kamusSearch').oninput = renderKamus;
+$('#kamusForm').onsubmit = async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  try { await api('/words', { method:'POST', body: JSON.stringify({ list: $('#kamusList').value, word: f.word.value, value: f.value.value || null }) }); f.reset(); toast('Ditambahkan, langsung berlaku'); loadKamus(); }
+  catch { /* shown in the error pop-up */ }
+};
+async function editWord(id) {
+  const w = kamusWords.find((x) => x.id === id); if (!w) return;
+  const meta = kamusLists.find((l) => l.name === w.list) || {};
+  const word = prompt('Kata:', w.word); if (word === null) return;
+  const value = meta.pairs ? prompt('Dibaca sebagai:', w.value || '') : null; if (meta.pairs && value === null) return;
+  try { await api('/words/' + id, { method:'PUT', body: JSON.stringify(meta.pairs ? { word, value } : { word }) }); toast('Diubah, langsung berlaku'); loadKamus(); }
+  catch { /* shown in the error pop-up */ }
+}
+async function removeWord(id) {
+  const w = kamusWords.find((x) => x.id === id);
+  if (!confirm(`Hapus "${w?.word}" dari kamus?`)) return;
+  try { await api('/words/' + id, { method:'DELETE' }); toast('Dihapus'); loadKamus(); }
+  catch { /* shown in the error pop-up */ }
+}
+
 async function editKw(id) {
   const k = kwMeta.keywords.find((x) => x.id === id); if (!k) return;
   const phrase = prompt('Ubah kata kunci:', k.phrase); if (phrase === null || phrase.trim() === k.phrase) return;
@@ -1600,6 +1700,52 @@ async function upload(slot, files) {
   loadStatus();
 }
 
+/* --------------------------------------------------------------- log --- */
+// Activity (what was done in the console, what the bot did) and the technical
+// log (logs/bot.log + errors), for a photo the developer can read.
+let logTab = 'aktivitas', logSource = '';
+const LOG_ICON = { dashboard: '🖥️', bot: '🤖' };
+async function loadLog() {
+  const [s, sessions] = await Promise.all([api('/info'), api('/sessions')]);
+  const main = sessions.sessions?.[0];
+  const facts = [
+    ['Versi', `${s.version}${s.commit ? ' · ' + s.commit : ''}`],
+    ['Waktu PC', `${s.clock?.date ?? ''} ${s.clock?.time ?? new Date().toLocaleTimeString('id-ID')}`],
+    ['Nomor WhatsApp', main ? `${main.phoneNumber ? '+' + main.phoneNumber : main.label} · ${main.connected ? 'tersambung' : main.hasQr ? 'perlu scan QR' : main.state}${main.lastError ? ' · ' + main.lastError : ''}` : 'belum ada'],
+    ['Bot', s.botActive ? 'aktif (jam jaga)' : 'diam (jam kerja CS)'],
+    ['AI', s.ai],
+    ['Node / Windows', `${s.runtime?.node ?? ''} · ${s.runtime?.os ?? ''}`],
+    ['PC', `${s.runtime?.host ?? ''} · menyala ${s.runtime?.uptimeMinutes ?? 0} menit`],
+    ['Folder', s.runtime?.folder ?? ''],
+  ];
+  $('#logFacts').innerHTML = facts.map(([k, v]) => `<div><span class="muted small">${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
+  $('#logNow').textContent = 'diperbarui ' + new Date().toLocaleTimeString('id-ID');
+  $('#logFilters').classList.toggle('hidden', logTab !== 'aktivitas');
+  if (logTab === 'aktivitas') {
+    const q = $('#logSearch').value.trim();
+    const { entries } = await api(`/activity?limit=300${logSource ? '&source=' + logSource : ''}${q ? '&q=' + encodeURIComponent(q) : ''}`);
+    let lastDay = '';
+    $('#logBody').innerHTML = entries.length ? '<div class="loglist">' + entries.map((e) => {
+      const d = utc(e.at); const day = d.toDateString();
+      const sep = day !== lastDay ? `<div class="day">${esc(fmtDay(d))}</div>` : ''; lastDay = day;
+      return sep + `<div class="logrow ${esc(e.source)}"><span class="t">${d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit', second:'2-digit' })}</span>
+        <span class="who">${LOG_ICON[e.source] || '•'} ${e.source === 'dashboard' ? esc(e.page || 'Dashboard') : 'Bot'}</span>
+        <span class="what">${esc(e.action)}${e.detail ? `<span class="muted"> · ${esc(e.detail)}</span>` : ''}</span></div>`;
+    }).join('') + '</div>' : '<div class="empty">Belum ada aktivitas.</div>';
+  } else {
+    const [{ lines, exists }, { errors }] = await Promise.all([api('/logs/tail?lines=300'), api('/errors?after=0')]);
+    const errText = errors.map((e) => `[${e.time}] ${e.level.toUpperCase()} ${e.source}: ${e.message}${e.detail && Object.keys(e.detail).length ? ' ' + JSON.stringify(e.detail) : ''}`).join('\n');
+    $('#logBody').innerHTML = `
+      <div class="small muted" style="margin-bottom:6px">Error & peringatan sejak bot menyala (${errors.length})</div>
+      <pre class="logpre">${esc(errText || 'Tidak ada.')}</pre>
+      <div class="small muted" style="margin:12px 0 6px">logs\\bot.log · ${exists ? lines.length + ' baris terakhir' : 'belum ada (bot dijalankan manual, bukan dari auto-start)'}</div>
+      <pre class="logpre">${esc(lines.join('\n') || '—')}</pre>`;
+  }
+}
+$$('#logTabs .chip').forEach((b) => b.onclick = () => { logTab = b.dataset.tab; $$('#logTabs .chip').forEach((x) => x.classList.toggle('on', x === b)); loadLog(); });
+$$('#logFilters .chip').forEach((b) => b.onclick = () => { logSource = b.dataset.src; $$('#logFilters .chip').forEach((x) => x.classList.toggle('on', x === b)); loadLog(); });
+$('#logSearch').oninput = () => { clearTimeout(window.logSearchTimer); window.logSearchTimer = setTimeout(loadLog, 300); };
+
 /* --------------------------------------------------------- pengaturan --- */
 let settingsLoaded = false;
 function renderAi(ai) {
@@ -1699,6 +1845,7 @@ async function refresh() {
     if (page === 'statistik') await loadStatistik();
     if (page === 'media') { kwMeta ??= await api('/keywords'); await loadMedia(); }
     if (page === 'pengaturan') await loadPengaturan();
+    if (page === 'log') await loadLog();
     $('#footInfo').textContent = `Versi ${info.version}${info.commit ? ' (' + info.commit + ')' : ''} · diperbarui ` + new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
   } catch (err) {
     const bp = $('#botPill'); bp.className = 'pill bad'; bp.innerHTML = `<span class="dot"></span>Bot tidak menjawab`;
@@ -1706,7 +1853,7 @@ async function refresh() {
   } finally { busy = false; }
 }
 go(location.hash.slice(1) || 'ringkasan');
-setInterval(() => { if (['ringkasan', 'percakapan'].includes(page) && !document.hidden) refresh(); else loadStatus().catch(() => {}); pollErrors(); }, 5000);
+setInterval(() => { if (['ringkasan', 'percakapan', 'log'].includes(page) && !document.hidden) refresh(); else loadStatus().catch(() => {}); pollErrors(); }, 5000);
 pollErrors();
 </script>
 </body>

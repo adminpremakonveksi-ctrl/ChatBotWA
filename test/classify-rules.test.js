@@ -65,8 +65,9 @@ test('quantities', () => {
     assert.equal(c('30an kak', 'awaiting_quantity').intent, 'quantity');
 });
 
-test('unknown questions become "other"', () => {
-    assert.equal(c('kak bisa bayar pakai paylater?').intent, 'other');
+test('unknown questions become "other"; clear questions only CS can answer become "cs_question"', () => {
+    assert.equal(c('kak paylater gimana?').intent, 'other');
+    assert.equal(c('kak bisa bayar pakai paylater?').intent, 'cs_question', '"bayar pakai" is a payment question');
 });
 
 test('names cannot smuggle text into the template', () => {

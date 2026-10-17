@@ -29,7 +29,7 @@ test('misses are counted whatever the label, so asking again always ends at CS',
     let conv = { step: 'awaiting_product' };
     for (let i = 0; i < 2; i++) {
         const r = step(conv, '', { intent: 'has_reference' });
-        assert.deepEqual(texts(r.actions), [replies.clarify()]);
+        assert.deepEqual(texts(r.actions), [replies.clarify(i)]);
         conv = r.conv;
     }
     assert.equal(step(conv, '', { intent: 'has_reference' }).conv.step, 'handed_over');
@@ -134,4 +134,81 @@ test('"belum ada desain" during the follow-up questions skips [4]', () => {
     assert.equal(r.conv.step, 'awaiting_quantity');
 
     updateProduct('kaos', { questions: [] });
+});
+
+test('odd messages: unknown products, "kamu bot?", anger, phone, amounts in words', () => {
+    const c = (text, s = 'awaiting_product') => classifyWithRules({ text, step: s });
+
+    assert.equal(c('bisa bikin sepatu?').intent, 'product_unknown');
+    assert.deepEqual(texts(step({ step: 'awaiting_product' }, 'bisa bikin sepatu?').actions), [replies.productUnknown()]);
+
+    assert.equal(c('kamu bot ya?').intent, 'about_bot');
+    const bot = step({ step: 'awaiting_design', product: 'kaos' }, 'kamu bot ya?');
+    assert.deepEqual(texts(bot.actions), [replies.aboutBot()]);
+    assert.equal(bot.conv.step, 'awaiting_design', 'no handover for asking');
+
+    assert.equal(c('goblok bot nya lama banget').intent, 'human');
+    assert.equal(c('tolong telpon saya aja di nomor itu').intent, 'human');
+
+    assert.equal(c('bikin kaos 2rb pcs').quantity, '2rb pcs');
+    assert.equal(c('dua ratus biji aja deh', 'awaiting_detail').quantity, 'dua ratus pcs');
+    assert.equal(c('how much for 100 pieces?').quantity, '100 pcs');
+
+    // A typo guess for a pattern does not beat a product named exactly.
+    assert.equal(c('seragam batik kantor').product, 'kemeja');
+    assert.notEqual(c('seragam batik kantor').intent, 'custom');
+
+    assert.equal(classifyWithRules({ text: 'sya agus dr wonosobo', step: 'awaiting_intro' }).name, 'Agus');
+});
+
+test('one message asking for the same catalog twice sends it once', () => {
+    const asked = { has: () => true, links: () => [] };
+    const r = classifyWithRules({ text: 'ada contoh desain jersey ga? mau bikin jersey', step: 'awaiting_product' });
+    const { actions } = decide({ step: 'awaiting_product', name: 'Wawan' }, r, asked);
+
+    assert.equal(actions.filter((a) => a.type === 'media' && a.kind === 'katalog').length, 1);
+});
+
+test('questions only CS can answer: noted, said so once, the chat goes on', () => {
+    let r = step({ step: 'awaiting_product' }, 'bisa dp dulu ga kak?');
+    assert.deepEqual(texts(r.actions), [replies.csQuestion()]);
+    assert.equal(r.conv.step, 'awaiting_product');
+    assert.deepEqual(JSON.parse(r.conv.notes), ['bisa dp dulu ga kak?']);
+
+    // Next to a question the bot answers: both.
+    r = step({ step: 'awaiting_product' }, 'minimal order berapa? terus bisa dicicil?');
+    assert.equal(r.actions.filter((a) => a.text === replies.csQuestion()).length, 1);
+    assert.ok(texts(r.actions).some((t) => /minimum pemesanan/.test(t)));
+
+    // A product chosen later keeps the note (it is not part of the order details).
+    r = step({ step: 'awaiting_product', notes: JSON.stringify(['bisa dp?']) }, 'mau bikin kaos');
+    assert.equal(r.conv.notes, JSON.stringify(['bisa dp?']));
+});
+
+test('a voice note is asked to be typed; a picture is received and noted', () => {
+    const voice = decide({ step: 'awaiting_product' }, classifyWithRules({ text: '', hasAudio: true, step: 'awaiting_product' }), media);
+    assert.deepEqual(texts(voice.actions), [replies.voiceNote()]);
+
+    const picture = decide({ step: 'awaiting_product' }, classifyWithRules({ text: '', hasImage: true, step: 'awaiting_product' }), media);
+    assert.deepEqual(texts(picture.actions), [replies.imageReceived()]);
+    assert.deepEqual(JSON.parse(picture.patch.notes), ['[gambar dari pelanggan]']);
+});
+
+test('the AI gets the lines before the message, never the message twice', async () => {
+    const { recentHistory, logMessage } = store;
+    run('DELETE FROM message_log');
+    logMessage({ sessionKey: 'utama', jid: 'h@s.whatsapp.net', direction: 'in', text: 'mau bikin jersey' });
+    logMessage({ sessionKey: 'utama', jid: 'h@s.whatsapp.net', direction: 'out', text: 'Jersey-nya untuk olahraga apa kak?' });
+    logMessage({ sessionKey: 'utama', jid: 'h@s.whatsapp.net', direction: 'in', text: 'yang tadi itu buat futsal' });
+
+    assert.deepEqual(recentHistory('utama', 'h@s.whatsapp.net', 1), [
+        { who: 'pelanggan', text: 'mau bikin jersey' },
+        { who: 'bot', text: 'Jersey-nya untuk olahraga apa kak?' },
+    ]);
+});
+
+test('"belum paham" is worded differently each time it is said in a row', () => {
+    assert.notEqual(replies.clarify(0), replies.clarify(1));
+    assert.ok(replies.isClarify(replies.clarify(2)));
+    assert.ok(!replies.isClarify('halo'));
 });

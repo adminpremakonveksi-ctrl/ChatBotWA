@@ -2,6 +2,7 @@ import { all, db, get, now, run } from '../db.js';
 import { rememberRemoved } from '../migrations.js';
 import { cleanPhrase } from '../text.js';
 import { onProductsChanged, productKeys } from './products.js';
+import { onWordsChanged } from './words.js';
 
 /**
  * Every keyword of the built-in flow answers and of the products, in the
@@ -18,13 +19,15 @@ import { onProductsChanged, productKeys } from './products.js';
 export { cleanPhrase };
 
 // Intents a phrase may be taught; the rest are not keyword-shaped or are patterns.
-export const TEACHABLE = ['product', 'size_chart', 'design_reference', 'no_reference', 'has_reference', 'quantity', 'greeting', 'ask_first', 'ack', 'price', 'human'];
+export const TEACHABLE = ['product', 'size_chart', 'design_reference', 'no_reference', 'has_reference', 'quantity', 'greeting', 'ask_first', 'ack', 'price', 'human', 'about_bot', 'cs_question'];
 
 let cache = null;
 const forget = () => {
     cache = null;
 };
 onProductsChanged(forget);
+// A dictionary edit re-stores every keyword (Kamus).
+onWordsChanged(forget);
 
 export function customKeywords() {
     cache ??= all('SELECT id, phrase, intent, product, source, created_at FROM custom_keywords ORDER BY phrase');

@@ -89,6 +89,10 @@ Balasan **selalu** naskah tetap dari spesifikasi; yang pintar hanya bagian menge
 - **Pertanyaan lanjutan per produk** ("kemeja jenis apa? ukurannya apa saja?"), jawabannya muncul di Percakapan dan rekap pagi.
 - **Salam otomatis WhatsApp Business** dikenali, tidak dikira CS yang membalas.
 - **Setiap error tampil** sebagai kotak merah berisi detail mentahnya, untuk difoto dan dikirim ke developer.
+- **Pertanyaan yang hanya bisa dijawab CS** (DP, cara bayar, lama pengerjaan, status pesanan, komplain) dicatat untuk CS (❓ di Percakapan dan rekap pagi); percakapan tetap berjalan.
+- **Gambar dan pesan suara**: gambar diterima dan dicatat untuk CS; pesan suara diminta diketik.
+- **"Kamu bot ya?"** dijawab jujur; pelanggan yang marah atau minta ditelepon langsung ke CS; produk yang tidak dijual dijawab "dicek CS" beserta daftar produk.
+- **AI memahami konteks**: beberapa pesan sebelumnya ikut dikirim, jadi "yang tadi", "itu" dimengerti.
 
 ## Tugas harian otomatis
 

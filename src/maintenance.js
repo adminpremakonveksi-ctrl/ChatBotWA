@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
+import { pruneActivity } from './activity.js';
 import { localClock } from './bot/schedule.js';
 import { listConversations, phoneOf, prune } from './bot/store.js';
 import { productName } from './bot/products.js';
@@ -89,10 +90,17 @@ export function buildRecap(since) {
             /* none */
         }
         const details = answers.map((d) => `\n   - ${String(d.a).slice(0, 80)}`).join('');
+        let notes = [];
+        try {
+            notes = JSON.parse(row.notes ?? '[]');
+        } catch {
+            /* none */
+        }
+        const questions = notes.map((n) => `\n   ❓ ${String(n).slice(0, 100)}`).join('');
         const contact = row.phone ? `wa.me/${row.phone}` : 'nomor disembunyikan WhatsApp, cari di daftar chat';
         const last = row.last_text ? `\n   "${row.last_text.slice(0, 120)}${row.last_text.length > 120 ? '…' : ''}"` : '';
 
-        return `${index + 1}. ${who}${product}${details}\n   ${describe(row)}\n   ${contact}${last}`;
+        return `${index + 1}. ${who}${product}${details}${questions}\n   ${describe(row)}\n   ${contact}${last}`;
     });
 
     return `Rekap ${config.bot.botName} semalam: ${rows.length} pelanggan perlu ditindaklanjuti\n\n${lines.join('\n\n')}`;
@@ -146,7 +154,7 @@ export function startMaintenance({ manager, bot }) {
     const jobs = [
         // Times are read on every tick, so a change in the console applies at once.
         { name: 'backup', at: () => config.maintenance.backupAt, run: () => backup().then((r) => `${r.file} (${r.removed} lama dihapus)`) },
-        { name: 'prune', at: () => config.maintenance.backupAt, run: async () => JSON.stringify(prune(config.maintenance.logKeepDays)) },
+        { name: 'prune', at: () => config.maintenance.backupAt, run: async () => JSON.stringify({ ...prune(config.maintenance.logKeepDays), aktivitas: pruneActivity(config.maintenance.logKeepDays) }) },
         // Sunday is a 24-hour bot day, so Monday's recap covers Saturday night and Sunday.
         { name: 'recap', at: () => config.recap.at, skipSunday: true, run: () => recap({ manager, bot }) },
     ];

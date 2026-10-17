@@ -235,6 +235,18 @@ const CASES = [
     [4, 'awaiting_product', 'badhe damel jas almamater kangge kampus', 'product:jas-almamater'],
     [4, 'awaiting_product', 'menawi kulo mundhut kaos saged dikintun dumugi Makassar?', 'pola:Pengiriman'],
     [5, 'awaiting_product', 'Kami masih menimbang beberapa penawaran', 'ask_first'],
+
+    // fifth round: odd messages (migration 008)
+    [1, 'awaiting_product', 'bot ya?', 'about_bot'],
+    [2, 'awaiting_product', 'kamu robot ya kak', 'about_bot'],
+    [2, 'awaiting_product', 'lama banget sih bales nya', 'human'],
+    [2, 'awaiting_product', 'goblok bot nya', 'human'],
+    [3, 'awaiting_product', 'Tolong telpon saya saja', 'human'],
+    [3, 'awaiting_product', 'Bisa bikin sepatu?', 'product_unknown'],
+    [3, 'awaiting_product', 'Mau beli Kemeja export 20 PCS ada gak nih', 'product:kemeja'],
+    [3, 'awaiting_product', 'Seragam batik kantor', 'product:kemeja'],
+    [4, 'awaiting_product', 'iki dibalas robot to', 'about_bot'],
+    [5, 'awaiting_product', 'Apakah melayani pembuatan mukena?', 'product_unknown'],
 ];
 
 /**
@@ -244,11 +256,11 @@ const CASES = [
 const NOT = [
     ['awaiting_product', 'mau bikin kaos untuk karyawan', 'product:kaos'],
     ['awaiting_product', 'ukurannya gimana kak', 'size_chart'],
-    ['awaiting_product', 'cara bayarnya gimana', 'other'],
+    ['awaiting_product', 'cara bayarnya gimana', 'cs_question'],
     ['awaiting_product', 'hari rabu bisa?', 'other'],
     ['awaiting_product', 'posisi saya di semarang', 'other'],
-    ['awaiting_product', 'pengerjaannya berapa lama', 'other'],
-    ['awaiting_product', 'bisa dp dulu?', 'other'],
+    ['awaiting_product', 'pengerjaannya berapa lama', 'cs_question'],
+    ['awaiting_product', 'bisa dp dulu?', 'cs_question'],
     ['awaiting_product', 'Baik kak, terima kasih', 'ack'],
 ];
 

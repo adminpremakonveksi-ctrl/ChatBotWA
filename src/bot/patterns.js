@@ -7,6 +7,7 @@ import { rememberRemoved } from '../migrations.js';
 import { SEED_PATTERNS } from '../seeds.js';
 import { cleanPhrase } from '../text.js';
 import { localDateString } from './schedule.js';
+import { onWordsChanged } from './words.js';
 
 /**
  * Answer patterns the team builds in the console ("Pola jawaban"): a name,
@@ -38,6 +39,10 @@ const fail = (message, statusCode = 422) => {
 };
 
 let cache = null;
+// A dictionary edit re-stores pattern keywords too (Kamus).
+onWordsChanged(() => {
+    cache = null;
+});
 
 const parse = (row) => ({
     id: row.id,
