@@ -1,4 +1,4 @@
-import { SEED_ADDITIONS, SEED_KEYWORDS, SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS, SEED_WORDS, seedQuestions } from './seeds.js';
+import { AUTO_MESSAGES_KEY, SEED_ADDITIONS, SEED_KEYWORDS, SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS, SEED_AWAY_MESSAGE, SEED_WORDS, seedQuestions } from './seeds.js';
 import { cleanPhrase, setDictionary, textRulesVersion } from './text.js';
 
 /**
@@ -352,7 +352,31 @@ CREATE TABLE IF NOT EXISTS lid_map (
             syncSeeds(db, '012_offer_cs');
         },
     },
+    {
+        // The shop's WhatsApp Business "Pesan tidak di tempat" was not in the
+        // list of automatic messages, so it was read as CS typing and muted the bot.
+        id: '013_away_message',
+        up(db) {
+            addAwayMessage(db);
+        },
+    },
 ];
+
+/** Adds the away message to a list the team already saved, once; a fresh install gets it as the default. */
+export function addAwayMessage(db) {
+    const row = db.prepare(`SELECT value FROM settings WHERE "key" = ?`).get(AUTO_MESSAGES_KEY);
+    if (!row) return;
+
+    let list;
+    try {
+        list = JSON.parse(row.value);
+    } catch {
+        return;
+    }
+    if (!Array.isArray(list) || list.includes(SEED_AWAY_MESSAGE)) return;
+
+    db.prepare(`UPDATE settings SET value = ? WHERE "key" = ?`).run(JSON.stringify([...list, SEED_AWAY_MESSAGE].slice(0, 10)), AUTO_MESSAGES_KEY);
+}
 
 /** Reads the dictionary lists from the database into normalise() (once the table exists). */
 export function loadDictionary(db) {

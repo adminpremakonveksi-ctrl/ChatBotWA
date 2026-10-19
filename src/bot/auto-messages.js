@@ -1,4 +1,5 @@
 import { getSetting, setSetting } from '../db.js';
+import { AUTO_MESSAGES_KEY as KEY, SEED_AWAY_MESSAGE } from '../seeds.js';
 import { normalise } from '../text.js';
 import { fillText, TEMPLATES } from './replies.js';
 
@@ -15,9 +16,9 @@ import { fillText, TEMPLATES } from './replies.js';
  * "Salam pembuka" template).
  */
 
-const KEY = 'wa:auto_messages';
-
-export const DEFAULT_AUTO_MESSAGES = [TEMPLATES.welcome.text];
+// The Salam plus the shop's "Pesan tidak di tempat" (seeds.js): missing from
+// the list, the away message was read as CS typing and muted the bot.
+export const DEFAULT_AUTO_MESSAGES = [TEMPLATES.welcome.text, SEED_AWAY_MESSAGE];
 
 export function autoMessages() {
     const saved = getSetting(KEY);
@@ -34,7 +35,8 @@ export function autoMessages() {
 /** From the console: blocks separated by a line with --- ; empty blocks dropped. */
 export function setAutoMessages(text) {
     const list = String(text ?? '')
-        .split(/^\s*-{3,}\s*$/m)
+        // Exactly three: the Salam itself has a line of seven ("-------").
+        .split(/^[ \t]*-{3}[ \t]*$/m)
         .map((block) => block.trim())
         .filter((block) => block.length >= 5)
         .slice(0, 10);
@@ -57,14 +59,19 @@ export function isAutoMessage(text) {
 
     if (mine.size < 4) return false;
 
-    return autoMessages().some((auto) => {
-        const theirs = words(fillText(auto));
+    const lists = autoMessages().map((auto) => words(fillText(auto)));
+    // A list saved before 2026-10-19 may hold the Salam cut in two at its "-------".
+    const known = new Set(lists.flatMap((set) => [...set]));
+    let covered = 0;
+    for (const word of mine) if (known.has(word)) covered++;
+
+    return lists.some((theirs) => {
         if (theirs.size < 4) return false;
 
         let shared = 0;
         for (const word of theirs) if (mine.has(word)) shared++;
 
-        // Both ways: the message is mostly the automatic text, and not a long CS reply quoting it.
-        return shared / theirs.size >= SIMILAR && shared / mine.size >= SIMILAR;
+        // Both ways: the message is mostly an automatic text, and not a long CS reply around it.
+        return shared / theirs.size >= SIMILAR && covered / mine.size >= SIMILAR;
     });
 }

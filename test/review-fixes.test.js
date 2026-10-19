@@ -52,15 +52,16 @@ test('at a follow-up question: another product is a change of mind, a greeting i
 test('asking the price during the follow-up questions keeps them', () => {
     updateProduct('jersey', { questions: [...SEED_QUESTIONS.jersey, SIZE_QUESTION] });
 
-    // The agreed flow: catalog and [5] first; the follow-up questions at the end.
+    // The agreed flow: catalog, the product's question, [5], the size question last.
     let r = step({ step: 'awaiting_product' }, 'mau bikin jersey');
-    r = step(r.conv, '15 stel');
     assert.equal(r.conv.step, 'awaiting_detail');
 
     r = step(r.conv, 'harganya berapa?');
     assert.equal(r.conv.step, 'awaiting_detail', 'still at the follow-up question');
 
     r = step(r.conv, 'futsal');
+    assert.deepEqual(texts(r.actions), [replies.askQuantityCatalog()]);
+    r = step(r.conv, '15 stel');
     assert.deepEqual(texts(r.actions), [SIZE_QUESTION], 'the size question is still asked');
 
     updateProduct('jersey', { questions: [] });
@@ -290,4 +291,27 @@ test('the console says the active hours in words, day or night window', async ()
     assert.match(describeHours('17:30', '07:30'), /besok paginya/);
     assert.match(describeHours('08:30', '18:30'), /siang/);
     assert.match(describeHours('10:00', '10:00'), /24 jam setiap hari/);
+});
+
+test('sizes are asked last: [4], the product question, [5] how many, then sizes, then CS (2026-10-19)', () => {
+    updateProduct('kaos', { questions: [...SEED_QUESTIONS.kaos, SIZE_QUESTION], sizeChart: true });
+
+    let r = step({ step: 'awaiting_product' }, 'mau bikin kaos');
+    assert.deepEqual(texts(r.actions), [replies.askDesign('Kaos')]);
+    r = step(r.conv, 'sablon logo di depan');
+    assert.deepEqual(texts(r.actions), [SEED_QUESTIONS.kaos[0]], 'the product question before [5]');
+    r = step(r.conv, 'lengan pendek, sablon depan');
+    assert.deepEqual(texts(r.actions), [replies.askQuantity()], '[5] just before the sizes');
+    r = step(r.conv, 'belum tahu kak');
+    assert.deepEqual(texts(r.actions), [SIZE_QUESTION], 'sizes last');
+    r = step(r.conv, 'S 10, M 20');
+    assert.equal(r.conv.step, 'handed_over', 'then [7] + [8], [5] is not asked twice');
+
+    // The amount known from the start: [5] is skipped, the sizes are still last.
+    r = step({ step: 'awaiting_product' }, 'mau bikin kaos 50 pcs');
+    r = step(r.conv, 'sablon logo di depan');
+    r = step(r.conv, 'lengan pendek');
+    assert.deepEqual(texts(r.actions), [SIZE_QUESTION]);
+
+    updateProduct('kaos', { questions: [] });
 });

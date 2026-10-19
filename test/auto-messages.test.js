@@ -49,3 +49,53 @@ test('the team edits the list; an edited Salam is still recognised from its star
     assert.ok(!isAutoMessage(DEFAULT_AUTO_MESSAGES[0].replace('{bot}', 'Mawar')), 'the old Salam was removed from the list');
     setAutoMessages(DEFAULT_AUTO_MESSAGES.join('\n---\n'));
 });
+
+test('Salam then "Pesan tidak di tempat": neither is CS, the bot carries on (2026-10-19)', async () => {
+    run('DELETE FROM conversations');
+    run('DELETE FROM message_log');
+    const sent = [];
+    const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: { links: () => [], files: () => [], has: () => false }, isActive: () => true, debounceMs: 5 });
+    const wa = { newMessageId: () => `B${sent.length}`, send: async (jid, action) => sent.push(action.text) };
+
+    // As WhatsApp delivers them: formatting marks gone, the name typed in the app.
+    const salam = DEFAULT_AUTO_MESSAGES[0].replace('{bot}', 'ANGGUN').replace(/[*_]/g, '');
+    const away = 'Terima kasih telah menghubungi Prema Konveksi. Mohon menunggu ya kak, pesan kakak akan segera kami respon ketika customer service online kembali.\n\nJam kerja customer service (fast response), adalah pukul 08.30 sd 17.00 😇🙏';
+
+    bot.onIncoming('utama', wa, { jid: JID, id: 'd1', text: 'halo' });
+    bot.onOwnMessage('utama', { jid: JID, id: 'wa-salam-2', text: salam });
+    bot.onOwnMessage('utama', { jid: JID, id: 'wa-away', text: away });
+    await new Promise((r) => setTimeout(r, 20));
+    await bot.drain();
+    assert.notEqual(store.loadConversation('utama', JID).step, 'handed_over', 'neither automatic message is CS');
+
+    bot.onIncoming('utama', wa, { jid: JID, id: 'd2', text: 'saya Budi dari Kebumen' });
+    await new Promise((r) => setTimeout(r, 20));
+    await bot.drain();
+    assert.deepEqual(sent, [replies.afterIntro('Budi')]);
+});
+
+test('migration 013 adds the away message to a list the team already saved', async () => {
+    const { autoMessages } = await import('../src/bot/auto-messages.js');
+    const { addAwayMessage } = await import('../src/migrations.js');
+    const { SEED_AWAY_MESSAGE: AWAY_MESSAGE } = await import('../src/seeds.js');
+    const { db } = await import('../src/db.js');
+
+    setAutoMessages('Halo kak, ini salam tim sendiri yang sudah disimpan');
+    addAwayMessage(db);
+    addAwayMessage(db);
+    assert.deepEqual(autoMessages(), ['Halo kak, ini salam tim sendiri yang sudah disimpan', AWAY_MESSAGE], 'kept theirs, added once');
+    setAutoMessages(DEFAULT_AUTO_MESSAGES.join('\n---\n'));
+});
+
+test('the Salam\'s own "-------" line does not cut it in two when the list is saved (2026-10-19)', async () => {
+    const { autoMessages } = await import('../src/bot/auto-messages.js');
+    setAutoMessages(DEFAULT_AUTO_MESSAGES.join('\n---\n'));
+    assert.equal(autoMessages().length, 2, 'Salam and away message, whole');
+
+    // A list saved before the fix, the Salam already in two pieces: still recognised.
+    const [head, tail] = DEFAULT_AUTO_MESSAGES[0].split('-------');
+    setAutoMessages([head, tail, DEFAULT_AUTO_MESSAGES[1]].join('\n---\n'));
+    assert.ok(isAutoMessage(DEFAULT_AUTO_MESSAGES[0].replace('{bot}', 'ANGGUN').replace(/[*_]/g, '')));
+    assert.ok(!isAutoMessage('Halo kak, saya Anggun. Untuk kaosnya minimal berapa pcs ya rencananya?'), 'a CS reply still is CS');
+    setAutoMessages(DEFAULT_AUTO_MESSAGES.join('\n---\n'));
+});

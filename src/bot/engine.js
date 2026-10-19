@@ -1,4 +1,4 @@
-import { hasCatalog, productKeywords, productName, productQuestions } from './products.js';
+import { getProduct, hasCatalog, productKeywords, productName, productQuestions } from './products.js';
 import { textVersions } from './patterns.js';
 import { config } from '../config.js';
 import { normalise } from '../text.js';
@@ -111,16 +111,32 @@ export function decide(conversation, classified, media, { random = Math.random }
     };
 
     /**
-     * The spec flow is done ([4]/catalog, then [5]). Last, just before the
-     * order goes to CS, the product's follow-up questions ("kemeja apa?",
-     * "ukurannya apa saja?"), one by one; then [7] + [8].
+     * After [4] (or the catalog), up to the end of the order, one at a time:
+     * the product's follow-up questions ("kemeja apa?"), then [5] how many,
+     * then the size question last (the last question of a product with a size
+     * chart), then [7] + [8]. `i` is the next question to ask.
      */
-    const finish = () => {
-        const asked = state().detail_index != null || details().length > 0;
-        if (!asked && askQuestion(0)) return;
+    const next = (i, quantityAsked = false) => {
+        const product = state().product;
+        const questions = productQuestions(product);
+        const sizeAt = getProduct(product)?.sizeChart && questions.length ? questions.length - 1 : questions.length;
+
+        if (i < sizeAt) return askQuestion(i);
+        // [5], once: "belum tahu" is an answer too, and the flow goes on.
+        if (!state().quantity && !quantityAsked && i <= sizeAt) {
+            say(hasCatalog(product) ? replies.askQuantityCatalog() : replies.askQuantity());
+            patch.step = 'awaiting_quantity';
+            patch.detail_index = i;
+
+            return;
+        }
+        if (i < questions.length) return askQuestion(i);
 
         closeOrder();
     };
+
+    /** On to the end of the order: from the first question, or from where [5] interrupted. */
+    const finish = () => (state().step === 'awaiting_quantity' ? next(state().detail_index ?? 0, true) : next(0));
 
     const remember = (key, value) => {
         if (value) patch[key] = value;
@@ -158,14 +174,6 @@ export function decide(conversation, classified, media, { random = Math.random }
         }
     };
 
-    /** [5], unless they already said how many ("kemeja 2000 pcs"): then on to the end. */
-    const askQuantityOrFinish = (question) => {
-        if (state().quantity) return finish();
-
-        say(question);
-        patch.step = 'awaiting_quantity';
-    };
-
     /** The product's i-th follow-up question; false when there is none left. */
     const askQuestion = (i) => {
         const question = productQuestions(state().product)[i];
@@ -197,9 +205,9 @@ export function decide(conversation, classified, media, { random = Math.random }
             }
         }
 
-        // The spec flow: catalog products go to [5], the others to [4]. The
-        // follow-up questions come at the end (finish), not here.
-        if (hasCatalog(product)) return askQuantityOrFinish(replies.askQuantityCatalog());
+        // The spec flow: catalog products skip [4], the others are asked it. The
+        // follow-up questions, [5] and the size question come after (next).
+        if (hasCatalog(product)) return next(0);
 
         say(replies.askDesign(productName(product)));
         patch.step = 'awaiting_design';
@@ -237,7 +245,7 @@ export function decide(conversation, classified, media, { random = Math.random }
         // where it was (a follow-up question still waits for its answer).
         if (hasCatalog(product) && media.has('katalog', product)) {
             send('katalog', product);
-            if (state().step === 'awaiting_product') askQuantityOrFinish(replies.askQuantityCatalog());
+            if (state().step === 'awaiting_product') finish();
 
             return;
         }
@@ -445,7 +453,7 @@ export function decide(conversation, classified, media, { random = Math.random }
             // A bare number ("15", "40 pcs") answering a detail question is how many they want.
             if (!state().quantity && /^\d{1,6}\s*(pcs|pc|an|biji|stel|orang)?$/i.test(answer)) patch.quantity = answer;
 
-            if (!askQuestion(i + 1)) closeOrder();
+            next(i + 1);
 
             return;
         }
@@ -527,13 +535,13 @@ export function decide(conversation, classified, media, { random = Math.random }
                     // [6B] examples: the product's WhatsApp catalog items ("Contoh Baju Osis", ...).
                     if (state().product && media.links?.('katalog', state().product).length) send('katalog', state().product);
 
-                    return askQuantityOrFinish(replies.askQuantity());
+                    return finish();
                 }
                 if (r.intent === 'quantity') return finish();
                 if (r.intent === 'greeting') return;
                 // A description, a picture or anything else is their design
                 // input; CS reads it later.
-                return askQuantityOrFinish(replies.askQuantity());
+                return finish();
 
             case 'awaiting_detail':
                 // A greeting or a name while a follow-up question waits: keep the name, ask nothing new.

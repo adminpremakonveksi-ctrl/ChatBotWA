@@ -3015,3 +3015,15 @@ SEED_ADDITIONS.push({
     migration: '012_offer_cs',
     words: { jawaban_ya: SEED_WORDS.jawaban_ya.words, jawaban_tidak: SEED_WORDS.jawaban_tidak.words, kata_tanya: SEED_WORDS.kata_tanya.words, larangan_ai: SEED_WORDS.larangan_ai.words, jawaban_menyusul: SEED_WORDS.jawaban_menyusul.words },
 });
+
+/** Where the console keeps the WhatsApp Business automatic messages (auto-messages.js). */
+export const AUTO_MESSAGES_KEY = 'wa:auto_messages';
+
+/**
+ * The shop's WhatsApp Business "Pesan tidak di tempat", sent right after the
+ * Salam. Not in the list, it was read as CS typing and muted the bot for
+ * handoverHours (2026-10-19). Migration 013 adds it to lists already saved.
+ */
+export const SEED_AWAY_MESSAGE =
+    'Terima kasih telah menghubungi Prema Konveksi. Mohon menunggu ya kak, pesan kakak akan segera kami respon ketika customer service online kembali.\n\n' +
+    'Jam kerja customer service (fast response), adalah pukul 08.30 sd 17.00 😇🙏';
