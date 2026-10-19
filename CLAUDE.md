@@ -40,7 +40,10 @@ Content language is Indonesian. Code and comments are English.
 - WhatsApp addresses people (and our own phone) by LID or by number. `src/lid.js`
   learns the mapping (table lid_map), keeps one conversation per customer, and
   retries a failed LID decrypt with the number's session (CS replies typed on the
-  phone were unreadable without it). Library bugs are fixed from our code in
+  phone were unreadable without it). Our own LID arrives after connecting
+  (creds.update) and is kept in memory too. One number, one bot: on
+  "conflict" (440) the session stops instead of reconnecting; never copy
+  `data/` between PCs. Library bugs are fixed from our code in
   `src/baileys-fixes.js`, never by editing node_modules (installs skip scripts).
 - New seeds go in `SEED_ADDITIONS` with a NEW migration id; never edit a shipped one.
 

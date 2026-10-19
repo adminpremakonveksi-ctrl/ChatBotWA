@@ -340,3 +340,28 @@ test('a name said again or corrected mid-chat is kept, never a miss (2026-10-19,
     assert.equal(r.conv.step, 'awaiting_design');
     assert.equal(r.conv.name, 'Haikal');
 });
+
+test('statuses, channels and groups are not decrypted at all (status@broadcast "No session found", 2026-10-19)', async () => {
+    const { ignoredJid } = await import('../src/session.js');
+    const fs = await import('node:fs');
+    const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
+    assert.match(source, /shouldIgnoreJid:\s*\(jid\) => ignoredJid\(jid\)/);
+
+    for (const jid of ['status@broadcast', '12345@broadcast', '120363@newsletter', '120363-1@g.us']) assert.equal(ignoredJid(jid), true, jid);
+    // Customers, our own LID, the self-chat test: read as always.
+    for (const jid of ['6281234567890@s.whatsapp.net', '247768274698362@lid', '@s.whatsapp.net']) assert.equal(ignoredJid(jid), false, jid);
+});
+
+test('"Stream Errored (conflict)": the bot stops instead of fighting the other program for the number (2026-10-19)', async () => {
+    const fs = await import('node:fs');
+    const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
+    const close = source.slice(source.indexOf("if (connection === 'close')"), source.indexOf('async #onMessages'));
+
+    // 440 is checked before the reconnect, and returns without scheduling one.
+    const replaced = close.indexOf('DisconnectReason.connectionReplaced');
+    assert.ok(replaced > 0 && replaced < close.indexOf('reconnectTimer'), 'conflict handled before reconnecting');
+    assert.match(close.slice(replaced, close.indexOf('reconnectTimer')), /setState\('replaced'[\s\S]*?return;/);
+
+    const html = fs.readFileSync(new URL('../src/console.html', import.meta.url), 'utf8');
+    assert.match(html, /main\.state === 'replaced'/, 'the console explains it and offers a fresh scan');
+});

@@ -94,8 +94,13 @@ function mergeConversations(lid, pn) {
     run('UPDATE message_log SET jid = ? WHERE jid = ?', [pnJid, lidJid]);
 }
 
-/** The phone number user of a LID, or null. */
-export const pnOfLid = (jid) => (isLid(jid) ? get('SELECT pn FROM lid_map WHERE lid = ?', [userOf(jid)])?.pn ?? null : null);
+/** The phone number user of a LID, or null. Our own from memory: it must work before anything is stored. */
+export function pnOfLid(jid) {
+    if (!isLid(jid)) return null;
+    if (own.lid && userOf(jid) === own.lid) return own.pn;
+
+    return get('SELECT pn FROM lid_map WHERE lid = ?', [userOf(jid)])?.pn ?? null;
+}
 
 /** A LID jid as the phone-number jid of the same device ("2806:3@lid" -> "6281...:3@s.whatsapp.net"), or null. */
 export function pnJidOf(jid) {

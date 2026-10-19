@@ -128,3 +128,17 @@ test('every seed migration named in SEED_ADDITIONS exists', async () => {
 
     for (const add of SEED_ADDITIONS) assert.ok(migrationIds().includes(add.migration), `${add.migration} has no migration`);
 });
+
+test('no console form has the same field twice (the AI card had its limits twice: "Batas AI per pelanggan: 1-500")', () => {
+    const html = fs.readFileSync(path.join(root, 'src', 'console.html'), 'utf8');
+    const twice = [];
+
+    for (const [, id, body] of html.matchAll(/<form[^>]*id="([^"]+)"[^>]*>([\s\S]*?)<\/form>/g)) {
+        const names = [...body.matchAll(/<(?:input|textarea|select)\b(?![^>]*type="radio")[^>]*\sname="([^"]+)"/g)].map((m) => m[1]);
+        for (const name of new Set(names)) if (names.filter((n) => n === name).length > 1) twice.push(`#${id} ${name}`);
+    }
+    const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+    for (const id of new Set(ids)) if (ids.filter((i) => i === id).length > 1) twice.push(`id ${id}`);
+
+    assert.deepEqual(twice, []);
+});

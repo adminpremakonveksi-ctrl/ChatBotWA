@@ -565,18 +565,6 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
             <label>Alamat Ollama<small>Biarkan kosong untuk Ollama Cloud. Ollama yang dipasang sendiri: http://localhost:11434</small></label>
             <input class="f" name="aiHost" placeholder="https://ollama.com">
           </div>
-          <details style="margin-top:12px"><summary><b>Lanjutan: instruksi & batas AI</b> <span class="small muted" id="aiPromptState"></span></summary>
-            <div class="form" style="margin-top:10px">
-              <label>Instruksi kalimat pembuka<small>Gaya kalimat pendek sebelum balasan. Larangan angka/harga/janji selalu ditambahkan otomatis. Kosongkan untuk kembali ke bawaan.</small></label>
-              <textarea class="f" name="aiOpeningPrompt" rows="4"></textarea>
-              <label>Instruksi menjawab pertanyaan<small>Gaya jawaban dari Pengetahuan toko. "Hanya dari fakta toko" dan larangan harga selalu ditambahkan otomatis. Kosongkan untuk kembali ke bawaan.</small></label>
-              <textarea class="f" name="aiAnswerPrompt" rows="4"></textarea>
-              <label>Batas per pelanggan<small>Panggilan AI per pelanggan tiap 10 menit (melawan spam).</small></label>
-              <input class="f" type="number" name="aiPerCustomer" min="1" max="500" style="width:110px">
-              <label>Batas total<small>Panggilan AI per menit untuk semua pelanggan.</small></label>
-              <input class="f" type="number" name="aiTotal" min="1" max="1000" style="width:110px">
-            </div>
-          </details>
           <details style="margin-top:12px"><summary><b>Instruksi & batas AI</b> <span class="small muted" id="aiPromptState"></span></summary>
             <div class="form" style="margin-top:10px">
               <label>Instruksi kalimat pembuka<small>Gaya kalimat pendek sebelum balasan. Larangan (angka, harga, janji, link) selalu ditambahkan otomatis.</small></label>
@@ -856,6 +844,7 @@ async function loadStatus() {
   if (!main) { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Belum ada nomor'; }
   else if (main.connected) { wa.className = 'pill good'; wa.innerHTML = `<span class="dot"></span>WhatsApp tersambung`; }
   else if (main.state === 'qr') { wa.className = 'pill warn pulse'; wa.innerHTML = '<span class="dot"></span>Perlu scan QR'; }
+  else if (main.state === 'replaced') { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Nomor dipakai program lain'; }
   else { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>WhatsApp terputus'; }
   const bp = $('#botPill');
   if (info.botActive) { bp.className = 'pill good pulse'; bp.innerHTML = `<span class="dot"></span>Bot aktif${info.nextChange ? ' · diam dalam ' + countdown(info.nextChange) : ''}`; }
@@ -917,6 +906,11 @@ async function loadRingkasan() {
   else if (main.connected) wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp</h3><span class="pill good"><span class="dot"></span>tersambung</span></div>
       <p style="margin:6px 0 2px;font-size:18px;font-weight:650">+${esc(main.phoneNumber)}</p><p class="hint">${esc(main.pushName || main.label)} · tidak perlu scan ulang setelah PC restart.</p>
       <button class="btn sm" onclick="rescan('${esc(main.key)}')">Ganti nomor</button>`;
+  else if (main.state === 'replaced') wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp dipakai program lain</h3><span class="pill bad"><span class="dot"></span>berhenti</span></div>
+      <p class="small" style="margin:8px 0">WhatsApp memutus bot ini karena ada program lain yang tersambung dengan <b>kunci WhatsApp yang sama</b>, biasanya folder <code>data</code> yang disalin ke PC lain, atau bot kedua di nomor ini. Bot berhenti supaya keduanya tidak saling rebut (itu yang merusak enkripsi: "Bad MAC", "failed to decrypt").</p>
+      <ol class="small"><li>Matikan bot di PC lain yang memakai nomor ini. Satu nomor, satu bot.</li><li>Lalu di PC yang dipakai: <b>Scan ulang</b> supaya kuncinya baru dan bersih.</li></ol>
+      <div class="row" style="gap:8px;margin-top:8px"><button class="btn primary sm" onclick="rescan('${esc(main.key)}')">Scan ulang (kunci baru)</button><button class="btn sm" onclick="reconnectSession('${esc(main.key)}')">Sambungkan lagi tanpa scan</button></div>
+      ${main.lastError ? `<p class="small muted">${esc(main.lastError)}</p>` : ''}`;
   else {
     let qr = '';
     if (main.hasQr) { try { qr = (await api(`/sessions/${main.key}/qr`)).qr; } catch {} }
@@ -952,6 +946,10 @@ async function loadRingkasan() {
 async function rescan(k) {
   if (!confirm('Lepas nomor ini dan tampilkan QR baru? Bot berhenti membalas sampai QR di-scan lagi.')) return;
   await api(`/sessions/${k}/rescan`, { method:'POST' }); toast('QR baru sedang disiapkan'); refresh();
+}
+async function reconnectSession(k) {
+  if (!confirm('Sambungkan lagi dengan kunci yang sama? Kalau program lain masih memakai nomor ini, keduanya akan saling memutus lagi.')) return;
+  await api(`/sessions/${k}/connect`, { method:'POST' }); toast('Menyambung…'); refresh();
 }
 
 /* --------------------------------------------------------- percakapan --- */

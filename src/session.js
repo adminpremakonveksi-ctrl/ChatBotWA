@@ -7,13 +7,16 @@ import makeWASocket, {
     fetchLatestBaileysVersion,
     generateMessageIDV2,
     getContentType,
+    isJidBroadcast,
+    isJidGroup,
+    isJidNewsletter,
     makeCacheableSignalKeyStore,
     normalizeMessageContent,
 } from 'baileys';
 
 import { useSqliteAuthState } from './auth-state.js';
 import { recordSyncError, syncCatalog } from './bot/catalog.js';
-import { fixMexNotifications } from './baileys-fixes.js';
+import { fixMexNotifications, makePlaceholderCache } from './baileys-fixes.js';
 import { conversationJid, learnFromKey, setOwnIdentity, userOf, withLidFallback } from './lid.js';
 import { MIME } from './bot/media.js';
 import { config } from './config.js';
@@ -38,6 +41,10 @@ const IGNORED_TYPES = new Set([
 ]);
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Chats the bot never reads, so Baileys does not decrypt them: statuses, broadcasts, channels, groups unless allowed. */
+export const ignoredJid = (jid) =>
+    Boolean(isJidBroadcast(jid) || isJidNewsletter(jid) || (!config.allowGroups && isJidGroup(jid)));
 
 // Sent within the last two minutes (messageTimestamp is seconds, maybe a Long).
 const isRecent = (message) => Date.now() / 1000 - Number(message.messageTimestamp ?? 0) < 120;
@@ -112,6 +119,13 @@ export class Session {
             fireInitQueries: false,
             // A slow line answers slowly; 60 s (the default) ran out there.
             defaultQueryTimeoutMs: 120000,
+            // Statuses, channels (and groups unless allowed) are never read by the
+            // bot. Baileys still decrypted them, and a contact's Status without
+            // its sender key failed ("No session found to decrypt message",
+            // status@broadcast). Ignored, Baileys only acknowledges them.
+            shouldIgnoreJid: (jid) => ignoredJid(jid),
+            // Baileys' own cache throws on an empty key from our phone (baileys-fixes.js).
+            placeholderResendCache: makePlaceholderCache(),
         });
 
         this.socket = socket;
@@ -125,6 +139,13 @@ export class Session {
         fixMexNotifications(socket);
 
         socket.ev.on('creds.update', saveCreds);
+        // WhatsApp sends our own LID after the connection opens (creds.me has
+        // only the number until then), so the pair is learnt when it arrives.
+        // Without it, our phone's messages by LID were never retried with the
+        // number's session: "Bad MAC" / "No matching sessions" on every one.
+        socket.ev.on('creds.update', (update) => {
+            if (update?.me) this.#learnOwnLid({ ...state.creds.me, ...update.me });
+        });
         socket.ev.on('connection.update', (update) => this.#onConnectionUpdate(update));
         socket.ev.on('messages.upsert', (event) => this.#onMessages(event));
     }
@@ -187,6 +208,21 @@ export class Session {
                 await this.clearCredentials?.();
                 await this.#setState('logged_out', { last_error: 'Perangkat dilepas dari HP. Scan QR lagi.' });
                 this.log.warn('sesi dilepas dari HP, kredensial dibersihkan');
+
+                return;
+            }
+
+            // "Stream Errored (conflict)": another program connected with these
+            // same keys (a copied data folder, a second bot) took the connection.
+            // Reconnecting would take it back, the other would retake it, and the
+            // two would fight forever, wrecking the encryption sessions ("Bad MAC").
+            // Stop here and say so; the team chooses in the console.
+            if (statusCode === DisconnectReason.connectionReplaced) {
+                await this.#setState('replaced', { last_error: this.lastError });
+                this.log.error(
+                    { statusCode, error: this.lastError },
+                    'nomor ini diambil alih program lain yang memakai kunci WhatsApp yang sama; bot berhenti menyambung',
+                );
 
                 return;
             }

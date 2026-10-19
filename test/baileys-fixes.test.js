@@ -38,3 +38,25 @@ test('a linked-profiles mex notification reaches Baileys under its own type; cha
 test('without a socket to fix nothing is changed', () => {
     assert.equal(fixMexNotifications({}), false);
 });
+
+test('the placeholder cache takes an empty key without throwing (NodeCache.del(null): "error in handling message", 2026-10-19)', async () => {
+    const { makePlaceholderCache } = await import('../src/baileys-fixes.js');
+    let now = 0;
+    const cache = makePlaceholderCache(1000, () => now);
+
+    assert.doesNotThrow(() => cache.del(null));
+    assert.doesNotThrow(() => cache.del(undefined));
+    assert.equal(cache.get(null), undefined);
+    assert.equal(cache.set(null, true), false);
+
+    cache.set('A1', true);
+    assert.equal(cache.get('A1'), true);
+    now = 1001;
+    assert.equal(cache.get('A1'), undefined, 'gone after its hour, like the default');
+    cache.set('A2', true);
+    assert.equal(cache.del('A2'), 1);
+    assert.equal(cache.get('A2'), undefined);
+
+    const fs = await import('node:fs');
+    assert.match(fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8'), /placeholderResendCache: makePlaceholderCache\(\)/);
+});

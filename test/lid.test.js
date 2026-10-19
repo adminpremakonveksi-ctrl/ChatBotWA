@@ -151,3 +151,34 @@ test('a failing catalog read never takes the bot down', async () => {
     const { getSetting } = await import('../src/db.js');
     assert.match(String(getSetting('catalog:error')), /item-not-found/);
 });
+
+test('our own LID is learnt when WhatsApp sends it after connecting, and is used before anything is stored (2026-10-19)', async () => {
+    const { pnJidOf, setOwnIdentity, withLidFallback } = await import('../src/lid.js');
+    const { run } = await import('../src/db.js');
+    const fs = await import('node:fs');
+
+    // At connect creds.me has only the number: nothing to learn yet.
+    setOwnIdentity({ id: '6281999911895:49@s.whatsapp.net' });
+    // creds.update brings the LID (session.js listens for it).
+    const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
+    assert.match(source, /ev\.on\('creds\.update', \(update\) => \{\s*if \(update\?\.me\) this\.#learnOwnLid/);
+    setOwnIdentity({ id: '6281999911895:49@s.whatsapp.net', lid: '28067997159547:49@lid' });
+
+    // Even with the table empty (a write lost, a fresh database), our phone's LID is our number.
+    run('DELETE FROM lid_map');
+    assert.equal(pnJidOf('28067997159547:0@lid'), '6281999911895:0@s.whatsapp.net');
+
+    // A message from our phone by LID that fails ("Bad MAC") is read with the number's session.
+    const tried = [];
+    const repository = {
+        decryptMessage: async ({ jid }) => {
+            tried.push(jid);
+            if (jid.endsWith('@lid')) throw new Error('No matching sessions found for message');
+
+            return Buffer.from('ok');
+        },
+    };
+    withLidFallback(repository);
+    assert.equal(String(await repository.decryptMessage({ jid: '28067997159547:0@lid', type: 'msg', ciphertext: Buffer.alloc(1) })), 'ok');
+    assert.deepEqual(tried, ['28067997159547:0@lid', '6281999911895:0@s.whatsapp.net']);
+});
