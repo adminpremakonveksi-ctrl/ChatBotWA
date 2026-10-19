@@ -29,7 +29,12 @@ Content language is Indonesian. Code and comments are English.
 - WhatsApp Business automatic messages (Salam) arrive as `fromMe`: `auto-messages.js`
   recognises them so they are not taken for CS typing.
 - Every warn/error log line reaches the console's error pop-up (`src/errors.js`,
-  logger hook). Show errors raw; do not soften them.
+  logger hook). Show errors raw; do not soften or hide them: fix the cause.
+- WhatsApp addresses people (and our own phone) by LID or by number. `src/lid.js`
+  learns the mapping (table lid_map), keeps one conversation per customer, and
+  retries a failed LID decrypt with the number's session (CS replies typed on the
+  phone were unreadable without it). Library bugs are fixed from our code in
+  `src/baileys-fixes.js`, never by editing node_modules (installs skip scripts).
 - New seeds go in `SEED_ADDITIONS` with a NEW migration id; never edit a shipped one.
 
 ## Layout

@@ -326,6 +326,22 @@ CREATE TABLE IF NOT EXISTS activity_log (
 CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log (at);`);
         },
     },
+
+    {
+        // WhatsApp addresses people by LID (a hidden id) as well as by phone
+        // number. Which LID is which number, learnt from the messages, so a
+        // chat is one conversation whatever the address, and a message whose
+        // encryption session was made under the number can still be read.
+        id: '011_lid_map',
+        up(db) {
+            db.exec(`
+CREATE TABLE IF NOT EXISTS lid_map (
+    lid TEXT PRIMARY KEY,
+    pn TEXT NOT NULL,
+    updated_at TEXT
+);`);
+        },
+    },
 ];
 
 /** Reads the dictionary lists from the database into normalise() (once the table exists). */

@@ -13,12 +13,17 @@ import makeWASocket, {
 
 import { useSqliteAuthState } from './auth-state.js';
 import { recordSyncError, syncCatalog } from './bot/catalog.js';
+import { fixMexNotifications } from './baileys-fixes.js';
+import { conversationJid, learnFromKey, setOwnIdentity, userOf, withLidFallback } from './lid.js';
 import { MIME } from './bot/media.js';
 import { config } from './config.js';
 import { now, run } from './db.js';
 import { logger } from './logger.js';
 
 const MAX_BACKOFF_MS = 60000;
+// The catalog is read a minute after connecting, then retried on a time-out.
+const CATALOG_FIRST_DELAY_MS = 60000;
+const CATALOG_RETRY_MS = [3 * 60000, 10 * 60000];
 
 // Message types that carry nothing for the bot to answer.
 const IGNORED_TYPES = new Set([
@@ -99,9 +104,20 @@ export class Session {
             syncFullHistory: false,
             // Without this the socket dies silently behind some NATs.
             keepAliveIntervalMs: 25000,
+            // Right after connecting, WhatsApp answers the start-up queries slowly
+            // on a slow line; 60 s (the default) ran out on a client PC.
+            defaultQueryTimeoutMs: 120000,
         });
 
         this.socket = socket;
+
+        // Our phone sends by LID while its encryption session was made under the
+        // number: read those messages with that session (see lid.js). Without it
+        // a reply CS typed on the phone could not be decrypted and went unseen.
+        withLidFallback(socket.signalRepository);
+        this.#learnOwnLid(state.creds.me);
+        // Linked-profile "mex" notifications are not channel ones (baileys-fixes.js).
+        fixMexNotifications(socket);
 
         socket.ev.on('creds.update', saveCreds);
         socket.ev.on('connection.update', (update) => this.#onConnectionUpdate(update));
@@ -137,14 +153,22 @@ export class Session {
             });
 
             this.log.info({ number: this.phoneNumber }, 'tersambung');
+            this.#learnOwnLid(this.socket?.user);
 
-            // Read the WhatsApp Business catalog now and every 6 hours after.
+            // Read the WhatsApp Business catalog once the connection has settled
+            // (right after connecting WhatsApp is busy with its own start-up
+            // queries and a catalog query times out), then every 6 hours.
             clearInterval(this.catalogTimer);
-            setTimeout(() => this.syncCatalog().catch(() => {}), 5000);
-            this.catalogTimer = setInterval(() => this.syncCatalog().catch(() => {}), 6 * 3600000);
+            clearTimeout(this.catalogRetry);
+            this.catalogRetry = setTimeout(() => this.syncCatalogWithRetry(), CATALOG_FIRST_DELAY_MS);
+            this.catalogTimer = setInterval(() => this.syncCatalogWithRetry(), 6 * 3600000);
         }
 
         if (connection === 'close') {
+            // A catalog read waiting for its retry belongs to this connection; the next one schedules its own.
+            clearTimeout(this.catalogRetry);
+            clearInterval(this.catalogTimer);
+
             const statusCode = lastDisconnect?.error?.output?.statusCode ?? null;
             const loggedOut = statusCode === DisconnectReason.loggedOut;
 
@@ -179,7 +203,10 @@ export class Session {
 
     async #onMessages({ messages, type }) {
         for (const message of messages) {
-            const jid = message.key.remoteJid ?? '';
+            // Which LID is which number (WhatsApp sends both); then one customer
+            // is one conversation, whether a message came by number or by LID.
+            learnFromKey(message.key);
+            const jid = conversationJid(message.key.remoteJid ?? '');
 
             if (!jid || jid === 'status@broadcast' || jid.endsWith('@broadcast') || jid.endsWith('@newsletter')) continue;
             if (!config.allowGroups && jid.endsWith('@g.us')) continue;
@@ -230,12 +257,16 @@ export class Session {
         }
     }
 
+    /** The bot's own LID is its own number (creds.me / socket.user carry both). */
+    #learnOwnLid(me) {
+        setOwnIdentity(me ?? {});
+    }
+
     /** The chat with the bot's own number, by phone jid or by LID. */
     #isSelfChat(jid) {
-        const user = (id) => String(id ?? '').split('@')[0].split(':')[0];
-        const own = [this.socket?.user?.id, this.socket?.user?.lid].filter(Boolean).map(user);
+        const own = [this.socket?.user?.id, this.socket?.user?.lid].filter(Boolean).map(userOf);
 
-        return own.includes(user(jid)) && !jid.endsWith('@g.us');
+        return own.includes(userOf(jid)) && !jid.endsWith('@g.us');
     }
 
     /* ---------------------------------------------- transport for the bot --- */
@@ -319,8 +350,32 @@ export class Session {
         return { image: { url: action.file }, mimetype };
     }
 
-    /** Stops the socket without touching the stored pairing. */
-    /** Copies this number's WhatsApp Business catalog into the bot. */
+    /**
+     * The scheduled catalog read: a time-out is tried again later (3, then 10
+     * minutes); only when every try failed is it a warning (the console
+     * pop-up). Meanwhile the bot keeps sending the shop's catalog link.
+     */
+    async syncCatalogWithRetry(attempt = 0) {
+        try {
+            if (this.state !== 'connected' || !this.socket) return;
+
+            await syncCatalog(this.socket);
+        } catch (error) {
+            const retry = CATALOG_RETRY_MS[attempt];
+
+            if (retry != null && /timed? ?out/i.test(error.message)) {
+                this.log.info({ err: error.message, retryInMinutes: retry / 60000 }, 'katalog WhatsApp belum terbaca, dicoba lagi');
+                clearTimeout(this.catalogRetry);
+                this.catalogRetry = setTimeout(() => this.syncCatalogWithRetry(attempt + 1), retry);
+
+                return;
+            }
+
+            this.#catalogFailed(error, attempt + 1);
+        }
+    }
+
+    /** Copies this number's WhatsApp Business catalog into the bot ("Sinkronkan sekarang"). */
     async syncCatalog() {
         if (this.state !== 'connected' || !this.socket) {
             throw Object.assign(new Error('WhatsApp belum tersambung'), { statusCode: 409 });
@@ -329,15 +384,28 @@ export class Session {
         try {
             return await syncCatalog(this.socket);
         } catch (error) {
-            // A personal (non-Business) number has no catalog: remember why, keep running.
-            recordSyncError(error);
-            this.log.warn({ err: error.message }, 'katalog WhatsApp gagal dibaca');
+            this.#catalogFailed(error, 1);
             throw error;
         }
     }
 
+    /**
+     * Remembers why the catalog could not be read (a personal number has none)
+     * and says so: the console pop-up and Media > Katalog show it. Never throws,
+     * so a failing database write here cannot take the bot down.
+     */
+    #catalogFailed(error, attempts) {
+        try {
+            recordSyncError(error);
+        } catch (writeError) {
+            this.log.error({ err: writeError.message }, 'gagal menyimpan error katalog');
+        }
+        this.log.warn({ err: error.message, attempts }, 'katalog WhatsApp gagal dibaca');
+    }
+
     async stop() {
         clearInterval(this.catalogTimer);
+        clearTimeout(this.catalogRetry);
         this.stopping = true;
         clearTimeout(this.reconnectTimer);
 
@@ -356,6 +424,7 @@ export class Session {
     async logout() {
         this.stopping = true;
         clearInterval(this.catalogTimer);
+        clearTimeout(this.catalogRetry);
         clearTimeout(this.reconnectTimer);
 
         try {

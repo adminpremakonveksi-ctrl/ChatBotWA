@@ -23,3 +23,4 @@ test('every warning and error the bot logs reaches the console pop-up, raw', () 
     assert.equal(fresh[1].level, 'error');
     assert.match(fresh[1].detail.stack, /boom/);
 });
+
