@@ -303,6 +303,8 @@ export function classifyWithRules({ text, hasImage = false, hasAudio = false, at
                 patterns,
                 // A typo-tolerant guess decided something here: the AI double-checks it when on.
                 csQuestion: mentions(normalised, keywordsFor('cs_question')),
+                // A question ("?" or a question word from Kamus): mid-flow it is answered, not taken as the step's answer.
+                isQuestion: String(text ?? '').includes('?') || tokens(normalised).some((w) => wordSet('kata_tanya').has(w)),
                 attachments,
                 guessed: guessed || (Boolean(product) && !productKeywordsOf(product).some((k) => normalised.includes(` ${k}`))),
                 source: 'rules',

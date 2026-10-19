@@ -104,8 +104,13 @@ export class Session {
             syncFullHistory: false,
             // Without this the socket dies silently behind some NATs.
             keepAliveIntervalMs: 25000,
-            // Right after connecting, WhatsApp answers the start-up queries slowly
-            // on a slow line; 60 s (the default) ran out on a client PC.
+            // The start-up queries (account props, block list, privacy settings)
+            // timed out on a client PC ("unexpected error in 'init queries'"),
+            // and the bot uses none of them: Baileys fetches privacy settings on
+            // demand itself when sending read receipts, which the bot never does.
+            // Not asking is the fix.
+            fireInitQueries: false,
+            // A slow line answers slowly; 60 s (the default) ran out there.
             defaultQueryTimeoutMs: 120000,
         });
 

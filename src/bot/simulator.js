@@ -21,7 +21,7 @@ export async function simulate(id, { text = '', hasImage = false, hasAudio = fal
     const history = conversation.history ?? [];
 
     // The same lines before the message as the real bot gives the AI.
-    const classified = await classify({ text, hasImage, hasAudio, step: conversation.step, knownProduct: conversation.product, history: history.slice(-6) });
+    const classified = await classify({ text, hasImage, hasAudio, step: conversation.step, knownProduct: conversation.product, history: history.slice(-6), who: `coba|${id}` });
     const { actions, patch } = decide(conversation, classified, media);
 
     const said = actions.filter((a) => a.type === 'text').map((a) => ({ who: 'bot', text: a.text }));

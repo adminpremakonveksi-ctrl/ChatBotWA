@@ -1,4 +1,5 @@
 import { config } from './config.js';
+import { DEFAULT_ANSWER_PROMPT, DEFAULT_OPENING_PROMPT } from './bot/ai-text.js';
 import { getSetting, run, setSetting } from './db.js';
 
 /**
@@ -10,7 +11,17 @@ import { getSetting, run, setSetting } from './db.js';
  *   host   https://ollama.com, or http://localhost:11434 for a local Ollama.
  */
 
-const KEYS = { key: 'ai:ollama_key', model: 'ai:ollama_model', host: 'ai:ollama_host' };
+const KEYS = {
+    key: 'ai:ollama_key',
+    model: 'ai:ollama_model',
+    host: 'ai:ollama_host',
+    // The editable part of the AI's instructions (empty = the default in ai-text.js).
+    openingPrompt: 'ai:opening_prompt',
+    answerPrompt: 'ai:answer_prompt',
+    // How often the AI may be asked (classify.js AI_LIMITS).
+    perCustomer: 'ai:limit_customer',
+    total: 'ai:limit_total',
+};
 
 // What .env said, to fall back to when the console value is cleared.
 const fromEnv = { ...config.ollama };
@@ -29,7 +40,16 @@ export function loadAiSettings() {
     config.ollama.model = model || fromEnv.model;
     config.ollama.host = host || fromEnv.host;
     config.ollama.hostSet = Boolean(host) || fromEnv.hostSet;
+    config.ollama.openingPrompt = getSetting(KEYS.openingPrompt) || '';
+    config.ollama.answerPrompt = getSetting(KEYS.answerPrompt) || '';
+    config.ollama.limits = {
+        perCustomer: Number(getSetting(KEYS.perCustomer)) || DEFAULT_LIMITS.perCustomer,
+        total: Number(getSetting(KEYS.total)) || DEFAULT_LIMITS.total,
+    };
 }
+
+/** AI calls per customer per 10 minutes, and for the whole bot per minute. */
+export const DEFAULT_LIMITS = { perCustomer: 40, total: 60 };
 
 const mask = (key) => (key ? `${'•'.repeat(8)}${key.slice(-4)}` : '');
 
@@ -44,6 +64,11 @@ export function aiSettings() {
         model: config.ollama.model,
         host: config.ollama.host,
         hostSet: config.ollama.hostSet,
+        openingPrompt: config.ollama.openingPrompt || DEFAULT_OPENING_PROMPT,
+        answerPrompt: config.ollama.answerPrompt || DEFAULT_ANSWER_PROMPT,
+        promptsChanged: Boolean(config.ollama.openingPrompt || config.ollama.answerPrompt),
+        perCustomer: config.ollama.limits?.perCustomer ?? DEFAULT_LIMITS.perCustomer,
+        total: config.ollama.limits?.total ?? DEFAULT_LIMITS.total,
     };
 }
 
@@ -51,7 +76,23 @@ export function aiSettings() {
  * Saves what the console sent. key: undefined = unchanged, '' = remove the
  * console key (back to .env). model/host: '' = back to the default.
  */
-export function updateAiSettings({ key, model, host } = {}) {
+export function updateAiSettings({ key, model, host, openingPrompt, answerPrompt, perCustomer, total } = {}) {
+    // Instructions: the default (or empty) text means "use the default".
+    for (const [name, value, fallback] of [['openingPrompt', openingPrompt, DEFAULT_OPENING_PROMPT], ['answerPrompt', answerPrompt, DEFAULT_ANSWER_PROMPT]]) {
+        if (value === undefined) continue;
+        const text = String(value ?? '').replace(/\r\n/g, '\n').trim();
+        if (text.length > 3000) fail('Instruksi AI maksimal 3000 huruf');
+        if (!text || text === fallback.trim()) run(`DELETE FROM settings WHERE "key" = ?`, [KEYS[name]]);
+        else setSetting(KEYS[name], text);
+    }
+
+    for (const [name, value, min, max, label] of [['perCustomer', perCustomer, 1, 500, 'Batas AI per pelanggan'], ['total', total, 1, 1000, 'Batas AI per menit']]) {
+        if (value === undefined) continue;
+        const n = Number(value);
+        if (!Number.isInteger(n) || n < min || n > max) fail(`${label}: ${min}-${max}`);
+        setSetting(KEYS[name], String(n));
+    }
+
     if (key !== undefined) {
         const value = String(key ?? '').trim();
         if (value && (value.length < 10 || value.length > 300 || /\s/.test(value))) fail('Kunci API tidak valid: tempel kunci lengkap dari ollama.com (Settings > Keys)');

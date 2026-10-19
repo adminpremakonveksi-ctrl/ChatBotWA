@@ -102,7 +102,7 @@ test('no seed phrase has two meanings', () => {
 test('no word lists are hard-coded in the logic: vocabulary lives in the database (Kamus)', () => {
     // The files that read customer text. A list of 8+ quoted words there is
     // vocabulary that belongs in SEED_WORDS (seeds.js) and the table word_lists.
-    const logic = ['src/text.js', 'src/bot/classify-rules.js', 'src/bot/engine.js', 'src/bot/store.js', 'src/bot/intents.js'];
+    const logic = ['src/text.js', 'src/bot/classify-rules.js', 'src/bot/engine.js', 'src/bot/store.js', 'src/bot/intents.js', 'src/bot/ai-text.js', 'src/bot/classify.js'];
     const found = [];
 
     for (const file of logic) {

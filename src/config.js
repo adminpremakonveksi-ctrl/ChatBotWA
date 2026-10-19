@@ -60,8 +60,12 @@ export const config = {
         handoverHours: number('HANDOVER_HOURS', 24),
         // Messages in a row the bot may fail to understand before CS takes over.
         maxMisses: number('MAX_MISSES', 3),
+        // The team's notes the AI may answer from (Pengaturan > Pengetahuan toko).
+        storeKnowledge: '',
         // A conversation idle this long starts over from the greeting.
         resetHours: number('RESET_HOURS', 24),
+        // Waiting for a follow-up answer (the size list) lasts this many days (Pengaturan).
+        detailWaitDays: 14,
 
         // Dates the bot is on guard all day, set in the console: [{ from, to, label }].
         holidays: [],

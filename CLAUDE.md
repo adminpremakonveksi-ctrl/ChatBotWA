@@ -18,7 +18,14 @@ Content language is Indonesian. Code and comments are English.
 - **Replies are fixed text**: templates in `src/bot/replies.js`, defaults copied word
   for word from the spec, editable by the team in the console ("Template balasan").
   Never generate reply text, never let AI write or rewrite one. AI only labels intent.
+  Exception, only with Ollama on: one opening line before the fixed reply, and
+  answers to questions with no fixed text, from Pengetahuan toko. Both pass
+  `safeAiText` (no digits/links, Kamus `larangan_ai`); if unsure → template `aiUnknown`.
 - **Night guard only**: active Mon–Sat 17.30–07.30 and all of Sunday (`schedule.js`).
+  The hours are editable; `inWindow` handles both night (crosses midnight) and day windows.
+- Follow-up questions (size list last) come at the end, just before the order goes to CS.
+  The size list often arrives days later: `awaiting_detail` lives `detailWaitDays`
+  (Pengaturan), and "nanti saya kabari" (Kamus `jawaban_menyusul`) keeps the question open.
 - **No prices** in replies. Catalog files may be sent.
 - Bot and CS names are config (`BOT_NAME`, `CS_NAME`), not literals.
 - Unrecognised → ask again ("clarify" template); hand over to CS only after

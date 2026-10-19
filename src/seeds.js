@@ -888,6 +888,7 @@ SEED_ADDITIONS.push({
     },
 });
 
+
 // Every addition is part of the full seed lists too.
 for (const add of SEED_ADDITIONS) {
     for (const [intent, phrases] of Object.entries(add.keywords ?? {})) {
@@ -2982,3 +2983,35 @@ export const SEED_WORDS = {
         ]
     }
 };
+
+// The answers to "Apa mau saya oper ke CS?" (migration 012), as Kamus lists:
+// in SEED_WORDS for a fresh install, in SEED_ADDITIONS for an existing one.
+SEED_WORDS.jawaban_ya = {
+    label: 'Jawaban "iya, oper ke CS"',
+    help: 'Setelah bot bilang belum tahu dan menawarkan CS, jawaban berisi kata ini menyerahkan pelanggan ke CS.',
+    words: ['iya', 'ya', 'iyaa', 'boleh', 'mau', 'oke', 'ok', 'okey', 'siap', 'gas', 'langsung', 'silakan', 'silahkan', 'nggih', 'monggo', 'sip', 'tolong'],
+};
+SEED_WORDS.jawaban_tidak = {
+    label: 'Jawaban "tidak usah"',
+    help: 'Setelah bot menawarkan CS, jawaban berisi kata ini membatalkan tawaran; percakapan lanjut seperti biasa.',
+    words: ['tidak', 'gak', 'nggak', 'enggak', 'ga usah', 'gak usah', 'nggak usah', 'jangan', 'nanti saja', 'nanti aja', 'tidak usah', 'mboten', 'ora'],
+};
+SEED_WORDS.kata_tanya = {
+    label: 'Kata tanya',
+    help: 'Pesan yang berisi kata ini (atau tanda tanya) dianggap pertanyaan. Kalau AI aktif, pertanyaan di tengah alur dijawab dari Pengetahuan toko dan alurnya menunggu, bukan dianggap jawaban alur.',
+    words: ['apa', 'apakah', 'gimana', 'bagaimana', 'kenapa', 'mengapa', 'kapan', 'dimana', 'mana', 'siapa', 'berapa', 'kah'],
+};
+SEED_WORDS.larangan_ai = {
+    label: 'Kata terlarang untuk AI',
+    help: 'Kalimat buatan AI (pembuka, jawaban) yang berisi kata ini tidak dikirim; bot memakai naskah biasa. Angka dan link selalu dilarang.',
+    words: ['rp', 'rupiah', 'ribu', 'juta', 'harga', 'harganya', 'biaya', 'ongkir', 'diskon', 'potongan', 'promo', 'gratis', 'murah', 'mahal', 'pasti', 'dijamin', 'jamin', 'garansi', 'janji', 'besok', 'lusa', 'minggu depan', 'hari ini', 'transfer ke', 'rekening'],
+};
+SEED_WORDS.jawaban_menyusul = {
+    label: 'Jawaban "nanti menyusul"',
+    help: 'Saat bot menunggu jawaban pertanyaan lanjutan (mis. list ukuran), pesan tanpa angka yang berisi kata ini berarti datanya menyusul: bot membalas "Ditunggu list ukuran" dan tetap menunggu, order belum diteruskan ke CS.',
+    words: ['nanti saya', 'nanti aku', 'nanti tak', 'nanti dikirim', 'nanti ya', 'menyusul', 'nyusul', 'kabari', 'dikabari', 'kabarin', 'dikabarin', 'dikumpulkan', 'dikumpulin', 'kumpulin', 'kumpulkan', 'didata', 'data dulu', 'rekap dulu', 'direkap', 'belum lengkap', 'belum fix', 'masih nunggu', 'masih menunggu', 'tanya dulu', 'tanyakan dulu', 'diskusi dulu', 'rapat dulu', 'mengko', 'engko'],
+};
+SEED_ADDITIONS.push({
+    migration: '012_offer_cs',
+    words: { jawaban_ya: SEED_WORDS.jawaban_ya.words, jawaban_tidak: SEED_WORDS.jawaban_tidak.words, kata_tanya: SEED_WORDS.kata_tanya.words, larangan_ai: SEED_WORDS.larangan_ai.words, jawaban_menyusul: SEED_WORDS.jawaban_menyusul.words },
+});

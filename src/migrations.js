@@ -342,6 +342,16 @@ CREATE TABLE IF NOT EXISTS lid_map (
 );`);
         },
     },
+
+    {
+        // The AI may answer a question the bot has no text for; when it does not
+        // know, it offers to hand over to CS. Remembered until the next message.
+        id: '012_offer_cs',
+        up(db) {
+            if (!hasColumn(db, 'conversations', 'offered_cs')) db.exec('ALTER TABLE conversations ADD COLUMN offered_cs INTEGER NOT NULL DEFAULT 0');
+            syncSeeds(db, '012_offer_cs');
+        },
+    },
 ];
 
 /** Reads the dictionary lists from the database into normalise() (once the table exists). */

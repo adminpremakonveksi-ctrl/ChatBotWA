@@ -38,6 +38,13 @@ const saysAny = (text, list) => {
     return [...wordSet(list)].some((w) => lower.includes(w));
 };
 
+// Whole words only: "ya" is in "iya kak", not in "saya" or "kaya".
+const saysWord = (text, list) => {
+    const words = ` ${String(text ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
+
+    return [...wordSet(list)].some((w) => words.includes(` ${w} `));
+};
+
 export function decide(conversation, classified, media, { random = Math.random } = {}) {
     const conv = { step: 'new', name: null, origin: null, product: null, return_step: null, ...conversation };
     const r = classified;
@@ -73,6 +80,16 @@ export function decide(conversation, classified, media, { random = Math.random }
      */
     let missed = false;
     const notUnderstood = (reason) => {
+        // With the AI on: an answer from the shop's own facts (checked), or
+        // "belum tahu, mau saya oper ke CS?". Neither counts as a miss.
+        if (r.intent === 'other' && r.aiAnswer?.type === 'answer') return say(r.aiAnswer.text);
+        if (r.intent === 'other' && r.aiAnswer?.type === 'unknown') {
+            say(replies.aiUnknown());
+            patch.offered_cs = 1;
+
+            return;
+        }
+
         missed = true;
         const misses = (Number(conv.misses) || 0) + 1;
 
@@ -87,10 +104,22 @@ export function decide(conversation, classified, media, { random = Math.random }
     };
 
     /** [7] + [8], then CS takes over. */
-    const finish = () => {
+    const closeOrder = () => {
         say(replies.waitForCs());
         say(replies.socials());
         handover('alur selesai');
+    };
+
+    /**
+     * The spec flow is done ([4]/catalog, then [5]). Last, just before the
+     * order goes to CS, the product's follow-up questions ("kemeja apa?",
+     * "ukurannya apa saja?"), one by one; then [7] + [8].
+     */
+    const finish = () => {
+        const asked = state().detail_index != null || details().length > 0;
+        if (!asked && askQuestion(0)) return;
+
+        closeOrder();
     };
 
     const remember = (key, value) => {
@@ -129,7 +158,7 @@ export function decide(conversation, classified, media, { random = Math.random }
         }
     };
 
-    /** [5], unless they already said how many ("kemeja 2000 pcs"): then the flow is done. */
+    /** [5], unless they already said how many ("kemeja 2000 pcs"): then on to the end. */
     const askQuantityOrFinish = (question) => {
         if (state().quantity) return finish();
 
@@ -147,27 +176,6 @@ export function decide(conversation, classified, media, { random = Math.random }
         patch.step = 'awaiting_detail';
 
         return true;
-    };
-
-    /** After the follow-up questions: the spec flow, [5] for catalog products, [4] for the rest. */
-    const afterQuestions = () => {
-        const product = state().product;
-
-        if (hasCatalog(product)) return askQuantityOrFinish(replies.askQuantityCatalog());
-
-        // They already said something about the design while answering: no [4] again.
-        const design = details().findLast((d) => d.design)?.design;
-        if (design === 'none') {
-            // As at [4] with "belum ada": the portfolio [6B] (and [6] for jersey), then [5].
-            say(replies.portfolio());
-            if (product === 'jersey') say(replies.jerseyTemplates());
-
-            return askQuantityOrFinish(replies.askQuantity());
-        }
-        if (design === 'ready') return askQuantityOrFinish(replies.askQuantity());
-
-        say(replies.askDesign(productName(product)));
-        patch.step = 'awaiting_design';
     };
 
     const productFlow = (product) => {
@@ -189,8 +197,12 @@ export function decide(conversation, classified, media, { random = Math.random }
             }
         }
 
-        // "Kemeja apa? Ukuran apa saja?" first, so CS gets a usable order.
-        if (!askQuestion(0)) afterQuestions();
+        // The spec flow: catalog products go to [5], the others to [4]. The
+        // follow-up questions come at the end (finish), not here.
+        if (hasCatalog(product)) return askQuantityOrFinish(replies.askQuantityCatalog());
+
+        say(replies.askDesign(productName(product)));
+        patch.step = 'awaiting_design';
     };
 
     const sizeChart = (product, variant) => {
@@ -225,7 +237,7 @@ export function decide(conversation, classified, media, { random = Math.random }
         // where it was (a follow-up question still waits for its answer).
         if (hasCatalog(product) && media.has('katalog', product)) {
             send('katalog', product);
-            if (state().step === 'awaiting_product') afterQuestions();
+            if (state().step === 'awaiting_product') askQuantityOrFinish(replies.askQuantityCatalog());
 
             return;
         }
@@ -341,6 +353,20 @@ export function decide(conversation, classified, media, { random = Math.random }
         return true;
     };
 
+    /** The AI's answer to a question asked mid-flow (classify.js); true when one was said. */
+    const answerFlowQuestion = () => {
+        if (!r.isQuestion || r.intent === 'other' || !r.aiAnswer || r.aiAnswer.type === 'unclear') return false;
+
+        if (r.aiAnswer.type === 'answer') {
+            say(r.aiAnswer.text);
+        } else {
+            say(replies.aiUnknown());
+            patch.offered_cs = 1;
+        }
+
+        return true;
+    };
+
     /** Everything after the greeting. */
     const handle = () => {
         // They asked for a person: no questions, straight to CS.
@@ -367,6 +393,16 @@ export function decide(conversation, classified, media, { random = Math.random }
             return;
         }
 
+        // A question in the middle of the order ("sablonnya pakai apa kak?"):
+        // answered by the AI from the shop's facts, and the flow waits where it
+        // was. "Bisa bikin jersey?" before any product: the answer, then the flow.
+        if (answerFlowQuestion()) {
+            const midOrder = ['awaiting_design', 'awaiting_quantity', 'awaiting_detail'].includes(state().step);
+            if (!midOrder && r.intent === 'product' && r.product && r.product !== state().product) productFlow(r.product);
+
+            return;
+        }
+
         // "Kamu bot ya?": answered honestly; the flow waits where it was.
         if (r.intent === 'about_bot') {
             say(replies.aboutBot());
@@ -385,6 +421,18 @@ export function decide(conversation, classified, media, { random = Math.random }
         // An amount said in passing ("desain logo, 50 pcs") is kept for CS and not asked again.
         if (r.quantity && !state().quantity) patch.quantity = r.quantity;
 
+        // "Nanti saya kabari, masih dikumpulkan": the size list often comes days
+        // after the size chart. Not the answer and not a miss; the question
+        // stays open (store.js keeps this step for detailWaitDays).
+        const later = state().step === 'awaiting_detail' && r.intent !== 'image' && !(r.attachments ?? []).length
+            && !/\d/.test(String(r.text ?? '')) && saysAny(r.text, 'jawaban_menyusul');
+        if (later) {
+            note('Jawaban menyusul: ' + String(r.text ?? '').slice(0, 200));
+            say(replies.detailLater());
+
+            return;
+        }
+
         if (state().step === 'awaiting_detail' && isDetailAnswer()) {
             const i = state().detail_index ?? 0;
             const question = productQuestions(state().product)[i] ?? '';
@@ -397,7 +445,7 @@ export function decide(conversation, classified, media, { random = Math.random }
             // A bare number ("15", "40 pcs") answering a detail question is how many they want.
             if (!state().quantity && /^\d{1,6}\s*(pcs|pc|an|biji|stel|orang)?$/i.test(answer)) patch.quantity = answer;
 
-            if (!askQuestion(i + 1)) afterQuestions();
+            if (!askQuestion(i + 1)) closeOrder();
 
             return;
         }
@@ -514,6 +562,19 @@ export function decide(conversation, classified, media, { random = Math.random }
         }
     };
 
+    // The bot offered CS ("Apa mau saya oper ke CS?"): "iya" hands over; anything
+    // else carries on as usual and the offer lapses (Kamus: jawaban_ya / jawaban_tidak).
+    if (Number(conv.offered_cs) && conv.step !== 'handed_over') {
+        patch.offered_cs = 0;
+
+        if (saysWord(r.text, 'jawaban_ya') && !saysWord(r.text, 'jawaban_tidak') && ['ack', 'other', 'human'].includes(r.intent)) {
+            say(replies.waitForCs());
+            handover('pelanggan minta dioper ke CS');
+
+            return { actions, patch };
+        }
+    }
+
     switch (conv.step) {
         case 'handed_over':
             return { actions: [], patch: {} };
@@ -539,8 +600,7 @@ export function decide(conversation, classified, media, { random = Math.random }
                     remember('quantity', r.quantity);
                 } else {
                     patch.step = 'awaiting_product';
-                    if (r.intent === 'product' && r.product) productFlow(r.product);
-                    else handle();
+                    handle();
                 }
             } else if (name) {
                 // [1]. A returning customer is greeted by the name we stored.
@@ -584,8 +644,7 @@ export function decide(conversation, classified, media, { random = Math.random }
             } else if (r.intent === 'product' || FAQ.has(r.intent)) {
                 // They skipped the introduction; do not ask twice.
                 patch.step = 'awaiting_product';
-                if (r.intent === 'product' && r.product) productFlow(r.product);
-                else handle();
+                handle();
             } else if (r.intent === 'greeting' || r.intent === 'ack') {
                 // still waiting for the introduction
             } else if (['ask_first', 'price', 'human', 'about_bot', 'product_unknown', 'cs_question', 'image', 'voice'].includes(r.intent)) {
@@ -613,6 +672,12 @@ export function decide(conversation, classified, media, { random = Math.random }
     // A message that was understood starts the count of misses over; one that
     // was not keeps it (notUnderstood set it), whatever its label.
     if (!missed && Number(conv.misses) && patch.step !== 'handed_over') patch.misses = 0;
+
+    // The AI's opening line (checked in ai-text.js) goes before the fixed reply,
+    // never on its own and never in front of a handover.
+    if (r.opening && actions.some((a) => a.type === 'text') && patch.step !== 'handed_over') {
+        actions.unshift({ type: 'text', text: r.opening });
+    }
 
     return { actions, patch };
 }

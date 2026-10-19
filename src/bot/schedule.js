@@ -62,10 +62,34 @@ export function isBotActive(date = new Date(), options = config.bot) {
         return true;
     }
 
-    const from = toMinutes(options.activeFrom);
-    const until = toMinutes(options.activeUntil);
+    return inWindow(minutes, options.activeFrom, options.activeUntil);
+}
 
-    return minutes >= from || minutes < until;
+/**
+ * Whether a time of day falls in the window "from -> until". A window that
+ * crosses midnight (17.30 -> 07.30) is the night; one that does not
+ * (08.30 -> 18.30) is the day. Equal times mean all day. (Before this, every
+ * window was read as crossing midnight, so 08.30 -> 18.30 meant "always".)
+ */
+export function inWindow(minutes, from, until) {
+    const start = toMinutes(from);
+    const end = toMinutes(until);
+
+    if (start === end) return true;
+
+    return start < end ? minutes >= start && minutes < end : minutes >= start || minutes < end;
+}
+
+/** The active hours in words, for the console. */
+export function describeHours(from, until) {
+    const start = toMinutes(from);
+    const end = toMinutes(until);
+    const dot = (t) => String(t).replace(':', '.');
+
+    if (start === end) return 'aktif 24 jam setiap hari';
+    if (start > end) return `aktif Sen–Sab ${dot(from)} sampai ${dot(until)} besok paginya, Minggu 24 jam`;
+
+    return `aktif Sen–Sab ${dot(from)}–${dot(until)} (siang), Minggu 24 jam`;
 }
 
 /** When the bot next switches between active and silent (minute precision, within 8 days). */

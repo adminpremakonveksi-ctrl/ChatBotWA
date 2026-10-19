@@ -1,4 +1,6 @@
+import { config } from '../config.js';
 import { logger } from '../logger.js';
+import { answerQuestion, openingLine } from './ai-text.js';
 import { classifyWithOllama, ollamaEnabled } from './classify-ollama.js';
 import { classifyWithRules } from './classify-rules.js';
 import { patternForBuiltin } from './patterns.js';
@@ -26,7 +28,18 @@ function toPatterns(result) {
 }
 
 // How often the AI may be asked: per customer, and for the whole bot.
-export const AI_LIMITS = { perCustomer: 12, perCustomerMinutes: 10, total: 60, totalMinutes: 1 };
+// One message can use the AI up to twice (label, then an answer or an opening
+// line). The numbers are set in Pengaturan > AI (ai-settings.js); the windows are fixed.
+export const AI_LIMITS = {
+    get perCustomer() {
+        return config.ollama.limits?.perCustomer ?? 40;
+    },
+    perCustomerMinutes: 10,
+    get total() {
+        return config.ollama.limits?.total ?? 60;
+    },
+    totalMinutes: 1,
+};
 const aiCalls = new Map();
 let allCalls = [];
 
@@ -56,7 +69,49 @@ export const aiProvider = () => (ollamaEnabled() ? 'ollama' : null);
  * network, rate limit, timeout, a label outside the list) keeps the keyword
  * result, so the bot never goes quiet because of the AI.
  */
-export async function classify(input) {
+export async function classify(input, ai = { openingLine, answerQuestion }) {
+    const result = await label(input);
+
+    if (!aiProvider()) return result;
+
+    // What the AI may write (ai-text.js), each checked before it is sent.
+    try {
+        if ((result.intent === 'other' || isFlowQuestion(result, input)) && input.text?.trim() && allowAiCall(input.who)) {
+            // A question the bot has no text for: answered from the shop's facts, or "belum tahu".
+            result.aiAnswer = await ai.answerQuestion({ text: input.text, history: input.history ?? [] });
+        } else if (wantsOpening(result, input) && allowAiCall(input.who)) {
+            // One sentence before the fixed reply that picks up what they said.
+            result.opening = await ai.openingLine({ text: input.text, history: input.history ?? [] });
+        }
+    } catch (error) {
+        logger.warn({ reason: error.name === 'TimeoutError' ? 'waktu habis' : error.message }, 'AI gagal menulis, memakai naskah');
+    }
+
+    return result;
+}
+
+/**
+ * A question asked in the middle of the order ("sablonnya pakai apa kak?",
+ * "bahannya apa aja?") that the keywords read as the step's answer or as the
+ * product. Asked to the AI, so it is answered and the flow waits. Not an
+ * amount ("bisa 50 pcs?"), and not a question the bot has a text for.
+ */
+const FLOW_QUESTION_INTENTS = new Set(['product', 'has_reference', 'no_reference']);
+const isFlowQuestion = (result, input) =>
+    result.isQuestion &&
+    FLOW_QUESTION_INTENTS.has(result.intent) &&
+    !result.quantity &&
+    !result.patterns?.length &&
+    (!result.product || !input.knownProduct || result.product === input.knownProduct);
+
+// No opening line for a greeting, an "ok", the first message (the Salam
+// answers it), or anything that ends with CS.
+const NO_OPENING = new Set(['greeting', 'ack', 'other', 'human', 'voice', 'image', 'introduction']);
+const wantsOpening = (result, input) =>
+    !NO_OPENING.has(result.intent) && !['new', 'awaiting_intro'].includes(input.step) && String(input.text ?? '').trim().length >= 6;
+
+/** What the message means: keywords first, the AI when they are unsure. */
+async function label(input) {
     const rules = classifyWithRules(input);
     const provider = aiProvider();
 

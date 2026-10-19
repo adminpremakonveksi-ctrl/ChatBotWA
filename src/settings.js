@@ -122,6 +122,15 @@ const FIELDS = {
         get: () => config.bot.maxMisses,
         set: (v) => (config.bot.maxMisses = v),
     },
+    detailWaitDays: {
+        validate: (v) => {
+            const n = Number(v);
+            if (!Number.isInteger(n) || n < 1 || n > 60) fail('Lama menunggu jawaban lanjutan: 1-60 hari');
+            return n;
+        },
+        get: () => config.bot.detailWaitDays,
+        set: (v) => (config.bot.detailWaitDays = v),
+    },
     jerseyPromo: {
         validate: (v) => {
             const text = String(v ?? '').replace(/\r\n/g, '\n').trim();
@@ -142,6 +151,17 @@ const FIELDS = {
         },
     },
     backupDir: { validate: folder, get: () => config.maintenance.backupDir, set: (v) => (config.maintenance.backupDir = v) },
+    // What the AI may answer from, besides products and answer patterns: the
+    // team's own notes (bahan, cara bayar, lama pengerjaan, ...).
+    storeKnowledge: {
+        validate: (v) => {
+            const text = String(v ?? '').replace(/\r\n/g, '\n').trim();
+            if (text.length > 6000) fail('Pengetahuan toko maksimal 6000 huruf');
+            return text;
+        },
+        get: () => config.bot.storeKnowledge ?? '',
+        set: (v) => (config.bot.storeKnowledge = v),
+    },
     // WhatsApp Business automatic messages (Salam, Pesan tidak di tempat), blocks separated by ---.
     autoMessages: {
         validate: (v) => {

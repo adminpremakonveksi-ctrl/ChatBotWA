@@ -52,7 +52,11 @@ test('at a follow-up question: another product is a change of mind, a greeting i
 test('asking the price during the follow-up questions keeps them', () => {
     updateProduct('jersey', { questions: [...SEED_QUESTIONS.jersey, SIZE_QUESTION] });
 
+    // The agreed flow: catalog and [5] first; the follow-up questions at the end.
     let r = step({ step: 'awaiting_product' }, 'mau bikin jersey');
+    r = step(r.conv, '15 stel');
+    assert.equal(r.conv.step, 'awaiting_detail');
+
     r = step(r.conv, 'harganya berapa?');
     assert.equal(r.conv.step, 'awaiting_detail', 'still at the follow-up question');
 
@@ -110,28 +114,33 @@ test('from the simulated chats: names, sizes, amounts and design said along the 
 
     r = step(r.conv, 'Kami berencana memesan hoodie angkatan sebanyak 120 pcs');
     assert.equal(r.conv.quantity, '120 pcs');
+    assert.deepEqual(texts(r.actions), [replies.askDesign('Hoodie')], 'the agreed flow: [4] first');
+
+    // "nanti saya kirim filenya" is not a name; the amount is known, so the follow-up questions come now.
+    r = step(r.conv, 'Desainnya sudah ada, nanti saya kirim filenya');
+    assert.equal(r.conv.name, 'Dimas');
+    assert.equal(r.conv.step, 'awaiting_detail');
     r = step(r.conv, 'Pakai resleting');
+    assert.deepEqual(texts(r.actions), [SIZE_QUESTION], 'the size list is asked last');
 
     // "Ukuran beragam, nanti kami kirimkan datanya" answers the size question (no size chart, no "Seragam").
     r = step(r.conv, 'Ukuran beragam, nanti kami kirimkan datanya');
     assert.equal(r.conv.product, 'hoodie');
-    assert.deepEqual(texts(r.actions), [replies.askDesign('Hoodie')]);
-
-    // "nanti saya kirim filenya" is not a name; the design is ready and the amount known: done.
-    r = step(r.conv, 'Desainnya sudah ada, nanti saya kirim filenya');
-    assert.equal(r.conv.name, 'Dimas');
     assert.equal(r.conv.step, 'handed_over');
 
     updateProduct('hoodie', { questions: [] });
 });
 
-test('"belum ada desain" during the follow-up questions skips [4]', () => {
+test('"belum ada desain" at [4] gets the portfolio and [5]; the follow-up questions come after the amount', () => {
     updateProduct('kaos', { questions: SEED_QUESTIONS.kaos });
 
     let r = step({ step: 'awaiting_product' }, 'mau bikin kaos');
-    r = step(r.conv, 'lengan pendek, belum ada desain kak');
+    r = step(r.conv, 'belum ada desain kak');
     assert.deepEqual(texts(r.actions), [replies.portfolio(), replies.askQuantity()]);
     assert.equal(r.conv.step, 'awaiting_quantity');
+
+    r = step(r.conv, '30 pcs');
+    assert.deepEqual(texts(r.actions), [SEED_QUESTIONS.kaos[0]]);
 
     updateProduct('kaos', { questions: [] });
 });
@@ -211,4 +220,74 @@ test('"belum paham" is worded differently each time it is said in a row', () => 
     assert.notEqual(replies.clarify(0), replies.clarify(1));
     assert.ok(replies.isClarify(replies.clarify(2)));
     assert.ok(!replies.isClarify('halo'));
+});
+
+test('the socket does not send the start-up queries that timed out on a client PC (2026-10-19)', async () => {
+    const fs = await import('node:fs');
+    const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
+
+    // "unexpected error in 'init queries'": props, block list and privacy settings, none used by the bot.
+    assert.match(source, /fireInitQueries:\s*false/);
+});
+
+test('custom active hours: a window that does not cross midnight works (08.30 -> 18.30 was "always")', async () => {
+    const { isBotActive, inWindow } = await import('../src/bot/schedule.js');
+    const at = (iso) => new Date(iso);
+    // Monday 2026-10-19, Asia/Jakarta (UTC+7).
+    const day = { timezone: 'Asia/Jakarta', activeFrom: '08:30', activeUntil: '18:30', forceMode: '', holidays: [] };
+    assert.equal(isBotActive(at('2026-10-19T02:00:00Z'), day), true, '09.00: inside 08.30-18.30');
+    assert.equal(isBotActive(at('2026-10-19T12:00:00Z'), day), false, '19.00: outside');
+    assert.equal(isBotActive(at('2026-10-18T23:00:00Z'), day), false, '06.00: outside');
+
+    const night = { ...day, activeFrom: '17:30', activeUntil: '07:30' };
+    assert.equal(isBotActive(at('2026-10-19T12:00:00Z'), night), true, '19.00: night guard');
+    assert.equal(isBotActive(at('2026-10-19T02:00:00Z'), night), false, '09.00: CS hours');
+
+    assert.equal(inWindow(600, '10:00', '10:00'), true, 'same start and end = all day');
+});
+
+test('the size list may come days later: "nanti saya kabari" keeps the question open (2026-10-19)', () => {
+    updateProduct('kemeja', { questions: [...SEED_QUESTIONS.kemeja, SIZE_QUESTION] });
+    let conv = { step: 'awaiting_detail', product: 'kemeja', quantity: '50 pcs', detail_index: 1, details: JSON.stringify([{ q: 'jenis', a: 'PDH' }]) };
+
+    for (const text of ['Siap kak, nanti saya kabari ya', 'ukuran campur, masih dikumpulkan dulu', 'listnya menyusul kak']) {
+        const r = step(conv, text);
+        assert.deepEqual(texts(r.actions), [replies.detailLater()], text);
+        assert.equal(r.conv.step, 'awaiting_detail', `${text}: not closed`);
+        assert.equal(r.conv.details, conv.details, `${text}: not taken as the answer`);
+        assert.ok(!r.conv.misses, `${text}: not a miss`);
+    }
+
+    // Days later the list arrives: now the order goes to CS.
+    const r = step(conv, 'S 10, M 20, L 20');
+    assert.equal(r.conv.step, 'handed_over');
+    assert.match(r.conv.details, /S 10, M 20, L 20/);
+    // A list with numbers and "sisanya nanti" is an answer.
+    assert.equal(step(conv, 'M 20, sisanya nanti saya kabari').conv.step, 'handed_over');
+});
+
+test('a conversation waiting for the size list is not reset after a day; detailWaitDays is editable', async () => {
+    const { config } = await import('../src/config.js');
+    const { updateSettings } = await import('../src/settings.js');
+    run('DELETE FROM conversations');
+    store.saveConversation('utama', 'w@s.whatsapp.net', { step: 'awaiting_detail', product: 'kemeja', detail_index: 1 });
+    store.saveConversation('utama', 'x@s.whatsapp.net', { step: 'awaiting_quantity', product: 'kemeja' });
+    const days = (n) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
+
+    assert.equal(store.loadConversation('utama', 'w@s.whatsapp.net', days(5)).step, 'awaiting_detail');
+    assert.equal(store.loadConversation('utama', 'x@s.whatsapp.net', days(2)).step, 'new', 'other steps still reset after resetHours');
+    assert.equal(store.loadConversation('utama', 'w@s.whatsapp.net', days(15)).step, 'new', 'default 14 days');
+
+    const before = config.bot.detailWaitDays;
+    updateSettings({ detailWaitDays: '3' });
+    assert.equal(store.loadConversation('utama', 'w@s.whatsapp.net', days(4)).step, 'new');
+    assert.throws(() => updateSettings({ detailWaitDays: '0' }));
+    updateSettings({ detailWaitDays: String(before) });
+});
+
+test('the console says the active hours in words, day or night window', async () => {
+    const { describeHours } = await import('../src/bot/schedule.js');
+    assert.match(describeHours('17:30', '07:30'), /besok paginya/);
+    assert.match(describeHours('08:30', '18:30'), /siang/);
+    assert.match(describeHours('10:00', '10:00'), /24 jam setiap hari/);
 });

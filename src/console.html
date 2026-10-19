@@ -525,12 +525,18 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
           <div class="form">
             <label>Nama bot<small>Muncul di sapaan: "izinkan saya … selaku AI Agent"</small></label><input class="f" name="botName" required>
             <label>Nama CS<small>"sembari menunggu CS … online"</small></label><input class="f" name="csName" required>
-            <label>Jam bot aktif<small>Senin–Sabtu. Minggu selalu 24 jam.</small></label>
-            <div class="inline"><span>dari</span><input class="f" type="time" name="activeFrom" required><span>sampai</span><input class="f" type="time" name="activeUntil" required><span class="muted small">(melewati tengah malam)</span></div>
+            <label>Jam bot menjawab<small>Senin–Sabtu. Minggu (dan Mode libur) selalu 24 jam. Di luar jam ini bot diam dan CS yang membalas.</small></label>
+            <div class="stack" style="gap:6px">
+              <div class="inline"><span>mulai</span><input class="f" type="time" name="activeFrom" required><span>sampai</span><input class="f" type="time" name="activeUntil" required></div>
+              <div class="small" id="hoursSentence"></div>
+              <div class="small muted" id="hoursNow"></div>
+            </div>
             <label>Bot diam setelah diserahkan ke CS<small>Setelah itu pelanggan disapa bot lagi.</small></label>
             <div class="inline"><input class="f" type="number" name="handoverHours" min="1" max="168" style="width:90px" required><span>jam</span></div>
             <label>Bot menyerah setelah<small>Pesan yang tidak dipahami bot dibalas "Maaf kak, belum paham…" dulu. Setelah sekian kali berturut-turut, baru diserahkan ke CS.</small></label>
             <div class="inline"><input class="f" type="number" name="maxMisses" min="1" max="10" style="width:90px" required><span>pesan tidak dipahami berturut-turut</span></div>
+            <label>Lama menunggu jawaban lanjutan<small>Mis. list ukuran yang baru dikirim beberapa hari setelah size chart. Selama ini chat tidak ditutup; lewat dari ini pelanggan disapa dari awal lagi.</small></label>
+            <div class="inline"><input class="f" type="number" name="detailWaitDays" min="1" max="60" style="width:90px" required><span>hari</span></div>
             <label>Mode libur<small>Tanggal bot berjaga 24 jam (mis. Lebaran, cuti bersama). Satu baris per libur.</small></label>
             <div><textarea class="f" name="holidays" rows="3" placeholder="2027-03-08 - 2027-03-14 Lebaran&#10;2026-12-25 Natal"></textarea><div class="small muted" id="holidayHint" style="margin-top:4px">Format: tanggal-mulai - tanggal-selesai keterangan. Satu hari cukup satu tanggal.</div></div>
             <label>Kalimat balasan bot<small>Termasuk teks promo jersey [9].</small></label>
@@ -559,8 +565,39 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
             <label>Alamat Ollama<small>Biarkan kosong untuk Ollama Cloud. Ollama yang dipasang sendiri: http://localhost:11434</small></label>
             <input class="f" name="aiHost" placeholder="https://ollama.com">
           </div>
+          <details style="margin-top:12px"><summary><b>Lanjutan: instruksi & batas AI</b> <span class="small muted" id="aiPromptState"></span></summary>
+            <div class="form" style="margin-top:10px">
+              <label>Instruksi kalimat pembuka<small>Gaya kalimat pendek sebelum balasan. Larangan angka/harga/janji selalu ditambahkan otomatis. Kosongkan untuk kembali ke bawaan.</small></label>
+              <textarea class="f" name="aiOpeningPrompt" rows="4"></textarea>
+              <label>Instruksi menjawab pertanyaan<small>Gaya jawaban dari Pengetahuan toko. "Hanya dari fakta toko" dan larangan harga selalu ditambahkan otomatis. Kosongkan untuk kembali ke bawaan.</small></label>
+              <textarea class="f" name="aiAnswerPrompt" rows="4"></textarea>
+              <label>Batas per pelanggan<small>Panggilan AI per pelanggan tiap 10 menit (melawan spam).</small></label>
+              <input class="f" type="number" name="aiPerCustomer" min="1" max="500" style="width:110px">
+              <label>Batas total<small>Panggilan AI per menit untuk semua pelanggan.</small></label>
+              <input class="f" type="number" name="aiTotal" min="1" max="1000" style="width:110px">
+            </div>
+          </details>
+          <details style="margin-top:12px"><summary><b>Instruksi & batas AI</b> <span class="small muted" id="aiPromptState"></span></summary>
+            <div class="form" style="margin-top:10px">
+              <label>Instruksi kalimat pembuka<small>Gaya kalimat pendek sebelum balasan. Larangan (angka, harga, janji, link) selalu ditambahkan otomatis.</small></label>
+              <textarea class="f" name="aiOpeningPrompt" rows="4"></textarea>
+              <label>Instruksi menjawab pertanyaan<small>Gaya jawaban. AI tetap hanya menjawab dari Pengetahuan toko, produk dan Pola jawaban.</small></label>
+              <textarea class="f" name="aiAnswerPrompt" rows="4"></textarea>
+              <label>Batas per pelanggan<small>Panggilan AI per pelanggan per 10 menit.</small></label>
+              <input class="f" type="number" name="aiPerCustomer" min="1" max="500" style="width:110px">
+              <label>Batas total<small>Panggilan AI seluruh bot per menit (melindungi kuota dari spam).</small></label>
+              <input class="f" type="number" name="aiTotal" min="1" max="1000" style="width:110px">
+            </div>
+            <div class="row" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn sm" id="aiPromptReset">Kembalikan instruksi bawaan</button></div>
+          </details>
           <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px"><button type="button" class="btn" id="aiTest">Tes koneksi</button><button class="btn primary">Simpan</button></div>
           <div class="small" id="aiTestOut" style="margin-top:10px"></div>
+        </form>
+
+        <form class="card" id="knowForm">
+          <div class="row"><h3 style="flex:1">Pengetahuan toko (untuk AI)</h3><button class="btn primary">Simpan</button></div>
+          <p class="hint">Hanya dipakai kalau AI aktif. Pertanyaan yang tidak ada jawabannya di bot dijawab AI <b>hanya</b> dari catatan ini, daftar produk, dan Pola jawaban. Kalau tidak ada di sini, bot bilang belum tahu dan menawarkan CS. AI tidak pernah menyebut harga, angka, diskon atau janji, jadi jangan tulis harga di sini.</p>
+          <textarea class="f" name="storeKnowledge" rows="8" style="width:100%;font-family:inherit" placeholder="Contoh:&#10;Bahan kaos: cotton combed, bisa pilih warna.&#10;Sablon: plastisol dan DTF.&#10;Pembayaran: transfer bank, DP dulu sebelum produksi.&#10;Pengerjaan: tergantung jumlah, CS yang menginfokan jadwalnya."></textarea>
         </form>
 
         <form class="card" id="autoForm">
@@ -774,6 +811,7 @@ const HELP = {
     <li><b>Nama bot & CS</b>, <b>jam aktif</b>, berapa lama bot diam setelah CS membalas, <b>mode libur</b>.</li>
     <li><b>Bot menyerah setelah</b>: berapa kali bot boleh bilang "belum paham" sebelum menyerahkan ke CS.</li>
     <li><b>Rekap pagi</b>: daftar pelanggan semalam dikirim ke WhatsApp CS.</li>
+    <li><b>Pengetahuan toko</b>: catatan yang boleh dipakai AI untuk menjawab pertanyaan di luar naskah (bahan, cara bayar, dll). Jangan tulis harga.</li>
     <li><b>AI (Ollama)</b>: tempel kunci API dari ollama.com → Settings → Keys, pilih model, Simpan, lalu <b>Tes koneksi</b>. AI hanya dipakai untuk pesan yang tidak dikenali kata kunci.</li>
     <li><b>Pesan otomatis WhatsApp Business</b>: tempel teks Salam / Pesan tidak di tempat dari aplikasi WA Business, supaya bot tahu itu bukan CS yang membalas.</li>
     <li><b>Backup harian</b>: pilih folder Google Drive/OneDrive supaya data aman.</li></ul>`,
@@ -1756,15 +1794,20 @@ function renderAi(ai) {
     ? `Tersimpan: ${ai.keyMasked} (dari ${ai.keySource}). Kosongkan kalau tidak diubah.`
     : 'Belum ada kunci.';
   $('#aiKeyRemove').classList.toggle('hidden', ai.keySource !== 'pengaturan');
+  $('#aiPromptState').textContent = ai.promptsChanged ? '· instruksi diubah tim' : '· bawaan';
   if (!document.activeElement?.closest('#aiForm')) {
     $('#aiForm [name=aiModel]').value = ai.model || '';
     $('#aiForm [name=aiHost]').value = ai.hostSet ? ai.host : '';
+    $('#aiForm [name=aiOpeningPrompt]').value = ai.openingPrompt || '';
+    $('#aiForm [name=aiAnswerPrompt]').value = ai.answerPrompt || '';
+    $('#aiForm [name=aiPerCustomer]').value = ai.perCustomer ?? '';
+    $('#aiForm [name=aiTotal]').value = ai.total ?? '';
   }
 }
 async function loadAi() { renderAi(await api('/ai')); }
 $('#aiForm').onsubmit = async (e) => {
   e.preventDefault();
-  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value };
+  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, openingPrompt: f.aiOpeningPrompt.value, answerPrompt: f.aiAnswerPrompt.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value };
   if (f.aiKey.value.trim()) body.key = f.aiKey.value;
   try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify(body) })); f.aiKey.value = ''; toast('Pengaturan AI tersimpan dan langsung berlaku'); loadStatus(); }
   catch (err) { /* shown in the error pop-up */ }
@@ -1797,15 +1840,39 @@ async function loadPengaturan() {
   // Do not overwrite what someone is typing when the page refreshes.
   if (!settingsLoaded || !document.activeElement?.closest('form')) {
     const set = (form, name, v) => { const el = $(`${form} [name=${name}]`); if (el) el.value = v ?? ''; };
-    for (const n of ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses']) set('#settingsForm', n, values[n]);
+    for (const n of ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'detailWaitDays']) set('#settingsForm', n, values[n]);
     set('#settingsForm', 'holidays', (values.holidays || []).map((h) => `${h.from}${h.to !== h.from ? ' - ' + h.to : ''}${h.label ? ' ' + h.label : ''}`).join('\n'));
     set('#recapForm', 'recapTo', (values.recapTo || []).map((n) => '0' + n.slice(2)).join(', '));
     set('#recapForm', 'recapAt', values.recapAt);
     set('#backupForm', 'backupDir', values.backupDir);
     set('#autoForm', 'autoMessages', values.autoMessages);
+    set('#knowForm', 'storeKnowledge', values.storeKnowledge);
     settingsLoaded = true;
   }
+  renderHours();
 }
+// Says in words what the two times mean, as they are typed, so nobody has to
+// guess whether 08.30 -> 18.30 is "the day" or "the night".
+function renderHours() {
+  const from = $('#settingsForm [name=activeFrom]').value, until = $('#settingsForm [name=activeUntil]').value;
+  const dot = (t) => t.replace(':', '.');
+  let s = '';
+  if (!from || !until) s = 'Isi kedua jam.';
+  else if (from === until) s = '⚠️ Jam mulai sama dengan jam selesai: bot menjawab 24 jam setiap hari.';
+  else if (from > until) s = `Bot menjawab Senin–Sabtu pukul <b>${dot(from)}</b> sampai <b>${dot(until)} besok paginya</b>, dan Minggu seharian. Di luar itu bot diam (CS yang membalas).`;
+  else s = `Bot menjawab Senin–Sabtu pukul <b>${dot(from)}</b> sampai <b>${dot(until)}</b> di hari yang sama, dan Minggu seharian. Malamnya bot diam (CS yang membalas).`;
+  $('#hoursSentence').innerHTML = s;
+  const saved = info && from === info.activeFrom && until === info.activeUntil;
+  if (!info) $('#hoursNow').textContent = '';
+  else if (!saved) $('#hoursNow').textContent = 'Belum disimpan: tekan Simpan agar jam baru berlaku.';
+  else if (info.forceMode) $('#hoursNow').textContent = `Sekarang: bot ${info.botActive ? 'aktif' : 'diam'} karena BOT_FORCE=${info.forceMode} di .env, jam ini diabaikan.`;
+  else {
+    const at = info.nextChange ? new Date(info.nextChange) : null;
+    const when = at ? ` sampai ${at.toLocaleString('id-ID', { weekday:'long', hour:'2-digit', minute:'2-digit' })} (${countdown(info.nextChange)} lagi)` : '';
+    $('#hoursNow').textContent = `Sekarang: bot ${info.botActive ? 'aktif' : 'diam'}${when}${info.holiday ? ' · hari libur: ' + (info.holiday.label || 'Mode libur') : ''}.`;
+  }
+}
+$$('#settingsForm [name=activeFrom], #settingsForm [name=activeUntil]').forEach((el) => el.addEventListener('input', renderHours));
 async function saveForm(form, fields) {
   const data = Object.fromEntries(fields.map((f) => [f, $(`[name=${f}]`, form).value]));
   const btn = $('button.primary', form); btn.disabled = true;
@@ -1813,10 +1880,11 @@ async function saveForm(form, fields) {
   catch (err) { toast('Belum tersimpan: ' + err.message); }
   finally { btn.disabled = false; }
 }
-$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'holidays']); };
+$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'detailWaitDays', 'holidays']); };
 $('#recapForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['recapTo', 'recapAt']); };
 $('#backupForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['backupDir']); };
 $('#autoForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['autoMessages']); };
+$('#knowForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['storeKnowledge']); };
 $('#backupNow').onclick = async (e) => {
   e.target.disabled = true;
   try { const r = await api('/backup/now', { method:'POST' }); toast('Backup tersimpan: ' + r.file); }

@@ -14,7 +14,7 @@ import { TEACHABLE, addKeyword, customKeywords, removeKeyword, updateKeyword } f
 import { media } from './bot/media.js';
 import { createProduct, deleteProduct, listProducts, productKeywords, productName, updateProduct } from './bot/products.js';
 import { listTemplates, render, resetTemplate, templateText, updateTemplate } from './bot/replies.js';
-import { holidayOn, isBotActive, localClock, nextChange } from './bot/schedule.js';
+import { describeHours, holidayOn, isBotActive, localClock, nextChange } from './bot/schedule.js';
 import { resetSimulation, simulate } from './bot/simulator.js';
 import { analytics, dismissKey, dismissText, dismissedTexts, listConversations, loadConversation, markHandover, messagesOf, resetConversation, stats, suggestPhrase, unrecognised } from './bot/store.js';
 import { config, root } from './config.js';
@@ -143,7 +143,7 @@ app.get('/info', wrap(async (req, res) => {
         commit: installedVersion(),
         botName: config.bot.botName,
         csName: config.bot.csName,
-        schedule: `aktif Sen–Sab ${config.bot.activeFrom}–${config.bot.activeUntil}, Minggu 24 jam`,
+        schedule: describeHours(config.bot.activeFrom, config.bot.activeUntil),
         botActive: isBotActive(),
         nextChange: nextChange()?.toISOString() ?? null,
         activeFrom: config.bot.activeFrom,

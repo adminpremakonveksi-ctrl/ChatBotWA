@@ -28,8 +28,11 @@ export function parseJson(content) {
     return JSON.parse(text.slice(start, end + 1));
 }
 
-export async function classifyWithOllama(input, { fetchImpl = fetch } = {}) {
-    const schema = resultSchema();
+/**
+ * One chat call to Ollama that must answer with a JSON object of `schema`
+ * (a zod schema). Returns the raw parsed object; callers validate it.
+ */
+export async function ollamaJson({ system, user, schema, temperature = 0 }, { fetchImpl = fetch } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (config.ollama.apiKey) headers.Authorization = `Bearer ${config.ollama.apiKey}`;
 
@@ -42,10 +45,10 @@ export async function classifyWithOllama(input, { fetchImpl = fetch } = {}) {
             stream: false,
             think: false,
             format: z.toJSONSchema(schema),
-            options: { temperature: 0 },
+            options: { temperature },
             messages: [
-                { role: 'system', content: `${systemPrompt()}\n\nJawab HANYA dengan satu objek JSON sesuai skema. Pakai label persis dari daftar, jangan membuat label baru.` },
-                { role: 'user', content: userTurn(input) },
+                { role: 'system', content: `${system}\n\nJawab HANYA dengan satu objek JSON sesuai skema.` },
+                { role: 'user', content: user },
             ],
         }),
     });
@@ -56,12 +59,21 @@ export async function classifyWithOllama(input, { fetchImpl = fetch } = {}) {
         throw new Error(`Ollama ${response.status}: ${String(body.error ?? '').slice(0, 160)}`);
     }
 
+    return { answer: parseJson(body.message?.content), raw: String(body.message?.content ?? '') };
+}
+
+export async function classifyWithOllama(input, { fetchImpl = fetch } = {}) {
+    const schema = resultSchema();
+    const { answer, raw } = await ollamaJson(
+        { system: `${systemPrompt()}\n\nPakai label persis dari daftar, jangan membuat label baru.`, user: userTurn(input), schema },
+        { fetchImpl },
+    );
+
     // Fields a small model leaves out get their neutral value; the labels themselves must be valid.
-    const answer = parseJson(body.message?.content);
     const parsed = schema.safeParse({ extras: [], product: null, name: null, origin: null, sizeVariant: 'reguler', ...answer });
 
     if (!parsed.success) {
-        throw new Error(`Ollama memberi label di luar daftar: ${String(body.message?.content).slice(0, 120)}`);
+        throw new Error(`Ollama memberi label di luar daftar: ${raw.slice(0, 120)}`);
     }
 
     return normaliseResult({ ...parsed.data, source: 'ollama' }, productKeys());

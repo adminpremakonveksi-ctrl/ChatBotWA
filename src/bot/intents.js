@@ -94,6 +94,7 @@ export function normaliseResult(result, productKeys) {
         pattern: intent === 'custom' ? patterns[0] : null,
         // The message also asks something only CS can answer ("bisa DP?"), next to its main intent.
         csQuestion: Boolean(result?.csQuestion) || result?.intent === 'cs_question',
+        isQuestion: Boolean(result?.isQuestion),
         // The keyword reading rested on a typo guess (the AI double-checks those).
         guessed: Boolean(result?.guessed),
         // "none" (no design yet) / "ready" (they have one) when the message says so.
