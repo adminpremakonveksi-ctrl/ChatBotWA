@@ -360,6 +360,42 @@ CREATE TABLE IF NOT EXISTS lid_map (
             addAwayMessage(db);
         },
     },
+    {
+        // "nama ku haikal" was the name "Ku Haikal": more words around a name.
+        id: '014_name_words',
+        up(db) {
+            syncSeeds(db, '014_name_words');
+        },
+    },
+    {
+        // A list saved from the console is also kept as the setting text
+        // (cfg:autoMessages), which rewrites the list on every boot: 013's
+        // addition was lost there. Both get the away message.
+        id: '015_away_message_setting',
+        up(db) {
+            addAwayMessage(db);
+
+            const row = db.prepare(`SELECT value FROM settings WHERE "key" = 'cfg:autoMessages'`).get();
+            if (!row) return;
+
+            let text;
+            try {
+                text = JSON.parse(row.value);
+            } catch {
+                return;
+            }
+            if (typeof text !== 'string' || text.includes(SEED_AWAY_MESSAGE)) return;
+
+            db.prepare(`UPDATE settings SET value = ? WHERE "key" = 'cfg:autoMessages'`).run(JSON.stringify(`${text.trim()}\n---\n${SEED_AWAY_MESSAGE}`));
+        },
+    },
+    {
+        // "ok makasih sih", "halo malam dong hehe": the words chats add that say nothing.
+        id: '016_chat_extras',
+        up(db) {
+            syncSeeds(db, '016_chat_extras');
+        },
+    },
 ];
 
 /** Adds the away message to a list the team already saved, once; a fresh install gets it as the default. */

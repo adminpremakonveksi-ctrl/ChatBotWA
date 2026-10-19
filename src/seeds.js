@@ -3027,3 +3027,36 @@ export const AUTO_MESSAGES_KEY = 'wa:auto_messages';
 export const SEED_AWAY_MESSAGE =
     'Terima kasih telah menghubungi Prema Konveksi. Mohon menunggu ya kak, pesan kakak akan segera kami respon ketika customer service online kembali.\n\n' +
     'Jam kerja customer service (fast response), adalah pukul 08.30 sd 17.00 😇🙏';
+
+/**
+ * "nama ku haikal" was read as the name "Ku Haikal", "aku haikal loh" as
+ * "Haikal Loh" (2026-10-19): more lead words, and the particles that follow a name.
+ */
+SEED_WORDS.awal_nama_pasti = {
+    label: 'Awal nama (pasti kenalan)',
+    help: 'Pesan berisi kata ini dan sebuah nama selalu dianggap kenalan, juga di tengah alur ("eh salah, nama saya Haikal"): namanya diganti, bukan dianggap jawaban desain.',
+    words: ['nama saya', 'nama aku', 'nama ku', 'namaku', 'nama sy', 'nama gw', 'nama gue', 'perkenalkan', 'kenalin', 'kenalkan', 'panggil aja', 'panggil saja', 'dipanggil', 'nami kulo', 'nami kula', 'nami abdi', 'jenengku', 'asmanipun', 'aranku'],
+};
+const NAME_WORDS_014 = {
+    awal_nama: ['nama ku', 'nama gw', 'nama gue', 'nama aq', 'panggil aja', 'panggil saja', 'dipanggil', 'biasa dipanggil'],
+    penghenti_nama: ['loh', 'lho', 'dong', 'deh', 'sih', 'kok', 'aja', 'saja'],
+    bukan_nama: ['ku', 'loh', 'lho', 'dong', 'deh', 'sih', 'eh', 'salah', 'maaf', 'maksudnya', 'maksud', 'bukan', 'benar', 'betul', 'saja', 'panggil'],
+};
+// Fresh installs get them from SEED_WORDS too.
+for (const [list, add] of Object.entries(NAME_WORDS_014)) SEED_WORDS[list].words = [...new Set([...SEED_WORDS[list].words, ...add])];
+SEED_ADDITIONS.push({
+    migration: '014_name_words',
+    words: { ...NAME_WORDS_014, awal_nama_pasti: SEED_WORDS.awal_nama_pasti.words },
+});
+
+/**
+ * Words people add to any chat that say nothing ("ok makasih sih", "halo
+ * malam dong hehe", "Budi, Magelang kak"): ignored where a message must be
+ * only a greeting, a thank-you or a name (2026-10-19).
+ */
+SEED_WORDS.kata_imbuhan = {
+    label: 'Kata tambahan obrolan',
+    help: 'Kata yang sering ditambahkan orang di chat tapi tidak mengubah maksud ("dong", "sih", "hehe", "wkwk"). Diabaikan saat bot mengenali sapaan, ucapan terima kasih dan nama.',
+    words: ['dong', 'donk', 'sih', 'deh', 'loh', 'lho', 'kok', 'tuh', 'nih', 'nah', 'yah', 'ya', 'kak', 'kakak', 'ka', 'min', 'gan', 'sis', 'bang', 'om', 'hehe', 'hihi', 'haha', 'huhu', 'hoho', 'wkwk', 'xixi', 'hmm', 'hm', 'eh', 'anu', 'btw', 'aja', 'saja', 'yaudah', 'yasudah', 'oh', 'iya', 'gini', 'begini', 'permisi', 'maaf', 'ganggu'],
+};
+SEED_ADDITIONS.push({ migration: '016_chat_extras', words: { kata_imbuhan: SEED_WORDS.kata_imbuhan.words } });

@@ -1,4 +1,5 @@
-import { getSetting, setSetting } from '../db.js';
+import { config } from '../config.js';
+import { all, getSetting, run, setSetting } from '../db.js';
 import { AUTO_MESSAGES_KEY as KEY, SEED_AWAY_MESSAGE } from '../seeds.js';
 import { normalise } from '../text.js';
 import { fillText, TEMPLATES } from './replies.js';
@@ -74,4 +75,40 @@ export function isAutoMessage(text) {
         // Both ways: the message is mostly an automatic text, and not a long CS reply around it.
         return shared / theirs.size >= SIMILAR && covered / mine.size >= SIMILAR;
     });
+}
+
+/**
+ * Chats handed to CS only because an automatic message was taken for CS
+ * typing (before it was in the list) go back to the bot. Run at boot, when
+ * the list is saved, and when an automatic message arrives. A chat where
+ * CS really typed in the handover window stays with CS.
+ */
+export function releaseAutoHandovers({ sessionKey = null, jid = null } = {}) {
+    const held = all(
+        `SELECT session_key, jid, name, handed_over_at FROM conversations
+         WHERE step = 'handed_over' AND handover_reason = 'CS membalas'
+           AND (? IS NULL OR session_key = ?) AND (? IS NULL OR jid = ?)`,
+        [sessionKey, sessionKey, jid, jid],
+    );
+    const released = [];
+
+    for (const c of held) {
+        const typed = all(
+            `SELECT text FROM message_log
+             WHERE session_key = ? AND jid = ? AND direction = 'cs' AND created_at >= datetime(?, ?)`,
+            [c.session_key, c.jid, c.handed_over_at, `-${Number(config.bot.handoverHours) || 24} hours`],
+        );
+
+        if (!typed.length || !typed.every((m) => isAutoMessage(m.text ?? ''))) continue;
+
+        // Where they were is not kept by a handover; with their name, the product question.
+        run(
+            `UPDATE conversations SET step = ?, handed_over_at = NULL, handover_reason = NULL, misses = 0
+             WHERE session_key = ? AND jid = ?`,
+            [c.name ? 'awaiting_product' : 'new', c.session_key, c.jid],
+        );
+        released.push(c.jid);
+    }
+
+    return released;
 }

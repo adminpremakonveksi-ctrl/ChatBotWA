@@ -315,3 +315,28 @@ test('sizes are asked last: [4], the product question, [5] how many, then sizes,
 
     updateProduct('kaos', { questions: [] });
 });
+
+test('a name said again or corrected mid-chat is kept, never a miss (2026-10-19, "Ku Haikal Loh")', () => {
+    for (const [text, name] of [['nama ku haikal', 'Haikal'], ['aku haikal loh', 'Haikal'], ['eh salah, nama saya Haikal', 'Haikal'], ['panggil aja Haikal', 'Haikal']]) {
+        const c = classifyWithRules({ text, step: 'awaiting_product' });
+        assert.equal(c.intent, 'introduction', text);
+        assert.equal(c.name, name, text);
+    }
+
+    // Already introduced, at the product question: three corrections in a row stay with the bot.
+    let conv = { step: 'awaiting_product', name: 'Budi', origin: 'Jogja' };
+    for (const text of ['aku haikal loh', 'nama ku haikal', 'eh salah, nama saya Haikal']) {
+        const r = step(conv, text);
+        assert.deepEqual(texts(r.actions), [replies.afterIntro('Haikal')], text);
+        assert.equal(r.conv.name, 'Haikal');
+        assert.equal(r.conv.origin, 'Jogja', 'the origin said before is kept');
+        assert.ok(!r.conv.misses, `${text}: not a miss`);
+        conv = r.conv;
+    }
+
+    // Mid-order: the name changes, the flow waits at its question.
+    const r = step({ step: 'awaiting_design', product: 'kaos', name: 'Budi' }, 'eh salah, nama saya Haikal');
+    assert.deepEqual(texts(r.actions), [replies.introAgain('Haikal')]);
+    assert.equal(r.conv.step, 'awaiting_design');
+    assert.equal(r.conv.name, 'Haikal');
+});

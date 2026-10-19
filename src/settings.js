@@ -4,7 +4,7 @@ import path from 'node:path';
 
 import { config, root } from './config.js';
 import { all, setSetting } from './db.js';
-import { autoMessages, setAutoMessages } from './bot/auto-messages.js';
+import { autoMessages, releaseAutoHandovers, setAutoMessages } from './bot/auto-messages.js';
 
 /**
  * Settings the team changes from the console, so nobody has to edit .env.
@@ -170,7 +170,11 @@ const FIELDS = {
             return text;
         },
         get: () => autoMessages().join('\n---\n'),
-        set: (v) => setAutoMessages(v),
+        set: (v) => {
+            setAutoMessages(v);
+            // Chats muted by a text that is now in the list go back to the bot.
+            releaseAutoHandovers();
+        },
     },
 };
 

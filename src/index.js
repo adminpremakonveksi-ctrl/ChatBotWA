@@ -28,6 +28,7 @@ import { classifyWithOllama } from './bot/classify-ollama.js';
 import { backup, buildRecap, sendTestRecap, startMaintenance } from './maintenance.js';
 import { manager } from './manager.js';
 import { backupSuggestions, currentSettings, loadSettings, updateSettings } from './settings.js';
+import { releaseAutoHandovers } from './bot/auto-messages.js';
 
 const loopback = ['127.0.0.1', 'localhost', '::1'].includes(config.host);
 
@@ -628,6 +629,9 @@ async function main() {
     describeDatabase();
     loadSettings();
     loadAiSettings();
+    // Chats handed to CS only because a WhatsApp Business automatic message was taken for CS.
+    const released = releaseAutoHandovers();
+    if (released.length) logger.info({ chat: released.length }, 'chat dikembalikan ke bot: yang dikira CS ternyata pesan otomatis');
 
     logger.info(
         {

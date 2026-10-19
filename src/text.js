@@ -45,11 +45,27 @@ export const expandWord = (word) => words.get(word) ?? word;
  * database (see migrations.js).
  */
 export function textRulesVersion() {
-    const source = JSON.stringify([[...words.entries()].sort(), phrases, 'reduplication-1']);
+    const source = JSON.stringify([[...words.entries()].sort(), phrases, 'reduplication-1', 'doubles-2']);
     let hash = 5381;
     for (let i = 0; i < source.length; i++) hash = ((hash * 33) ^ source.charCodeAt(i)) >>> 0;
 
     return hash.toString(36);
+}
+
+/**
+ * One word as people stretch it: "kakkk" -> "kak", and a doubled last letter
+ * "sayaa", "okk", "kaoss" -> "saya", "ok", "kaos". Keywords are stored through
+ * the same rule, so "all size" still matches "all size" (both read "al size").
+ * Laughter is one word: "wkwkwk" -> "wkwk", "hahaha" -> "haha".
+ */
+export function squashWord(word) {
+    const w = String(word).toLowerCase().replace(/(\p{L})\1{2,}/gu, '$1');
+
+    if (/^(?:wk){2,}w?$|^(?:kw){2,}k?$/.test(w)) return 'wkwk';
+    if (/^(?:h[aeiou]){2,}h?$/.test(w)) return `h${w[1]}h${w[1]}`;
+    if (w.length >= 3) return w.replace(/(\p{L})\1$/u, '$1');
+
+    return w;
 }
 
 /** Lowercase, strip punctuation, squash "kakkk" -> "kak", expand shorthand; padded with spaces for word matching. */
@@ -57,9 +73,9 @@ export function normalise(text) {
     const joined = String(text ?? '')
         .toLowerCase()
         .replace(/[^\p{L}\p{N}&\- ]/gu, ' ')
-        .replace(/(\p{L})\1{2,}/gu, '$1')
         .split(/\s+/)
         .filter(Boolean)
+        .map((word) => (words.has(word) ? word : squashWord(word)))
         // "nanya2", "takon-takon" -> "nanya nanya", "takon takon" (reduplication).
         .flatMap((word) => {
             if (/^\p{L}{2,}2$/u.test(word) && !words.has(word)) return [word.slice(0, -1), word.slice(0, -1)];

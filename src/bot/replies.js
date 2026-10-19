@@ -53,6 +53,13 @@ export const TEMPLATES = {
         vars: ['nama'],
         text: 'Siap Kak {nama}, salam kenal ya. Kak {nama} mau informasi tentang produk apa nih? Kami siap bantu 😉',
     },
+    introAgain: {
+        group: 'Sapaan',
+        label: 'Kenalan lagi di tengah obrolan',
+        when: 'Pelanggan menyebut atau membetulkan namanya di tengah alur ("eh salah, nama saya Haikal"). Nama diganti, alur tetap di pertanyaan yang sedang ditunggu.',
+        vars: ['nama'],
+        text: 'Siap Kak {nama}, salam kenal ya 😊',
+    },
 
     askDesign: {
         group: 'Alur pemesanan',
@@ -379,6 +386,7 @@ export const replies = {
     // The team's Salam when set, else the spec's [2].
     greetUnknown: () => render('welcome') ?? render('greetUnknown'),
     afterIntro: (nama) => render('afterIntro', { nama }),
+    introAgain: (nama) => render('introAgain', { nama }),
     askDesign: (produk) => render('askDesign', { produk }),
     askQuantity: () => render('askQuantity'),
     askQuantityCatalog: () => render('askQuantityCatalog'),

@@ -3,7 +3,7 @@ import { customKeywords } from './keywords.js';
 import { activePatterns } from './patterns.js';
 import { productKeys } from './products.js';
 import { wordMap, wordSet, wordsOf } from './words.js';
-import { normalise } from '../text.js';
+import { normalise, squashWord } from '../text.js';
 
 // Kept here too: callers import them from the classifier.
 export { normalise };
@@ -168,7 +168,27 @@ const STOP = () => `(?=\\s+${alt('penghenti_nama')}\\b|\\s*$)`;
 
 /** Pulls a name and origin out of "saya Budi dari Jogja", "Budi, Magelang", ... */
 export function findIntroduction(raw, { lenient = false } = {}) {
-    const text = String(raw ?? '').replace(/[!?]+/g, ' ').replace(/\s+/g, ' ').trim();
+    // As typed, minus emoji and stretched letters ("sayaa Budi 🙏"), and minus
+    // the chat's extras at the end ("Budi, Magelang kak hehe").
+    const extras = wordSet('kata_imbuhan');
+    const parts = String(raw ?? '')
+        .replace(/[^\p{L}\p{N}\s,.'-]/gu, ' ')
+        .split(/\s+/)
+        .filter(Boolean)
+        .map((word) => {
+            const [, core, tail] = word.match(/^(.*?)([,.]*)$/u);
+
+            if (!core) return word;
+            const squashed = squashWord(core);
+
+            // Unchanged words keep their capitals ("Jogja").
+            return (squashed === core.toLowerCase() ? core : squashed) + tail;
+        });
+    const extra = (word) => extras.has(word.replace(/[,.]+$/, '').toLowerCase());
+    while (parts.length > 1 && extra(parts.at(-1))) parts.pop();
+    // "eh, Budi dari Jogja", "permisi kak, Budi, Magelang": the same at the start.
+    while (parts.length > 1 && extra(parts[0])) parts.shift();
+    const text = parts.join(' ').replace(/[,.]+$/, '').trim();
 
     let name = null;
     let origin = null;
@@ -227,8 +247,10 @@ function onlyPhrases(normalised, phrases, fillers, allowEmpty = false) {
     }
 
     const left = tokens(rest);
+    // "ok makasih sih", "halo malam dong hehe": the chat's own extras (Kamus kata_imbuhan) say nothing.
+    const extras = wordSet('kata_imbuhan');
 
-    return left.every((word) => fillers.has(word)) && (hit || (allowEmpty && !tokens(normalised).length));
+    return left.every((word) => fillers.has(word) || extras.has(word)) && (hit || (allowEmpty && !tokens(normalised).length));
 }
 
 // A number with a unit is an amount anywhere ("kemeja 2000 pcs"); a bare
@@ -362,6 +384,10 @@ export function classifyWithRules({ text, hasImage = false, hasAudio = false, at
     // "ok kak", "siap makasih", or only an emoji: nothing to answer, nothing to hand over.
     if (!hasImage && onlyPhrases(normalised, keywordsFor('ack'), wordSet('pengisi_oke'), true)) return result('ack');
 
+    // "eh salah, nama saya Haikal" at the design question: a name said plainly
+    // (Kamus awal_nama_pasti), not a design description.
+    if (intro.name && cleanName(intro.name) && mentions(normalised, wordsOf('awal_nama_pasti'))) return result('introduction');
+
     if (step === 'awaiting_design' && tokens(normalised).length >= 3) {
         // A sentence about what they want is the design description.
         return result('has_reference');
@@ -375,7 +401,9 @@ export function classifyWithRules({ text, hasImage = false, hasAudio = false, at
     const words = tokens(normalised);
 
     // Only greetings ("met malam kak", "sugeng dalu mas"), phrases included.
-    if (words.length && words.length <= 6 && onlyPhrases(normalised, keywordsFor('greeting'), wordSet('pengisi_sapaan'))) {
+    // At most six words that say something ("eh halo selamat malam ya kak hehe" is a greeting).
+    const meaningful = words.filter((word) => !wordSet('kata_imbuhan').has(word));
+    if (words.length && meaningful.length <= 6 && onlyPhrases(normalised, keywordsFor('greeting'), wordSet('pengisi_sapaan'))) {
         return result('greeting');
     }
 

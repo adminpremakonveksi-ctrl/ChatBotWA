@@ -4,7 +4,7 @@ import { config } from '../config.js';
 import { recordActivity } from '../activity.js';
 import { logger } from '../logger.js';
 import { classify as defaultClassify } from './classify.js';
-import { isAutoMessage } from './auto-messages.js';
+import { isAutoMessage, releaseAutoHandovers } from './auto-messages.js';
 import { decide } from './engine.js';
 import { productName } from './products.js';
 import { replies } from './replies.js';
@@ -117,6 +117,8 @@ export class Bot {
         if (isAutoMessage(text)) {
             this.store.logMessage({ sessionKey, jid, direction: 'auto', waMessageId: id, text });
             this.log.info({ jid }, 'pesan otomatis WhatsApp Business, bot tetap menangani');
+            // Handed to CS earlier only because this text was taken for CS: back to the bot.
+            if (releaseAutoHandovers({ sessionKey, jid }).length) this.log.info({ jid }, 'dikembalikan ke bot: yang dikira CS ternyata pesan otomatis');
 
             // The Salam already greeted them and asked who and where from: the
             // reply to the message it answered does not greet a second time.

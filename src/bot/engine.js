@@ -512,17 +512,20 @@ export function decide(conversation, classified, media, { random = Math.random }
             return;
         }
 
+        // A name, first or corrected ("eh salah, nama saya Haikal"): kept, never
+        // a miss. Before the product: [3] again; mid-order: the flow waits where it was.
+        if (r.intent === 'introduction' && r.name) {
+            remember('name', r.name);
+            remember('origin', r.origin);
+            say(step === 'awaiting_product' ? replies.afterIntro(r.name) : replies.introAgain(r.name));
+
+            return;
+        }
+
         switch (step) {
             case 'awaiting_product':
                 if (r.intent === 'product' && r.product) return productFlow(r.product);
                 if (r.intent === 'greeting') return; // already asked; nothing to add
-                if (r.intent === 'introduction' && r.name && !state().name) {
-                    remember('name', r.name);
-                    remember('origin', r.origin);
-                    say(replies.afterIntro(r.name));
-
-                    return;
-                }
                 // The greeting already asked what they need; do not apologise on the first message.
                 if (conv.step === 'new') return;
 
@@ -544,11 +547,7 @@ export function decide(conversation, classified, media, { random = Math.random }
                 return finish();
 
             case 'awaiting_detail':
-                // A greeting or a name while a follow-up question waits: keep the name, ask nothing new.
-                if (r.intent === 'introduction' && r.name && !state().name) {
-                    remember('name', r.name);
-                    remember('origin', r.origin);
-                }
+                // A greeting while a follow-up question waits: ask nothing new.
                 if (['greeting', 'introduction'].includes(r.intent)) return;
 
                 return notUnderstood(`jawaban detail tidak dipahami (${r.intent})`);
