@@ -49,6 +49,10 @@ export const ignoredJid = (jid) =>
 // Sent within the last two minutes (messageTimestamp is seconds, maybe a Long).
 const isRecent = (message) => Date.now() / 1000 - Number(message.messageTimestamp ?? 0) < 120;
 
+// A customer message delivered late (the bot was reconnecting or restarting): still answered within this window.
+const CATCH_UP_SECONDS = 15 * 60;
+export const isRecentCatchUp = (message, now = Date.now()) => now / 1000 - Number(message?.messageTimestamp ?? 0) < CATCH_UP_SECONDS;
+
 /** One WhatsApp number: its socket, its pairing state and its reconnect loop. */
 export class Session {
     constructor(row, bot) {
@@ -279,8 +283,15 @@ export class Session {
                 this.bot.onOwnMessage(this.key, { jid, id: message.key.id, text });
                 continue;
             } else if (type !== 'notify') {
-                // History sync and other catch-up batches are not new chats.
-                continue;
+                // A message that came while the bot was reconnecting arrives as a
+                // catch-up ("append"); a recent one is a customer waiting, not
+                // history. These were dropped without a trace (2026-10-27: no chat
+                // reached the bot for a week while the line kept timing out).
+                if (!isRecentCatchUp(message)) {
+                    this.log.info({ from: jid, type, id: message.key.id }, 'pesan lama dari sinkronisasi dilewati');
+                    continue;
+                }
+                this.log.info({ from: jid, type }, 'pesan tertunda saat menyambung ulang, tetap dibalas');
             }
 
             // What came with (or instead of) words. A sticker is a reaction, not a design.

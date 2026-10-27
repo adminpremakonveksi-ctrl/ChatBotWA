@@ -498,3 +498,38 @@ test('the AI thinks before it writes: "pikir" comes first, is never sent, and th
     updateAiSettings({ chatExamples: '' });
     assert.match(aiSettings().chatExamples, /Nagata Drill/);
 });
+
+test('last touch (2026-10-27): the AI knows the time and when CS is back; no repeated reply; emoji in moderation', async () => {
+    const { timeBlock } = await import('../src/bot/chat.js');
+    const before = { ...config.bot };
+    Object.assign(config.bot, { timezone: 'Asia/Jakarta', activeFrom: '17:30', activeUntil: '07:30', forceMode: '', holidays: [] });
+    try {
+        // Saturday 2026-10-24 21:30 WIB: on guard all Sunday; CS is back Monday, at the shop's CS hours (not the bot's 07.30).
+        const sat = timeBlock(new Date('2026-10-24T14:30:00Z'));
+        assert.match(sat, /WAKTU SEKARANG: Sabtu, pukul 21\.30 WIB/);
+        assert.match(sat, /CS Anggun sedang tidak online; CS membalas lagi Senin \(Senin\), pada jam kerja CS/);
+        assert.doesNotMatch(sat, /07\.30/);
+        // Tuesday 2026-10-27 20:00 WIB: back tomorrow.
+        assert.match(timeBlock(new Date('2026-10-27T13:00:00Z')), /lagi besok \(Rabu\)/);
+        // Office hours: no "not online" line.
+        assert.doesNotMatch(timeBlock(new Date('2026-10-27T03:00:00Z')), /tidak online/);
+
+        // The times are facts, so a reply may quote them.
+        let prompt = '';
+        const fetchImpl = async (url, options) => {
+            prompt = JSON.parse(options.body).messages[0].content;
+            return { ok: true, json: async () => ({ message: { content: JSON.stringify({ pikir: { maksud: 'kapan dibalas', fakta: 'Senin, jam kerja CS 08.30', belum_tahu: '', langkah: 'jawab' }, balasan: 'CS Anggun membalas lagi Senin mulai pukul 08.30 ya, Kak 😊', kirim: [], serahkan_cs: false, alasan: '', catatan_cs: '', nama_pelanggan: '', produk: '', terjawab: [] }) } }) };
+        };
+        const r = await withAi(() => askChat({ text: 'adminnya kapan bales kak?', now: new Date('2026-10-24T14:30:00Z') }, { media, fetchImpl }));
+        assert.equal(r.reply, 'CS Anggun membalas lagi Senin mulai pukul 08.30 ya, Kak 😊', 'the hour from the owner\'s Jam kerja CS');
+        assert.match(prompt, /WAKTU SEKARANG/);
+    } finally {
+        Object.assign(config.bot, before);
+    }
+
+    const last = 'Untuk bahan kaos ada Cotton Combed 24s dan 30s, Kak. Mau pakai yang mana?';
+    assert.match(checkReply('Untuk bahan kaos ada Cotton Combed 24s dan 30s ya Kak. Mau pakai yang mana?', 'Cotton Combed 24s 30s', { previous: last }), /hampir sama/);
+    assert.equal(checkReply('Siap, 24s ya Kak. Warnanya mau apa?', 'Cotton Combed 24s 30s', { previous: last }), null);
+    assert.match(checkReply('Siap kak 😊😊🙏🎉', ''), /emoji/);
+    assert.equal(checkReply('Siap kak 😊🙏', ''), null);
+});

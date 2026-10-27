@@ -7,6 +7,7 @@ import { allowAiCall } from './classify.js';
 import { ollamaEnabled, ollamaJson } from './classify-ollama.js';
 import { classifyWithRules } from './classify-rules.js';
 import { knowledgeBlock } from './knowledge.js';
+import { isBotActive, localClock, localDateString, nextChange } from './schedule.js';
 import { recordAi } from './ai-log.js';
 import { getProduct, productKeys, productName } from './products.js';
 import { replies } from './replies.js';
@@ -227,6 +228,10 @@ CARA MEMBALAS:
 - Pelanggan hanya berterima kasih atau bilang "oke": balas singkat dan hangat, tanpa pertanyaan baru kecuali masih ada yang perlu ditanyakan.
 - Sebut nama pelanggan sesekali kalau tahu, jangan di setiap balasan.
 - Ikuti bahasa pelanggan (Indonesia santai, atau Jawa kalau ia memakai Jawa dan kamu yakin).
+- Obrolan di luar urusan pesanan (cuaca, curhat, candaan): tanggapi singkat dan ramah, lalu arahkan kembali ke kebutuhan pesanannya. Jangan membahas politik, agama, SARA, atau memberi pendapat pribadi.
+- Pelanggan mengirim gambar/file: ucapkan terima kasih, bilang file itu akan dilihat CS; jangan menebak isi gambarnya.
+- Emoji paling banyak 2 per balasan.
+- Pelanggan menanyakan kapan admin/CS membalas: pakai WAKTU SEKARANG di DATA TOKO.
 
 ${examples ? `CONTOH GAYA (hanya contoh cara bicara; faktanya tetap ambil dari DATA TOKO, bukan dari contoh ini):\n${fill(examples)}\n\n` : ''}ATURAN TETAP (selalu berlaku):
 1. Jawab HANYA dari DATA TOKO di bawah. Yang tidak ada di data, atau tertulis "belum diisi", JANGAN ditebak: katakan akan ditanyakan ke CS ${config.bot.csName}.
@@ -281,7 +286,46 @@ const lower = (value) => String(value ?? '').toLowerCase();
 const LINK = /\bhttps?:\/\/[^\s)]+|\bwww\.[^\s)]+|\b[\w-]+\.(?:com|id|co|me|net|org|io|ly)(?:\/[^\s)]*)?/gi;
 const NUMBER = /\d+(?:[.,]\d+)*/g;
 
-const MONEY_ANY = /\brp\.?\s*\d[\d.,]*|\d[\d.,]*\s*(?:rb|ribu|k|jt|juta)\b/gi;
+/** Share of words two texts have in common (0-1). */
+function similar(a, b) {
+    const words = (t) => new Set(norm(t).split(' ').filter((w) => w.length > 2));
+    const x = words(a);
+    const y = words(b);
+    if (!x.size || !y.size) return 0;
+    let shared = 0;
+    for (const w of x) if (y.has(w)) shared++;
+
+    return shared / Math.max(x.size, y.size);
+}
+
+const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+const hhmm = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}.${String(minutes % 60).padStart(2, '0')}`;
+
+/**
+ * Now, and when CS answers again, from the bot's own schedule (Pengaturan >
+ * jam bot menjawab): while the bot is on guard, CS is away; the next switch is
+ * when CS is back. Written as facts, so the times may be quoted.
+ */
+export function timeBlock(now = new Date()) {
+    const tz = config.bot.timezone;
+    const at = localClock(now, tz);
+    const lines = [`WAKTU SEKARANG: ${DAY_NAMES[at.day]}, pukul ${hhmm(at.minutes)} WIB.`];
+
+    if (!config.bot.forceMode && isBotActive(now)) {
+        const back = nextChange(now);
+        if (back) {
+            const b = localClock(back, tz);
+            const days = Math.round((Date.parse(localDateString(back, tz)) - Date.parse(localDateString(now, tz))) / 86400000);
+            const when = days === 0 ? 'hari ini' : days === 1 ? 'besok' : DAY_NAMES[b.day];
+            // The day only: when the bot stops (07.30) is not when CS starts (the shop's "Jam kerja CS").
+            lines.push(`CS ${config.bot.csName} sedang tidak online; CS membalas lagi ${when} (${DAY_NAMES[b.day]}), pada jam kerja CS (lihat topik "Jam kerja CS"). Sebutkan ini kalau pelanggan menanyakan kapan dibalas admin, tanpa menjanjikan respons secepatnya.`);
+        }
+    }
+
+    return lines.join('\n');
+}
+
+const MONEY_ANY =/\brp\.?\s*\d[\d.,]*|\d[\d.,]*\s*(?:rb|ribu|k|jt|juta)\b/gi;
 
 /** "Rp5.000", "5rb", "25 ribu", "1,5 juta" -> 5000, 5000, 25000, 1500000. */
 function amountOf(mention) {
@@ -305,10 +349,17 @@ const amountsIn = (text) => new Set((String(text ?? '').match(MONEY_ANY) ?? []).
  * surcharges, may be quoted exactly; nothing else, and never from what the
  * customer typed).
  */
-export function checkReply(reply, allowed, { money = '' } = {}) {
+export function checkReply(reply, allowed, { money = '', previous = '' } = {}) {
     let text = String(reply ?? '').trim();
     if (!text) return 'balasan kosong';
     if (text.length > 1200) return 'balasan terlalu panjang (maksimal 1200 huruf)';
+
+    // Emoji now and then, not a row of them.
+    const emoji = text.match(/\p{Extended_Pictographic}/gu) ?? [];
+    if (emoji.length > 3) return `terlalu banyak emoji (${emoji.length}, maksimal 3)`;
+
+    // The same reply as last time reads like a broken bot.
+    if (previous && similar(text, previous) >= 0.8 && text.length > 40) return 'hampir sama dengan balasanmu sebelumnya; tulis tanggapan baru untuk pesan ini';
 
     const amounts = amountsIn(money);
     const mentions = text.match(MONEY_ANY) ?? [];
@@ -368,7 +419,8 @@ function replyOf(answer) {
  */
 export async function askChat(input, { media, fetchImpl } = {}) {
     const order = input.order ?? { produk: null, jawaban: {} };
-    const knowledge = knowledgeBlock(media, { focus: input.focus ?? [] });
+    // The time is part of the facts: "adminnya kapan bales?" is answered from the schedule, not guessed.
+    const knowledge = `${timeBlock(input.now)}\n\n${knowledgeBlock(media, { focus: input.focus ?? [] })}`;
     const system = systemPrompt(order, knowledge);
     const user = userTurn(input);
     // Numbers and links may come from the shop's data or the customer's words; never from
@@ -397,7 +449,8 @@ export async function askChat(input, { media, fetchImpl } = {}) {
         }
         const reply = dropGreeting(replyOf(answer)).trim();
         // Amounts only from the shop's data (the system prompt), never from the customer's lines.
-        const problem = checkReply(reply, allowed, { money: knowledge });
+        const previous = [...(input.history ?? [])].reverse().find((h) => h.who === 'bot')?.text ?? '';
+        const problem = checkReply(reply, allowed, { money: knowledge, previous });
 
         if (!problem) {
             if (refused) recordAi({ who: input.who, message: input.text, reply: refused.reply, problem: refused.problem, outcome: 'ditulis ulang' });

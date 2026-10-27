@@ -418,3 +418,17 @@ test('launcher: Mulai checks for a new version first; Update installs it but doe
     // The files Update must never touch.
     assert.match(body('Install-UpdateFiles'), /\/XD data media logs node_modules \.git \/XF \.env/);
 });
+
+test('a customer message delivered late (bot reconnecting) is still answered; old history is skipped, and both are logged (2026-10-27)', async () => {
+    const { isRecentCatchUp } = await import('../src/session.js');
+    const now = Date.parse('2026-10-27T12:10:00Z');
+    assert.equal(isRecentCatchUp({ messageTimestamp: now / 1000 - 60 }, now), true, 'a minute late: answered');
+    assert.equal(isRecentCatchUp({ messageTimestamp: now / 1000 - 14 * 60 }, now), true);
+    assert.equal(isRecentCatchUp({ messageTimestamp: now / 1000 - 3600 }, now), false, 'an hour old: history');
+
+    const fs = await import('node:fs');
+    const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
+    const branch = source.slice(source.indexOf("} else if (type !== 'notify') {"), source.indexOf('// What came with (or instead of) words'));
+    assert.match(branch, /isRecentCatchUp\(message\)/);
+    assert.match(branch, /pesan lama dari sinkronisasi dilewati/, 'never dropped without a trace');
+});
