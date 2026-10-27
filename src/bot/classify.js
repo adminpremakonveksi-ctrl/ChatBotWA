@@ -78,7 +78,7 @@ export async function classify(input, ai = { openingLine, answerQuestion }) {
     try {
         if ((result.intent === 'other' || isFlowQuestion(result, input)) && input.text?.trim() && allowAiCall(input.who)) {
             // A question the bot has no text for: answered from the shop's facts, or "belum tahu".
-            result.aiAnswer = await ai.answerQuestion({ text: input.text, history: input.history ?? [] });
+            result.aiAnswer = await ai.answerQuestion({ text: input.text, history: input.history ?? [], product: result.product ?? input.knownProduct ?? null });
         } else if (wantsOpening(result, input) && allowAiCall(input.who)) {
             // One sentence before the fixed reply that picks up what they said.
             result.opening = await ai.openingLine({ text: input.text, history: input.history ?? [] });

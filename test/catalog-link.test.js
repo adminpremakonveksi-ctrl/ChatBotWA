@@ -79,10 +79,22 @@ test('the bot says its text first, then sends the catalog link instead of pictur
 
     assert.deepEqual(
         sent.map((a) => (a.type === 'text' ? a.text.slice(0, 12) : a.type)),
-        [replies.greetKnown('Budi').slice(0, 12), replies.catalogLink(SHOP, 'Jersey').slice(0, 12), replies.askQuantityCatalog().slice(0, 12)],
+        [replies.greetKnown('Budi').slice(0, 12), replies.catalogLink(SHOP, 'produk').slice(0, 12), replies.askQuantityCatalog().slice(0, 12)],
     );
-    assert.equal(sent[1].text, replies.catalogLink(SHOP, 'Jersey'), 'a lead-in, then the link');
+    // The shop-wide link is the shop's catalog, not "katalog Jersey" (2026-10-19: "katalog Jas Almamater" was the whole shop).
+    assert.equal(sent[1].text, replies.catalogLink(SHOP, 'produk'), 'a lead-in, then the link');
     assert.ok(!sent.some((a) => a.type === 'file'), 'no pictures when a catalog link applies');
+
+    // A link of the product's own is named after the product.
+    const OWN = 'https://wa.me/p/123456/6281999911895';
+    m.setLink('katalog:jersey', OWN);
+    sent.length = 0;
+    run('DELETE FROM conversations');
+    bot.onIncoming('utama', wa, { jid: '6281235@s.whatsapp.net', id: 'x2', text: 'halo kak saya Budi dari Jogja mau bikin jersey' });
+    await new Promise((r) => setTimeout(r, 20));
+    await bot.drain();
+    assert.equal(sent[1].text, replies.catalogLink(OWN, 'Jersey'));
+    m.setLink('katalog:jersey', '');
 });
 
 test('the lead-in before the link is an editable template', () => {

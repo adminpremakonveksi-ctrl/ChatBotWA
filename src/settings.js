@@ -122,6 +122,14 @@ const FIELDS = {
         get: () => config.bot.maxMisses,
         set: (v) => (config.bot.maxMisses = v),
     },
+    botMode: {
+        validate: (v) => {
+            if (!['ai', 'naskah'].includes(v)) fail('Mode bot: pilih "ai" atau "naskah"');
+            return v;
+        },
+        get: () => config.bot.mode,
+        set: (v) => (config.bot.mode = v),
+    },
     detailWaitDays: {
         validate: (v) => {
             const n = Number(v);
@@ -151,17 +159,6 @@ const FIELDS = {
         },
     },
     backupDir: { validate: folder, get: () => config.maintenance.backupDir, set: (v) => (config.maintenance.backupDir = v) },
-    // What the AI may answer from, besides products and answer patterns: the
-    // team's own notes (bahan, cara bayar, lama pengerjaan, ...).
-    storeKnowledge: {
-        validate: (v) => {
-            const text = String(v ?? '').replace(/\r\n/g, '\n').trim();
-            if (text.length > 6000) fail('Pengetahuan toko maksimal 6000 huruf');
-            return text;
-        },
-        get: () => config.bot.storeKnowledge ?? '',
-        set: (v) => (config.bot.storeKnowledge = v),
-    },
     // WhatsApp Business automatic messages (Salam, Pesan tidak di tempat), blocks separated by ---.
     autoMessages: {
         validate: (v) => {

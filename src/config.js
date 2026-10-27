@@ -60,8 +60,9 @@ export const config = {
         handoverHours: number('HANDOVER_HOURS', 24),
         // Messages in a row the bot may fail to understand before CS takes over.
         maxMisses: number('MAX_MISSES', 3),
-        // The team's notes the AI may answer from (Pengaturan > Pengetahuan toko).
-        storeKnowledge: '',
+        // 'ai': after the fixed greeting the AI chats from the shop's data (Pengetahuan);
+        // 'naskah': the scripted flow from the spec. Pengaturan > Mode bot.
+        mode: 'ai',
         // A conversation idle this long starts over from the greeting.
         resetHours: number('RESET_HOURS', 24),
         // Waiting for a follow-up answer (the size list) lasts this many days (Pengaturan).
@@ -108,5 +109,7 @@ export const config = {
         hostSet: Boolean(text('OLLAMA_HOST')),
         model: text('OLLAMA_MODEL', 'gemma4:31b'),
         timeoutMs: number('OLLAMA_TIMEOUT_MS', 20000),
+        // Context size asked of Ollama: its default (2048-4096) silently cuts the shop's data off.
+        numCtx: number('OLLAMA_NUM_CTX', 16384),
     },
 };

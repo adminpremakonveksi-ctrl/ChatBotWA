@@ -96,7 +96,16 @@ export function buildRecap(since) {
         } catch {
             /* none */
         }
-        const questions = notes.map((n) => `\n   ❓ ${String(n).slice(0, 100)}`).join('');
+        // AI mode: what the customer answered per item, and the AI's note (its first note repeats the answers).
+        let order = null;
+        try {
+            order = JSON.parse(row.order_info ?? 'null');
+        } catch {
+            /* none */
+        }
+        const ordered = order?.jawaban ? Object.entries(order.jawaban).map(([hal, isi]) => `\n   - ${hal}: ${String(isi).slice(0, 80)}`).join('') : '';
+        if (order) notes = notes.filter((n) => !String(n).startsWith('Pesanan '));
+        const questions = ordered + notes.map((n) => `\n   ${order ? '📝' : '❓'} ${String(n).slice(0, 160)}`).join('');
         const contact = row.phone ? `wa.me/${row.phone}` : 'nomor disembunyikan WhatsApp, cari di daftar chat';
         const last = row.last_text ? `\n   "${row.last_text.slice(0, 120)}${row.last_text.length > 120 ? '…' : ''}"` : '';
 

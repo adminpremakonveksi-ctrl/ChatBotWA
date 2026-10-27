@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { answerQuestion, openingLine, safeAiText, storeFacts } from '../src/bot/ai-text.js';
+import { deleteTopic, saveTopic } from '../src/bot/knowledge.js';
 import { classify } from '../src/bot/classify.js';
 import { decide } from '../src/bot/engine.js';
 import { replies } from '../src/bot/replies.js';
@@ -36,7 +37,8 @@ test('the opening line goes before the fixed reply, never instead of it', async 
 });
 
 test('a question with no fixed text: answered from the shop facts, or "belum tahu" + offer CS', async () => {
-    updateSettings({ storeKnowledge: 'Bahan kaos: cotton combed. Sablon: plastisol dan DTF.' });
+    // The shop's facts are Pengetahuan now (2026-10-21), the same the AI chat mode uses.
+    const topic = saveTopic({ title: 'Bahan', content: 'Bahan kaos: cotton combed. Sablon: plastisol dan DTF.' });
     assert.match(storeFacts(), /cotton combed/);
 
     const known = await answerQuestion({ text: 'bahannya apa kak?' }, { fetchImpl: reply('{"jenis":"jawab","jawaban":"Untuk kaos kami pakai bahan cotton combed kak 😊"}') });
@@ -48,7 +50,7 @@ test('a question with no fixed text: answered from the shop facts, or "belum tah
     const far = await answerQuestion({ text: 'cuaca disana gimana' }, { fetchImpl: reply('{"jenis":"tidak_tahu","jawaban":""}') });
     assert.deepEqual(far, { type: 'unknown' });
 
-    updateSettings({ storeKnowledge: '' });
+    deleteTopic(topic.id);
 });
 
 test('"belum tahu": the bot offers CS; "iya" hands over, anything else carries on', () => {

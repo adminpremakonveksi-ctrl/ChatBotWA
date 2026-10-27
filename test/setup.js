@@ -28,3 +28,8 @@ const { run } = await import('../src/db.js');
 const { forgetProducts } = await import('../src/bot/products.js');
 run(`UPDATE products SET questions = '[]'`);
 forgetProducts();
+
+// The scripted flow's tests run in "naskah" mode (Pengaturan > Mode bot);
+// the AI chat mode, the default on a client PC, has its own (test/chat.test.js).
+const { config } = await import('../src/config.js');
+config.bot.mode = 'naskah';

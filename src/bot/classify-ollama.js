@@ -32,7 +32,7 @@ export function parseJson(content) {
  * One chat call to Ollama that must answer with a JSON object of `schema`
  * (a zod schema). Returns the raw parsed object; callers validate it.
  */
-export async function ollamaJson({ system, user, schema, temperature = 0 }, { fetchImpl = fetch } = {}) {
+export async function ollamaJson({ system, user, schema, temperature = 0, messages = null }, { fetchImpl = fetch } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (config.ollama.apiKey) headers.Authorization = `Bearer ${config.ollama.apiKey}`;
 
@@ -45,10 +45,11 @@ export async function ollamaJson({ system, user, schema, temperature = 0 }, { fe
             stream: false,
             think: false,
             format: z.toJSONSchema(schema),
-            options: { temperature },
+            options: { temperature, num_ctx: config.ollama.numCtx },
             messages: [
                 { role: 'system', content: `${system}\n\nJawab HANYA dengan satu objek JSON sesuai skema.` },
-                { role: 'user', content: user },
+                // A retry carries the rejected answer and why, so the model can fix it.
+                ...(messages ?? [{ role: 'user', content: user }]),
             ],
         }),
     });
@@ -59,7 +60,13 @@ export async function ollamaJson({ system, user, schema, temperature = 0 }, { fe
         throw new Error(`Ollama ${response.status}: ${String(body.error ?? '').slice(0, 160)}`);
     }
 
-    return { answer: parseJson(body.message?.content), raw: String(body.message?.content ?? '') };
+    const raw = String(body.message?.content ?? '');
+    try {
+        return { answer: parseJson(raw), raw };
+    } catch (error) {
+        // Open models now and then write broken JSON; callers may ask again with this.
+        throw Object.assign(new Error(`Ollama membalas JSON rusak: ${error.message}`), { raw, badJson: true });
+    }
 }
 
 export async function classifyWithOllama(input, { fetchImpl = fetch } = {}) {

@@ -1,6 +1,7 @@
 import path from 'node:path';
 
 import { config } from '../config.js';
+import { chatTurn } from './chat.js';
 import { classify } from './classify.js';
 import { decide } from './engine.js';
 import { media } from './media.js';
@@ -20,9 +21,16 @@ export async function simulate(id, { text = '', hasImage = false, hasAudio = fal
     const conversation = conversations.get(id) ?? { step: 'new', history: [] };
     const history = conversation.history ?? [];
 
-    // The same lines before the message as the real bot gives the AI.
-    const classified = await classify({ text, hasImage, hasAudio, step: conversation.step, knownProduct: conversation.product, history: history.slice(-6), who: `coba|${id}` });
-    const { actions, patch } = decide(conversation, classified, media);
+    // The same as the real bot: the AI chat (Mode bot "ai") or the scripted flow.
+    const ai = config.bot.mode === 'ai';
+    const classified = ai
+        ? { intent: 'ai', source: 'ai' }
+        : await classify({ text, hasImage, hasAudio, step: conversation.step, knownProduct: conversation.product, history: history.slice(-6), who: `coba|${id}` });
+    const turn = ai
+        ? await chatTurn(conversation, { text, hasImage, hasAudio, attachments: [], history: history.slice(-12), who: `coba|${id}` }, { media })
+        : decide(conversation, classified, media);
+    const { actions, patch } = turn;
+    if (turn.silent) classified.intent = 'ai_diam';
 
     const said = actions.filter((a) => a.type === 'text').map((a) => ({ who: 'bot', text: a.text }));
     conversations.set(id, { ...conversation, ...patch, history: [...history, ...(text ? [{ who: 'pelanggan', text }] : []), ...said].slice(-12) });
@@ -65,6 +73,10 @@ export async function simulate(id, { text = '', hasImage = false, hasAudio = fal
         name: classified.name,
         via: classified.source,
         step: conversations.get(id).step,
+        // Why the AI said nothing (it is down, the limit, a reply it was not allowed to send).
+        silent: turn.silent ?? null,
+        // How the AI got to its reply (AI mode), for the team.
+        thought: turn.thought ?? '',
         replies,
     };
 }

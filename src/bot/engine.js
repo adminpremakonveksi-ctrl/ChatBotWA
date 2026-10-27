@@ -368,8 +368,11 @@ export function decide(conversation, classified, media, { random = Math.random }
         if (r.aiAnswer.type === 'answer') {
             say(r.aiAnswer.text);
         } else {
-            say(replies.aiUnknown());
-            patch.offered_cs = 1;
+            // Not known ("jas almet bahan apa?"): kept for CS and the flow goes
+            // on. Offering CS here and asking about the design right after
+            // contradicted itself; the offer is for questions outside the flow.
+            note(String(r.text ?? '').slice(0, 300));
+            say(replies.csQuestion());
         }
 
         return true;

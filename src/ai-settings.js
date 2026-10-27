@@ -1,5 +1,6 @@
 import { config } from './config.js';
 import { DEFAULT_ANSWER_PROMPT, DEFAULT_OPENING_PROMPT } from './bot/ai-text.js';
+import { DEFAULT_CHAT_EXAMPLES, DEFAULT_CHAT_PROMPT } from './bot/chat.js';
 import { getSetting, run, setSetting } from './db.js';
 
 /**
@@ -16,6 +17,10 @@ const KEYS = {
     model: 'ai:ollama_model',
     host: 'ai:ollama_host',
     // The editable part of the AI's instructions (empty = the default in ai-text.js).
+    // AI chat mode: who the bot is and how it talks (chat.js).
+    chatPrompt: 'ai:chat_prompt',
+    // Example chats that show the AI the shop's way of talking (chat.js).
+    chatExamples: 'ai:chat_examples',
     openingPrompt: 'ai:opening_prompt',
     answerPrompt: 'ai:answer_prompt',
     // How often the AI may be asked (classify.js AI_LIMITS).
@@ -40,6 +45,8 @@ export function loadAiSettings() {
     config.ollama.model = model || fromEnv.model;
     config.ollama.host = host || fromEnv.host;
     config.ollama.hostSet = Boolean(host) || fromEnv.hostSet;
+    config.ollama.chatPrompt = getSetting(KEYS.chatPrompt) || '';
+    config.ollama.chatExamples = getSetting(KEYS.chatExamples) || '';
     config.ollama.openingPrompt = getSetting(KEYS.openingPrompt) || '';
     config.ollama.answerPrompt = getSetting(KEYS.answerPrompt) || '';
     config.ollama.limits = {
@@ -64,6 +71,9 @@ export function aiSettings() {
         model: config.ollama.model,
         host: config.ollama.host,
         hostSet: config.ollama.hostSet,
+        chatPrompt: config.ollama.chatPrompt || DEFAULT_CHAT_PROMPT,
+        chatPromptChanged: Boolean(config.ollama.chatPrompt || config.ollama.chatExamples),
+        chatExamples: config.ollama.chatExamples || DEFAULT_CHAT_EXAMPLES,
         openingPrompt: config.ollama.openingPrompt || DEFAULT_OPENING_PROMPT,
         answerPrompt: config.ollama.answerPrompt || DEFAULT_ANSWER_PROMPT,
         promptsChanged: Boolean(config.ollama.openingPrompt || config.ollama.answerPrompt),
@@ -76,12 +86,13 @@ export function aiSettings() {
  * Saves what the console sent. key: undefined = unchanged, '' = remove the
  * console key (back to .env). model/host: '' = back to the default.
  */
-export function updateAiSettings({ key, model, host, openingPrompt, answerPrompt, perCustomer, total } = {}) {
+export function updateAiSettings({ key, model, host, chatPrompt, chatExamples, openingPrompt, answerPrompt, perCustomer, total } = {}) {
     // Instructions: the default (or empty) text means "use the default".
-    for (const [name, value, fallback] of [['openingPrompt', openingPrompt, DEFAULT_OPENING_PROMPT], ['answerPrompt', answerPrompt, DEFAULT_ANSWER_PROMPT]]) {
+    for (const [name, value, fallback] of [['chatPrompt', chatPrompt, DEFAULT_CHAT_PROMPT], ['chatExamples', chatExamples, DEFAULT_CHAT_EXAMPLES], ['openingPrompt', openingPrompt, DEFAULT_OPENING_PROMPT], ['answerPrompt', answerPrompt, DEFAULT_ANSWER_PROMPT]]) {
         if (value === undefined) continue;
         const text = String(value ?? '').replace(/\r\n/g, '\n').trim();
-        if (text.length > 3000) fail('Instruksi AI maksimal 3000 huruf');
+        // Room for a few example chats; still far below the context the AI is given.
+        if (text.length > 6000) fail('Instruksi AI maksimal 6000 huruf');
         if (!text || text === fallback.trim()) run(`DELETE FROM settings WHERE "key" = ?`, [KEYS[name]]);
         else setSetting(KEYS[name], text);
     }

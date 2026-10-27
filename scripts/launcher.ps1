@@ -5,8 +5,11 @@
 .DESCRIPTION
     Tanpa -Action: tampilkan menu.
 
-    -Action mulai      "Mulai ChatBot Prema.bat": buka dashboard; pasang & nyalakan dulu kalau belum jalan
-    -Action update     "Update ChatBot Prema.bat": ambil versi terbaru dari GitHub (scripts\repo.txt), lalu nyalakan ulang
+    -Action mulai      "Mulai ChatBot Prema.bat": cek versi baru di GitHub (ada: pasang dulu), lalu
+                       buka dashboard; pasang & nyalakan dulu kalau belum jalan
+    -Action update     "Update ChatBot Prema.bat": ambil versi terbaru dari GitHub (scripts\repo.txt);
+                       bot dihentikan dan TIDAK dinyalakan, lalu klik Mulai
+    -Action prepare    siapkan Node.js dan dependensi tanpa menyalakan bot (dipakai Update)
     -Action start      jalankan bot di jendela ini (untuk scan QR / uji coba)
     -Action install    pasang auto-start: jalan sebagai SYSTEM sejak PC menyala,
                        tanpa perlu ada yang login, dan hidup lagi kalau crash
@@ -26,7 +29,7 @@
 #Requires -Version 5.1
 [CmdletBinding()]
 param(
-    [ValidateSet('menu', 'mulai', 'update', 'start', 'install', 'stop', 'status', 'open', 'log', 'uninstall', 'service')]
+    [ValidateSet('menu', 'mulai', 'update', 'prepare', 'start', 'install', 'stop', 'status', 'open', 'log', 'uninstall', 'service')]
     [string]$Action = 'menu',
     # Used when Update runs the new install step: no "press Enter" in between.
     [switch]$NoPause
@@ -494,9 +497,42 @@ function Invoke-Service {
     }
 }
 
-# "Mulai ChatBot Prema.bat". Running already: just open the dashboard (no
-# Administrator prompt for the daily click). Otherwise install and start it.
+# "Mulai ChatBot Prema.bat". First checks GitHub for a newer version: if there
+# is one, it is installed and the bot started on it. Otherwise: running
+# already, just open the dashboard (no Administrator prompt for the daily
+# click); not running, install and start it. No internet: start what is here.
 function Invoke-Mulai {
+    $latest = $null
+    if (Test-DevCheckout) {
+        Write-Info 'PC developer (git): cek update otomatis dilewati.'
+    } else {
+        Write-Step 'Mengecek versi terbaru'
+        $latest = Get-LatestVersion
+        if (-not $latest) { Write-Warn 'versi terbaru tidak terbaca (internet?), menyalakan versi yang ada' }
+    }
+
+    if ($latest -and $latest.Sha -ne (Get-InstalledVersion)) {
+        if (-not (Test-Admin)) {
+            Write-Info "Ada versi baru ($($latest.Sha.Substring(0, 7))). Memperbarui dulu (perlu izin Administrator)..."
+            Start-Process powershell -Verb RunAs -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-Action', 'mulai')
+            return
+        }
+
+        Write-Ok "Ada versi baru ($($latest.Sha.Substring(0, 7))), dipasang dulu."
+        Install-UpdateFiles $latest
+
+        # The freshly copied launcher installs and starts the bot, so new install steps apply right away.
+        & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -Action install -NoPause
+        if ($LASTEXITCODE -ne 0) { throw 'Menyalakan bot setelah update gagal; lihat pesan di atas. Klik Mulai ChatBot Prema lagi setelah masalahnya beres.' }
+
+        # Only now: a failed start must not count as "already up to date".
+        Set-InstalledVersion $latest.Sha
+        Write-Host ''
+        Write-Host "  Diperbarui ke versi $($latest.Sha.Substring(0, 7)) dan bot sudah berjalan." -ForegroundColor Green
+        Read-Host "`n  Tekan Enter untuk menutup" | Out-Null
+        return
+    }
+
     if (Get-Health) {
         Write-Ok 'ChatBot Prema sudah berjalan. Membuka dashboard...'
         Start-Process (Get-Url)
@@ -508,58 +544,45 @@ function Invoke-Mulai {
     Invoke-Install
 }
 
-# Where updates come from: first non-comment line of scripts\repo.txt,
-# "https://github.com/<pemilik>/<repo> [branch]".
-function Get-RepoSource {
-    $file = Join-Path $PSScriptRoot 'repo.txt'
-    $line = if (Test-Path $file) { Get-Content $file | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') } | Select-Object -First 1 } else { $null }
+function Test-DevCheckout { return (Test-Path (Join-Path $root '.git')) -and [bool](Get-Command git -ErrorAction SilentlyContinue) }
 
-    if (-not $line -or $line -notmatch 'github\.com[/:]([^/\s]+)/([^/\s#]+?)(?:\.git)?/?(?:\s+(\S+))?\s*$') {
-        throw 'Alamat GitHub untuk update belum diatur (scripts\repo.txt). Hubungi developer.'
-    }
+$versionFile = Join-Path $root 'data\versi.txt'
 
-    $branch = if ($Matches[3]) { $Matches[3] } else { 'main' }
+function Get-InstalledVersion { if (Test-Path $versionFile) { return (Get-Content $versionFile -Raw).Trim() } return '' }
 
-    return @{ Owner = $Matches[1]; Repo = $Matches[2]; Branch = $branch }
+function Set-InstalledVersion {
+    param([string]$Sha)
+    New-Item -ItemType Directory -Force -Path (Join-Path $root 'data') | Out-Null
+    if ($Sha) { Set-Content -Path $versionFile -Value $Sha -Encoding ascii }
 }
 
-# "Update ChatBot Prema.bat". Never touches data\ (WhatsApp link, chats),
-# media\ (the client's uploads) or .env.
-function Invoke-Update {
-    if (-not (Test-Admin)) {
-        Write-Info 'Update butuh izin Administrator, membuka ulang...'
-        Start-Process powershell -Verb RunAs -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-Action', 'update')
-        return
+# The newest commit on GitHub: @{ Src; Sha }, or $null when it cannot be read.
+function Get-LatestVersion {
+    try {
+        $src = Get-RepoSource
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $sha = (Invoke-RestMethod -Uri "https://api.github.com/repos/$($src.Owner)/$($src.Repo)/commits/$($src.Branch)" -Headers @{ 'User-Agent' = 'ChatBot-Prema-Updater' } -TimeoutSec 20).sha
+        if ($sha) { return @{ Src = $src; Sha = $sha } }
+    } catch {
+        Write-Info "($($_.Exception.Message))"
     }
+    return $null
+}
 
-    $src = Get-RepoSource
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+# Stops the bot and puts the new files in place. Never touches data\ (WhatsApp
+# link, chats), media\ (the client's uploads), logs\ or .env. Does not start it.
+function Install-UpdateFiles {
+    param($Latest)
+
+    $src = $Latest.Src
     $headers = @{ 'User-Agent' = 'ChatBot-Prema-Updater' }
 
-    Write-Step "Mengecek versi terbaru ($($src.Owner)/$($src.Repo))"
-    $sha = $null
-    try {
-        $sha = (Invoke-RestMethod -Uri "https://api.github.com/repos/$($src.Owner)/$($src.Repo)/commits/$($src.Branch)" -Headers $headers -TimeoutSec 20).sha
-    } catch {
-        Write-Warn 'versi terbaru tidak terbaca (internet? repo publik?), tetap mencoba mengunduh'
-    }
-
-    $versionFile = Join-Path $root 'data\versi.txt'
-    $current = if (Test-Path $versionFile) { (Get-Content $versionFile -Raw).Trim() } else { '' }
-
-    if ($sha -and $sha -eq $current -and (Get-Health)) {
-        Write-Ok "Sudah versi terbaru ($($sha.Substring(0, 7))). Tidak ada yang perlu diperbarui."
-        Start-Process (Get-Url)
-        return
-    }
-
-    if ((Test-Path (Join-Path $root '.git')) -and (Get-Command git -ErrorAction SilentlyContinue)) {
+    if (Test-DevCheckout) {
         # Developer machine: a real checkout.
         Write-Step 'Mengambil pembaruan (git pull)'
         Invoke-Stop -Quiet
         & git -C $root pull --ff-only | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'git pull gagal. Ada perubahan lokal yang bentrok?' }
-        $sha = (& git -C $root rev-parse HEAD).Trim()
     } else {
         # Client machine: no git needed, the code comes as a ZIP.
         Write-Step 'Mengunduh versi terbaru'
@@ -567,7 +590,7 @@ function Invoke-Update {
         New-Item -ItemType Directory -Path $tmp | Out-Null
 
         try {
-            $ref = if ($sha) { $sha } else { $src.Branch }
+            $ref = if ($Latest.Sha) { $Latest.Sha } else { $src.Branch }
             $zip = Join-Path $tmp 'update.zip'
             Invoke-WebRequest -Uri "https://codeload.github.com/$($src.Owner)/$($src.Repo)/zip/$ref" -OutFile $zip -Headers $headers -UseBasicParsing -TimeoutSec 300
             Expand-Archive -Path $zip -DestinationPath $tmp -Force
@@ -588,17 +611,60 @@ function Invoke-Update {
     }
 
     Write-Ok 'file terbaru terpasang'
+}
 
-    # Run the freshly copied launcher, so new install steps apply right away.
-    & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -Action install -NoPause
-    if ($LASTEXITCODE -ne 0) { throw 'Menyalakan ulang bot gagal; lihat pesan di atas. Klik Update ChatBot Prema.bat lagi setelah masalahnya beres.' }
+# Where updates come from: first non-comment line of scripts\repo.txt,
+# "https://github.com/<pemilik>/<repo> [branch]".
+function Get-RepoSource {
+    $file = Join-Path $PSScriptRoot 'repo.txt'
+    $line = if (Test-Path $file) { Get-Content $file | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') } | Select-Object -First 1 } else { $null }
 
-    # Only now: a failed install must not count as "already up to date".
-    New-Item -ItemType Directory -Force -Path (Join-Path $root 'data') | Out-Null
-    if ($sha) { Set-Content -Path $versionFile -Value $sha -Encoding ascii }
+    if (-not $line -or $line -notmatch 'github\.com[/:]([^/\s]+)/([^/\s#]+?)(?:\.git)?/?(?:\s+(\S+))?\s*$') {
+        throw 'Alamat GitHub untuk update belum diatur (scripts\repo.txt). Hubungi developer.'
+    }
+
+    $branch = if ($Matches[3]) { $Matches[3] } else { 'main' }
+
+    return @{ Owner = $Matches[1]; Repo = $Matches[2]; Branch = $branch }
+}
+
+# "Update ChatBot Prema.bat": takes the newest version and stops the bot, but
+# does NOT start it (client's choice, 2026-10-27): the team then clicks Mulai.
+# Never touches data\ (WhatsApp link, chats), media\ (uploads), logs\ or .env.
+function Invoke-Update {
+    if (-not (Test-Admin)) {
+        Write-Info 'Update butuh izin Administrator, membuka ulang...'
+        Start-Process powershell -Verb RunAs -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-Action', 'update')
+        return
+    }
+
+    $src = Get-RepoSource
+    Write-Step "Mengecek versi terbaru ($($src.Owner)/$($src.Repo))"
+    $latest = Get-LatestVersion
+    if (-not $latest) {
+        Write-Warn 'versi terbaru tidak terbaca (internet? repo publik?), tetap mencoba mengunduh'
+        $latest = @{ Src = $src; Sha = $null }
+    }
+
+    if ($latest.Sha -and $latest.Sha -eq (Get-InstalledVersion)) {
+        Write-Ok "Sudah versi terbaru ($($latest.Sha.Substring(0, 7))). Tidak ada yang perlu diperbarui."
+        Write-Host ''
+        Write-Host '  Tutup jendela ini, lalu klik Mulai ChatBot Prema.' -ForegroundColor Green
+        return
+    }
+
+    Install-UpdateFiles $latest
+
+    # The freshly copied launcher prepares Node.js and the dependencies (new install steps apply), without starting.
+    & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -Action prepare -NoPause
+    if ($LASTEXITCODE -ne 0) { throw 'Menyiapkan versi baru gagal; lihat pesan di atas. Klik Update ChatBot Prema lagi setelah masalahnya beres.' }
+
+    $sha = if ($latest.Sha) { $latest.Sha } elseif (Test-DevCheckout) { (& git -C $root rev-parse HEAD).Trim() } else { $null }
+    Set-InstalledVersion $sha
 
     Write-Host ''
-    Write-Host "  Update selesai$(if ($sha) { " (versi $($sha.Substring(0, 7)))" })." -ForegroundColor Green
+    Write-Host "  Update selesai$(if ($sha) { " (versi $($sha.Substring(0, 7)))" }). Bot dihentikan." -ForegroundColor Green
+    Write-Host '  Tutup jendela ini, lalu klik Mulai ChatBot Prema.' -ForegroundColor Green
 }
 
 function Show-Menu {
@@ -667,6 +733,7 @@ try {
         'update' { Invoke-Update; Read-Host "`n  Tekan Enter untuk menutup" | Out-Null }
         'start' { Invoke-Start }
         'install' { Invoke-Install; if (-not $NoPause) { Read-Host "`n  Tekan Enter untuk menutup" | Out-Null } }
+        'prepare' { Initialize-Bot | Out-Null }
         'stop' { Invoke-Stop }
         'status' { Invoke-Status }
         'open' { Start-Process (Get-Url) }

@@ -38,9 +38,56 @@ export function listProducts() {
         builtin: Boolean(row.builtin),
         position: row.position,
         questions: parseStored(row.questions),
+        info: parseInfo(row.info),
     }));
 
     return cache;
+}
+
+/**
+ * What the team tells the AI about a product (halaman Produk), all optional:
+ * names customers use, models, materials with what they are like, the
+ * techniques the shop does and the ones it does NOT (with what to offer
+ * instead), colours, sizes, minimum order, what to ask before a quote, notes.
+ * Empty means "not told": the bot says it will ask CS.
+ */
+export const INFO_LISTS = ['sebutan', 'model', 'teknik', 'tanya'];
+export const INFO_PAIRS = { bahan: 'ket', tidak: 'ganti' };
+export const INFO_TEXTS = ['warna', 'ukuran', 'moq', 'catatan'];
+
+const lines = (value) =>
+    (Array.isArray(value) ? value : String(value ?? '').split('\n')).map((v) => String(v).trim()).filter(Boolean);
+
+/** "Cotton combed 24s: adem" -> { nama: 'Cotton combed 24s', ket: 'adem' }. */
+const pairOf = (value, second) => {
+    if (value && typeof value === 'object') return { nama: String(value.nama ?? '').trim(), [second]: String(value[second] ?? '').trim() };
+    const [nama, ...rest] = String(value).split(':');
+
+    return { nama: nama.trim(), [second]: rest.join(':').trim() };
+};
+
+export function cleanInfo(values = {}) {
+    const info = {};
+
+    for (const key of INFO_LISTS) info[key] = lines(values[key]).slice(0, 40);
+    for (const [key, second] of Object.entries(INFO_PAIRS)) {
+        info[key] = (Array.isArray(values[key]) ? values[key] : lines(values[key])).map((v) => pairOf(v, second)).filter((p) => p.nama).slice(0, 40);
+    }
+    for (const key of INFO_TEXTS) info[key] = String(values[key] ?? '').replace(/\r\n/g, '\n').trim();
+
+    const size = JSON.stringify(info).length;
+    if (size > 12000) fail('Data produk terlalu panjang (maksimal sekitar 12.000 huruf)');
+    for (const key of INFO_LISTS) if (info[key].some((v) => v.length > 300)) fail('Satu baris maksimal 300 huruf');
+
+    return info;
+}
+
+function parseInfo(value) {
+    try {
+        return cleanInfo(JSON.parse(value ?? '{}'));
+    } catch {
+        return cleanInfo({});
+    }
 }
 
 function parseStored(value) {
@@ -110,19 +157,21 @@ function validFields(values, current = {}) {
     if (questions.length > 6) fail('Maksimal 6 pertanyaan lanjutan per produk');
     if (questions.some((q) => q.length > 500)) fail('Satu pertanyaan maksimal 500 huruf');
 
-    return { name, catalog, sizeChart, questions };
+    const info = values.info === undefined ? current.info ?? cleanInfo({}) : cleanInfo(values.info);
+
+    return { name, catalog, sizeChart, questions, info };
 }
 
 export function createProduct(values) {
-    const { name, catalog, sizeChart, questions } = validFields(values);
+    const { name, catalog, sizeChart, questions, info } = validFields(values);
 
     let key = slugify(name) || 'produk';
     for (let i = 2; get('SELECT 1 FROM products WHERE "key" = ?', [key]); i++) key = `${slugify(name)}-${i}`;
 
     const position = (get('SELECT MAX(position) AS p FROM products')?.p ?? -1) + 1;
     run(
-        `INSERT INTO products ("key", name, kind, size_chart, position, builtin, questions, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)`,
-        [key, name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, position, JSON.stringify(questions), now(), now()],
+        `INSERT INTO products ("key", name, kind, size_chart, position, builtin, questions, info, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?, ?)`,
+        [key, name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, position, JSON.stringify(questions), JSON.stringify(info), now(), now()],
     );
 
     const taken = values.keywords === undefined ? [] : setKeywords(key, values.keywords);
@@ -133,9 +182,9 @@ export function createProduct(values) {
 
 export function updateProduct(key, values) {
     const current = getProduct(key) ?? fail('Produk tidak ditemukan', 404);
-    const { name, catalog, sizeChart, questions } = validFields(values, current);
+    const { name, catalog, sizeChart, questions, info } = validFields(values, current);
 
-    run(`UPDATE products SET name = ?, kind = ?, size_chart = ?, questions = ?, updated_at = ? WHERE "key" = ?`, [name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, JSON.stringify(questions), now(), key]);
+    run(`UPDATE products SET name = ?, kind = ?, size_chart = ?, questions = ?, info = ?, updated_at = ? WHERE "key" = ?`, [name, catalog ? 'catalog' : 'design', sizeChart ? 1 : 0, JSON.stringify(questions), JSON.stringify(info), now(), key]);
 
     const taken = values.keywords === undefined ? [] : setKeywords(key, values.keywords);
     changed();

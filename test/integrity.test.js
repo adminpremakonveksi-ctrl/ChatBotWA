@@ -93,7 +93,13 @@ test('no seed phrase has two meanings', () => {
 
     for (const [intent, list] of Object.entries(SEED_KEYWORDS)) list.forEach((p) => claim(p, `maksud ${intent}`));
     for (const p of [...SEED_PRODUCTS, ...SEED_NEW_PRODUCTS]) p.keywords.forEach((k) => claim(k, `produk ${p.key}`));
-    for (const add of SEED_ADDITIONS) for (const [key, list] of Object.entries(add.products ?? {})) list.forEach((k) => claim(k, `produk ${key}`));
+    for (const add of SEED_ADDITIONS) {
+        // A phrase an addition takes off a product (remove.products) is free for its new owner, as in the migration.
+        for (const [key, list] of Object.entries(add.remove?.products ?? {})) {
+            for (const k of list) if (owner.get(cleanPhrase(k)) === `produk ${key}`) owner.delete(cleanPhrase(k));
+        }
+        for (const [key, list] of Object.entries(add.products ?? {})) list.forEach((k) => claim(k, `produk ${key}`));
+    }
     for (const p of SEED_PATTERNS) p.keywords.forEach((k) => claim(k, `pola ${p.builtin}`));
 
     assert.deepEqual(clashes, []);
@@ -102,7 +108,7 @@ test('no seed phrase has two meanings', () => {
 test('no word lists are hard-coded in the logic: vocabulary lives in the database (Kamus)', () => {
     // The files that read customer text. A list of 8+ quoted words there is
     // vocabulary that belongs in SEED_WORDS (seeds.js) and the table word_lists.
-    const logic = ['src/text.js', 'src/bot/classify-rules.js', 'src/bot/engine.js', 'src/bot/store.js', 'src/bot/intents.js', 'src/bot/ai-text.js', 'src/bot/classify.js'];
+    const logic = ['src/text.js', 'src/bot/classify-rules.js', 'src/bot/engine.js', 'src/bot/store.js', 'src/bot/intents.js', 'src/bot/ai-text.js', 'src/bot/classify.js', 'src/bot/chat.js', 'src/bot/knowledge.js'];
     const found = [];
 
     for (const file of logic) {

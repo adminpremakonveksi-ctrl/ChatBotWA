@@ -6,7 +6,7 @@ import { wordSet } from './words.js';
 
 const local = () => `${utcOffsetMinutes() >= 0 ? '+' : ''}${utcOffsetMinutes()} minutes`;
 
-const COLUMNS = ['step', 'name', 'origin', 'product', 'return_step', 'handed_over_at', 'handover_reason', 'last_message_at', 'quantity', 'details', 'detail_index', 'misses', 'notes', 'offered_cs'];
+const COLUMNS = ['step', 'name', 'origin', 'product', 'return_step', 'handed_over_at', 'handover_reason', 'last_message_at', 'quantity', 'details', 'detail_index', 'misses', 'notes', 'offered_cs', 'order_info'];
 
 const toDate = (stamp) => (stamp ? new Date(`${stamp.replace(' ', 'T')}Z`) : null);
 
@@ -21,24 +21,25 @@ const hoursSince = (stamp, at) => {
  * greeting, keeping the stored name so a returning customer is greeted by it:
  *  - a handover older than HANDOVER_HOURS (CS has had its shift), and
  *  - a half-finished conversation idle for RESET_HOURS, except one waiting for
- *    a follow-up answer (the size list comes days later): detailWaitDays.
+ *    a follow-up answer (the size list comes days later) or chatting with the
+ *    AI (it remembers the order being discussed): detailWaitDays.
  */
 export function loadConversation(sessionKey, jid, at = new Date()) {
     const row = get('SELECT * FROM conversations WHERE session_key = ? AND jid = ?', [sessionKey, jid]);
 
     if (!row) {
-        return { step: 'new', name: null, origin: null, product: null, return_step: null, quantity: null, details: null, detail_index: null, misses: 0, notes: null, offered_cs: 0 };
+        return { step: 'new', name: null, origin: null, product: null, return_step: null, quantity: null, details: null, detail_index: null, misses: 0, notes: null, offered_cs: 0, order_info: null };
     }
 
     const expired =
         row.step === 'handed_over'
             ? hoursSince(row.handed_over_at, at) >= config.bot.handoverHours
-            : row.step === 'awaiting_detail'
+            : row.step === 'awaiting_detail' || row.step === 'chat'
               ? hoursSince(row.last_message_at, at) >= (config.bot.detailWaitDays ?? 14) * 24
               : row.step !== 'new' && hoursSince(row.last_message_at, at) >= config.bot.resetHours;
 
     if (expired) {
-        return { ...row, step: 'new', product: null, return_step: null, handed_over_at: null, handover_reason: null, quantity: null, details: null, detail_index: null, misses: 0, notes: null, offered_cs: 0 };
+        return { ...row, step: 'new', product: null, return_step: null, handed_over_at: null, handover_reason: null, quantity: null, details: null, detail_index: null, misses: 0, notes: null, offered_cs: 0, order_info: null };
     }
 
     return row;
@@ -62,7 +63,7 @@ export function saveConversation(sessionKey, jid, values) {
 export function resetConversation(sessionKey, jid) {
     run(
         `UPDATE conversations SET step = 'new', product = NULL, return_step = NULL, handed_over_at = NULL, handover_reason = NULL,
-         quantity = NULL, details = NULL, detail_index = NULL, misses = 0, notes = NULL, offered_cs = 0
+         quantity = NULL, details = NULL, detail_index = NULL, misses = 0, notes = NULL, offered_cs = 0, order_info = NULL
          WHERE session_key = ? AND jid = ?`,
         [sessionKey, jid],
     );

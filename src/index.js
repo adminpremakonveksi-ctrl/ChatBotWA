@@ -29,6 +29,9 @@ import { backup, buildRecap, sendTestRecap, startMaintenance } from './maintenan
 import { manager } from './manager.js';
 import { backupSuggestions, currentSettings, loadSettings, updateSettings } from './settings.js';
 import { releaseAutoHandovers } from './bot/auto-messages.js';
+import { deleteFaq, deleteTopic, listFaq, listTopics, moveTopic, saveFaq, saveTopic } from './bot/knowledge.js';
+import { deleteScenario, listScenarios, runScenario, saveScenario } from './bot/ai-scenarios.js';
+import { clearAi, listAi } from './bot/ai-log.js';
 
 const loopback = ['127.0.0.1', 'localhost', '::1'].includes(config.host);
 
@@ -120,11 +123,14 @@ app.get('/errors', (req, res) => res.json({ errors: errorsSince(req.query.after)
 
 /* -------------------------------------------------------------- console --- */
 
-const consolePage = path.join(path.dirname(fileURLToPath(import.meta.url)), 'console.html');
+// Read once at boot: the console always matches the bot that serves it. Read on every
+// request, a newer console.html on disk (an Update, an edit) called routes this
+// running bot did not have yet: "GET /ai/scenarios (HTTP 404)" (2026-10-27).
+const consolePage = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'console.html'), 'utf8');
 
 /** Admin console: QR, conversations, try-the-bot, media checklist. */
 app.get('/', (req, res) => {
-    res.type('html').send(fs.readFileSync(consolePage, 'utf8'));
+    res.type('html').send(consolePage);
 });
 
 const packageVersion = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
@@ -153,6 +159,14 @@ app.get('/info', wrap(async (req, res) => {
         holiday: holidayOn(),
         forceMode: config.bot.forceMode || null,
         ai: aiLabel(),
+        botMode: config.bot.mode,
+        aiReady: Boolean(aiProvider()),
+        // How much of Pengetahuan the team filled in (Kesiapan).
+        knowledge: (() => {
+            const topics = listTopics();
+
+            return { topics: topics.length, filled: topics.filter((t) => t.content.trim()).length, faq: listFaq().length };
+        })(),
         jerseyPromo: Boolean(templateText('jerseyPromo')),
         promoPamphlet: media.has('promo', 'jersey'),
         handoverHours: config.bot.handoverHours,
@@ -597,6 +611,74 @@ app.delete('/products/:key', wrap(async (req, res) => {
     deleteProduct(req.params.key);
 
     logger.info({ product: req.params.key }, 'produk dihapus dari konsol');
+    res.json({ ok: true });
+}));
+
+// Uji AI: the team's test chats, run through the real AI turn (nothing sent), and what the guards stopped.
+app.get('/ai/scenarios', wrap(async (req, res) => {
+    res.json({ scenarios: listScenarios() });
+}));
+
+app.post('/ai/scenarios', wrap(async (req, res) => {
+    res.status(201).json({ scenario: saveScenario({ ...(req.body ?? {}), id: null }) });
+}));
+
+app.put('/ai/scenarios/:id', wrap(async (req, res) => {
+    res.json({ scenario: saveScenario({ ...(req.body ?? {}), id: Number(req.params.id) }) });
+}));
+
+app.delete('/ai/scenarios/:id', wrap(async (req, res) => {
+    deleteScenario(Number(req.params.id));
+    res.json({ ok: true });
+}));
+
+app.post('/ai/scenarios/:id/run', wrap(async (req, res) => {
+    if (!aiProvider()) throw Object.assign(new Error('Isi dulu kunci API Ollama di Pengaturan > AI, lalu Simpan'), { statusCode: 422 });
+
+    res.json(await runScenario(Number(req.params.id), { media }));
+}));
+
+app.get('/ai/log', wrap(async (req, res) => {
+    res.json({ log: listAi(Math.min(500, Number(req.query.limit) || 100)) });
+}));
+
+app.delete('/ai/log', wrap(async (req, res) => {
+    clearAi();
+    res.json({ ok: true });
+}));
+
+// What the AI chat knows (Pengetahuan): shop topics and Q&A; product details live on /products.
+app.get('/knowledge', wrap(async (req, res) => {
+    res.json({ topics: listTopics(), faq: listFaq() });
+}));
+
+app.post('/knowledge/topics', wrap(async (req, res) => {
+    res.status(201).json({ topic: saveTopic({ ...(req.body ?? {}), id: null }) });
+}));
+
+app.put('/knowledge/topics/:id', wrap(async (req, res) => {
+    res.json({ topic: saveTopic({ ...(req.body ?? {}), id: Number(req.params.id) }) });
+}));
+
+app.post('/knowledge/topics/:id/move', wrap(async (req, res) => {
+    res.json({ topics: moveTopic(Number(req.params.id), Number(req.body?.by) || 0) });
+}));
+
+app.delete('/knowledge/topics/:id', wrap(async (req, res) => {
+    deleteTopic(Number(req.params.id));
+    res.json({ ok: true });
+}));
+
+app.post('/knowledge/faq', wrap(async (req, res) => {
+    res.status(201).json({ faq: saveFaq({ ...(req.body ?? {}), id: null }) });
+}));
+
+app.put('/knowledge/faq/:id', wrap(async (req, res) => {
+    res.json({ faq: saveFaq({ ...(req.body ?? {}), id: Number(req.params.id) }) });
+}));
+
+app.delete('/knowledge/faq/:id', wrap(async (req, res) => {
+    deleteFaq(Number(req.params.id));
     res.json({ ok: true });
 }));
 

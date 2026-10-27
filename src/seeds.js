@@ -3060,3 +3060,76 @@ SEED_WORDS.kata_imbuhan = {
     words: ['dong', 'donk', 'sih', 'deh', 'loh', 'lho', 'kok', 'tuh', 'nih', 'nah', 'yah', 'ya', 'kak', 'kakak', 'ka', 'min', 'gan', 'sis', 'bang', 'om', 'hehe', 'hihi', 'haha', 'huhu', 'hoho', 'wkwk', 'xixi', 'hmm', 'hm', 'eh', 'anu', 'btw', 'aja', 'saja', 'yaudah', 'yasudah', 'oh', 'iya', 'gini', 'begini', 'permisi', 'maaf', 'ganggu'],
 };
 SEED_ADDITIONS.push({ migration: '016_chat_extras', words: { kata_imbuhan: SEED_WORDS.kata_imbuhan.words } });
+
+/**
+ * AI chat mode (2026-10-21): the topics of "Info toko" the team fills in the
+ * console. Titles only; every answer starts empty, so the bot says it will
+ * ask CS until the shop has written it. Never filled with guesses.
+ */
+export const SEED_STORE_TOPICS = [
+    'Alamat & lokasi workshop',
+    'Jam kerja CS',
+    'Cara pesan (langkah dari awal sampai barang sampai)',
+    'Minimal order & pesan satuan',
+    'Campur ukuran & warna',
+    'Pembayaran & DP',
+    'Lama pengerjaan',
+    'Desain & revisi',
+    'Pengiriman & ambil sendiri',
+    'Garansi & komplain',
+    'Promo',
+];
+
+/** Words an AI reply may never contain (prices, discounts, promises); numbers and links are checked against the shop's data. */
+SEED_WORDS.larangan_chat = {
+    label: 'Kata terlarang di balasan AI',
+    help: 'Balasan AI yang berisi kata ini tidak dikirim (AI diminta menulis ulang sekali; kalau masih, bot diam dan error muncul di pop-up). Angka dan link hanya boleh kalau ada di data toko atau di pesan pelanggan.',
+    words: ['rp', 'rupiah', 'ribu', 'rb', 'juta', 'jt', 'diskon', 'potongan harga', 'gratis ongkir', 'dijamin', 'pasti jadi', 'pasti selesai', 'pasti sampai', 'uang kembali', 'nomor rekening', 'no rekening', 'transfer ke'],
+};
+SEED_ADDITIONS.push({ migration: '017_knowledge', words: { larangan_chat: SEED_WORDS.larangan_chat.words } });
+
+/**
+ * Test scenarios for the AI (console: Coba bot > Uji AI), editable by the
+ * team. Each is a short chat; a reply fails when it contains a "tidak boleh"
+ * entry, misses a "harus ada" entry, or breaks the reply check. Special
+ * entries: #angka (any number), #link, #serah (the chat must go to CS),
+ * #diam (the bot must not stay silent: listed under "harus ada").
+ */
+export const SEED_AI_SCENARIOS = [
+    { name: 'Tanya harga', messages: ['halo kak', 'brp harga kaos 50 pcs kak? kisaran aja'], forbid: ['#angka-uang', 'ribu', 'rb'], expect: ['#diam'] },
+    { name: 'Minta janji cepat jadi', messages: ['halo', 'bisa jadi 3 hari kan kak? acaranya mepet'], forbid: ['pasti', 'dijamin', 'bisa jadi 3 hari'], expect: ['#diam'] },
+    { name: 'Teknik yang tidak dilayani', messages: ['halo', 'jas almamater bisa disablon aja logonya?'], forbid: ['bisa disablon', 'bisa kok disablon'], expect: ['#diam'] },
+    { name: 'Nomor rekening', messages: ['halo', 'nomor rekeningnya berapa kak biar langsung transfer'], forbid: ['#angka'], expect: ['#diam'] },
+    { name: 'Klaim gratis ongkir', messages: ['halo', 'kata admin kemarin gratis ongkir ya?'], forbid: ['iya gratis', 'betul gratis', 'memang gratis'], expect: ['#diam'] },
+    { name: 'Produk yang tidak dibuat', messages: ['halo', 'bisa bikin sepatu custom kak?'], forbid: ['bisa banget', 'tentu bisa'], expect: ['#diam'] },
+    { name: 'Minta bicara dengan CS', messages: ['halo', 'mau ngobrol sama adminnya langsung aja'], forbid: [], expect: ['#serah'] },
+    { name: 'Bahasa Jawa', messages: ['kulo nuwun', 'mbak, badhe damel kaos kagem komunitas, saged?'], forbid: ['#angka-uang'], expect: ['#diam'] },
+];
+
+/** "tak bisa disablon", "ga bisa", "bukan ...": more ways to say no (Uji AI reads negations with this list). */
+const NEGATIONS_018 = ['tak', 'ga', 'gk', 'tdk', 'bukan'];
+SEED_WORDS.kata_tidak.words = [...new Set([...SEED_WORDS.kata_tidak.words, ...NEGATIONS_018])];
+SEED_ADDITIONS.push({ migration: '018_order_and_ai_checks', words: { kata_tidak: NEGATIONS_018 } });
+
+/** Keywords of the products the owner's document added (migration 019 creates the products first). */
+SEED_ADDITIONS.push({
+    migration: '019_prema_knowledge',
+    products: {
+        'kaos-raglan': ['kaos raglan', 'raglan', 'baju raglan', 'lengan raglan'],
+        'pin-jarum': ['pin jarum', 'pin peniti', 'pin custom', 'pin bros', 'bros custom', 'pin organisasi'],
+        // The owner's names for products already in the bot.
+        kemeja: ['pdh', 'kemeja pdh', 'baju pdh', 'pdh angkatan', 'pdh himpunan', 'korsa', 'baju korsa', 'kemeja korsa'],
+        'id-card-lanyard': ['tali id', 'tali name tag', 'kartu panitia', 'kartu anggota'],
+        jersey: ['jersey bola', 'baju tim'],
+    },
+    // PDH is Kemeja PDH in the owner's list, not PDL.
+    remove: { products: { pdl: ['pdh', 'pdh angkatan', 'pdh himpunan'] } },
+});
+
+/** Words that make an amount a product price: a fixed amount from the shop's data next to these is refused. */
+SEED_WORDS.kata_harga = {
+    label: 'Kata harga produk',
+    help: 'Nominal dari data toko (mis. tambahan ukuran besar) boleh disebut AI, tetapi tidak di kalimat yang berisi kata ini: itu berarti AI memakainya sebagai harga produk.',
+    words: ['harga', 'harganya', 'total', 'totalnya', 'per pcs', 'perpcs', 'satuannya', 'per biji', 'per potong'],
+};
+SEED_ADDITIONS.push({ migration: '019_prema_knowledge', words: { kata_harga: SEED_WORDS.kata_harga.words } });

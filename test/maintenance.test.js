@@ -106,3 +106,21 @@ test('simulator walks the same flow without WhatsApp', async () => {
     assert.ok(!sizeChart.replies.some((r) => r.type === 'handover'), 'a missing size chart does not close the chat');
     assert.ok(sizeChart.replies.some((r) => r.text === replies.sizeChartMissing('Hoodie')));
 });
+
+test('the morning recap carries what the AI chat collected: each answered item, the AI note, not the summary twice', () => {
+    run('DELETE FROM conversations');
+    store.saveConversation('utama', '628333@s.whatsapp.net', {
+        step: 'handed_over',
+        name: 'Haikal',
+        product: 'jas-almamater',
+        handover_reason: 'data pesanan lengkap',
+        order_info: JSON.stringify({ produk: 'jas-almamater', jawaban: { jumlah: '40 pcs', warna: 'navy', 'rincian ukuran': 'menyusul' } }),
+        notes: JSON.stringify(['Pesanan Jas Almamater · jumlah: 40 pcs · warna: navy', 'Untuk himpunan, acara bulan depan']),
+    });
+
+    const text = buildRecap(SINCE);
+    assert.match(text, /- jumlah: 40 pcs/);
+    assert.match(text, /- rincian ukuran: menyusul/);
+    assert.match(text, /📝 Untuk himpunan, acara bulan depan/);
+    assert.doesNotMatch(text, /Pesanan Jas Almamater ·/, 'the one-line summary is not repeated');
+});

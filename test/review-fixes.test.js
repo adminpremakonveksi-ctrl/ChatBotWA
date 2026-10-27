@@ -365,3 +365,56 @@ test('"Stream Errored (conflict)": the bot stops instead of fighting the other p
     const html = fs.readFileSync(new URL('../src/console.html', import.meta.url), 'utf8');
     assert.match(html, /main\.state === 'replaced'/, 'the console explains it and offers a fresh scan');
 });
+
+test('"Jas almet bahan apa ya?" the AI does not know: noted for CS, then the flow; no CS offer next to [4] (2026-10-19)', () => {
+    const conv = { step: 'awaiting_product', name: 'Haikal' };
+    const c = classifyWithRules({ text: 'Jas almet bahan apa ya?', step: conv.step });
+    const r = step(conv, 'Jas almet bahan apa ya?', { ...c, aiAnswer: { type: 'unknown' } });
+
+    assert.deepEqual(texts(r.actions), [replies.csQuestion(), replies.askDesign('Jas Almamater')]);
+    assert.ok(!r.conv.offered_cs, 'no "mau dioper ke CS?" while the flow goes on');
+    assert.match(r.conv.notes, /bahan apa/, 'CS sees the question in Percakapan and the morning recap');
+
+    // Mid-order the same: noted, the step waits.
+    const mid = step({ step: 'awaiting_design', product: 'kaos' }, 'sablonnya pakai apa?', { intent: 'has_reference', isQuestion: true, aiAnswer: { type: 'unknown' } });
+    assert.deepEqual(texts(mid.actions), [replies.csQuestion()]);
+    assert.equal(mid.conv.step, 'awaiting_design');
+
+    // A question outside the flow still gets the offer.
+    const off = step({ step: 'awaiting_product' }, 'kalian buka cabang di jakarta?', { intent: 'other', isQuestion: true, aiAnswer: { type: 'unknown' } });
+    assert.deepEqual(texts(off.actions), [replies.aiUnknown()]);
+    assert.equal(off.conv.offered_cs, 1);
+});
+
+test('the console is read once at boot, so it always matches the running bot ("GET /ai/scenarios (HTTP 404)", 2026-10-27)', async () => {
+    const fs = await import('node:fs');
+    const source = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+    const start = source.indexOf("app.get('/', ");
+    const route = source.slice(start, source.indexOf('});', start));
+
+    assert.match(source, /const consolePage = fs\.readFileSync\(/, 'read at module load');
+    assert.doesNotMatch(route, /readFileSync/, 'not read again per request');
+});
+
+test('launcher: Mulai checks for a new version first; Update installs it but does not start the bot (client, 2026-10-27)', async () => {
+    const fs = await import('node:fs');
+    const ps = fs.readFileSync(new URL('../scripts/launcher.ps1', import.meta.url), 'utf8');
+    const body = (name) => {
+        const start = ps.indexOf(`function ${name} {`);
+        return ps.slice(start, ps.indexOf('\n}\n', start));
+    };
+
+    const mulai = body('Invoke-Mulai');
+    assert.match(mulai, /Get-LatestVersion/, 'Mulai looks for a newer version');
+    assert.match(mulai, /Install-UpdateFiles/);
+    assert.ok(mulai.indexOf('Get-LatestVersion') < mulai.indexOf('Get-Health'), 'before opening a running bot');
+    assert.match(mulai, /Test-DevCheckout/, 'never pulls on the developer PC');
+
+    const update = body('Invoke-Update');
+    assert.doesNotMatch(update, /-Action install|Invoke-Install|Start-ScheduledTask/, 'Update does not start the bot');
+    assert.match(update, /-Action prepare/);
+    assert.match(update, /klik Mulai ChatBot Prema/);
+
+    // The files Update must never touch.
+    assert.match(body('Install-UpdateFiles'), /\/XD data media logs node_modules \.git \/XF \.env/);
+});

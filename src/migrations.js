@@ -1,5 +1,6 @@
-import { AUTO_MESSAGES_KEY, SEED_ADDITIONS, SEED_KEYWORDS, SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS, SEED_AWAY_MESSAGE, SEED_WORDS, seedQuestions } from './seeds.js';
+import { AUTO_MESSAGES_KEY, SEED_ADDITIONS, SEED_AI_SCENARIOS, SEED_KEYWORDS, SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS, SEED_STARTER_KEYWORDS, SEED_STORE_TOPICS, SEED_AWAY_MESSAGE, SEED_WORDS, seedQuestions } from './seeds.js';
 import { cleanPhrase, setDictionary, textRulesVersion } from './text.js';
+import { PREMA_FAQ, PREMA_NEW_PRODUCTS, PREMA_PRODUCTS, PREMA_SCENARIOS, PREMA_TOPICS } from './seeds-prema.js';
 
 /**
  * Numbered schema migrations with their seeders. Each runs once per database
@@ -396,6 +397,144 @@ CREATE TABLE IF NOT EXISTS lid_map (
             syncSeeds(db, '016_chat_extras');
         },
     },
+    {
+        // AI chat mode: what the bot knows, filled in by the team. Products get
+        // their details (bahan, teknik, ...), the shop its topics and Q&A.
+        // Everything starts empty except the topic titles; the old free-text
+        // "Pengetahuan toko" becomes the first topic.
+        id: '017_knowledge',
+        up(db) {
+            if (!hasColumn(db, 'products', 'info')) db.exec(`ALTER TABLE products ADD COLUMN info TEXT NOT NULL DEFAULT '{}'`);
+            db.exec(`
+CREATE TABLE IF NOT EXISTS store_info (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL DEFAULT '',
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT
+);
+CREATE TABLE IF NOT EXISTS faq (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product TEXT,
+    question TEXT NOT NULL,
+    answer TEXT NOT NULL,
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT
+);`);
+
+            if (!db.prepare('SELECT 1 FROM store_info LIMIT 1').get()) {
+                const insert = db.prepare('INSERT INTO store_info (title, content, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)');
+                let position = 0;
+
+                const old = db.prepare(`SELECT value FROM settings WHERE "key" = 'cfg:storeKnowledge'`).get();
+                let text = '';
+                try {
+                    text = old ? String(JSON.parse(old.value) ?? '').trim() : '';
+                } catch {
+                    /* unreadable: nothing to carry over */
+                }
+                if (text) insert.run('Catatan umum', text, position++, stamp(), stamp());
+
+                for (const title of SEED_STORE_TOPICS) insert.run(title, '', position++, stamp(), stamp());
+            }
+
+            syncSeeds(db, '017_knowledge');
+        },
+    },
+    {
+        // AI chat: what the customer already answered per product (order_info),
+        // the AI replies the guard refused (ai_log), and the team's test
+        // scenarios (ai_scenarios, seeded once).
+        id: '018_order_and_ai_checks',
+        up(db) {
+            if (!hasColumn(db, 'conversations', 'order_info')) db.exec('ALTER TABLE conversations ADD COLUMN order_info TEXT');
+            db.exec(`
+CREATE TABLE IF NOT EXISTS ai_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL,
+    who TEXT,
+    message TEXT,
+    reply TEXT,
+    problem TEXT NOT NULL,
+    outcome TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS ai_scenarios (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    messages TEXT NOT NULL,
+    forbid TEXT NOT NULL DEFAULT '[]',
+    expect TEXT NOT NULL DEFAULT '[]',
+    position INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT,
+    updated_at TEXT
+);`);
+
+            if (!db.prepare('SELECT 1 FROM ai_scenarios LIMIT 1').get()) {
+                const insert = db.prepare('INSERT INTO ai_scenarios (name, messages, forbid, expect, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+                SEED_AI_SCENARIOS.forEach((s, i) => insert.run(s.name, JSON.stringify(s.messages), JSON.stringify(s.forbid), JSON.stringify(s.expect), i, stamp(), stamp()));
+            }
+
+            syncSeeds(db, '018_order_and_ai_checks');
+        },
+    },
+    {
+        // The owner's answers (seeds-prema.js) as a one-time start for what the
+        // team edits in the console: new products, empty topics and empty
+        // product details filled, Q&A added. Anything the team already wrote is
+        // kept; what it deletes later stays deleted (this runs once).
+        id: '019_prema_knowledge',
+        up(db) {
+            const removed = (value) => Boolean(db.prepare(`SELECT 1 FROM seed_removed WHERE kind = 'product' AND value = ?`).get(value));
+            for (const p of PREMA_NEW_PRODUCTS) {
+                if (removed(p.key) || db.prepare('SELECT 1 FROM products WHERE "key" = ?').get(p.key)) continue;
+                const position = (db.prepare('SELECT MAX(position) AS p FROM products').get()?.p ?? -1) + 1;
+                db.prepare(`INSERT INTO products ("key", name, kind, size_chart, position, builtin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1, ?, ?)`)
+                    .run(p.key, p.name, p.catalog ? 'catalog' : 'design', p.sizeChart ? 1 : 0, position, stamp(), stamp());
+            }
+            syncSeeds(db, '019_prema_knowledge');
+
+            for (const t of PREMA_TOPICS) {
+                const row = db.prepare('SELECT id, content FROM store_info WHERE title = ?').get(t.title);
+                if (row && !String(row.content).trim()) db.prepare('UPDATE store_info SET content = ?, updated_at = ? WHERE id = ?').run(t.content, stamp(), row.id);
+                if (!row) {
+                    const position = (db.prepare('SELECT MAX(position) AS p FROM store_info').get()?.p ?? -1) + 1;
+                    db.prepare('INSERT INTO store_info (title, content, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(t.title, t.content, position, stamp(), stamp());
+                }
+            }
+
+            const empty = (value) => (Array.isArray(value) ? !value.length : !String(value ?? '').trim());
+            for (const [key, seed] of Object.entries(PREMA_PRODUCTS)) {
+                const row = db.prepare('SELECT info FROM products WHERE "key" = ?').get(key);
+                if (!row) continue;
+                let info = {};
+                try {
+                    info = JSON.parse(row.info || '{}') ?? {};
+                } catch {
+                    /* unreadable: start from the seed */
+                }
+                for (const [field, value] of Object.entries(seed)) if (empty(info[field])) info[field] = value;
+                db.prepare('UPDATE products SET info = ?, updated_at = ? WHERE "key" = ?').run(JSON.stringify(info), stamp(), key);
+            }
+
+            const named = new Set(db.prepare('SELECT name FROM ai_scenarios').all().map((r) => r.name));
+            let scenarioAt = (db.prepare('SELECT MAX(position) AS p FROM ai_scenarios').get()?.p ?? -1) + 1;
+            for (const s of PREMA_SCENARIOS) {
+                if (named.has(s.name)) continue;
+                db.prepare('INSERT INTO ai_scenarios (name, messages, forbid, expect, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
+                    .run(s.name, JSON.stringify(s.messages), JSON.stringify(s.forbid), JSON.stringify(s.expect), scenarioAt++, stamp(), stamp());
+            }
+
+            const known = new Set(db.prepare('SELECT LOWER(question) AS q FROM faq').all().map((r) => r.q));
+            let position = (db.prepare('SELECT MAX(position) AS p FROM faq').get()?.p ?? -1) + 1;
+            for (const f of PREMA_FAQ) {
+                if (known.has(f.question.toLowerCase())) continue;
+                const product = f.product && db.prepare('SELECT 1 FROM products WHERE "key" = ?').get(f.product) ? f.product : null;
+                db.prepare('INSERT INTO faq (product, question, answer, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)').run(product, f.question, f.answer, position++, stamp(), stamp());
+            }
+        },
+    },
 ];
 
 /** Adds the away message to a list the team already saved, once; a fresh install gets it as the default. */
@@ -491,6 +630,15 @@ function applySeed(db, add) {
     for (const [intent, phrases] of Object.entries(add.keywords ?? {})) {
         for (const phrase of phrases.map(cleanPhrase)) {
             if (!removed('keyword', phrase)) insert.run(phrase, intent, null, stamp());
+        }
+    }
+
+    // A built-in product keyword that belongs to another product ("pdh" was PDL;
+    // it is Kemeja PDH): taken off before the additions give it its new owner.
+    // Only the seeded one: a phrase the team put there itself is theirs.
+    for (const [key, phrases] of Object.entries(add.remove?.products ?? {})) {
+        for (const phrase of phrases.map(cleanPhrase)) {
+            db.prepare(`DELETE FROM custom_keywords WHERE intent = 'product' AND product = ? AND phrase = ? AND source = 'bawaan'`).run(key, phrase);
         }
     }
 

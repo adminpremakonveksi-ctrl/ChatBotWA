@@ -5,6 +5,7 @@ import { recordActivity } from '../activity.js';
 import { logger } from '../logger.js';
 import { classify as defaultClassify } from './classify.js';
 import { isAutoMessage, releaseAutoHandovers } from './auto-messages.js';
+import { chatTurn } from './chat.js';
 import { decide } from './engine.js';
 import { productName } from './products.js';
 import { replies } from './replies.js';
@@ -29,12 +30,14 @@ const SELF_TEST_RESET = '🔄 Mode uji: percakapan dimulai ulang. Ketik pesan se
 export class Bot {
     constructor({
         classify = defaultClassify,
+        chat = chatTurn,
         media = defaultMedia,
         store = defaultStore,
         isActive = () => isBotActive(),
         debounceMs = config.bot.debounceMs,
     } = {}) {
         this.classify = classify;
+        this.chat = chat;
         this.media = media;
         this.store = store;
         this.isActive = isActive;
@@ -170,6 +173,27 @@ export class Bot {
         if (conversation.step === 'handed_over') return;
 
         const text = texts.join('\n');
+
+        // The WhatsApp Business Salam answered this new customer a moment ago (10 minutes at most).
+        const key = `${sessionKey}|${jid}`;
+        const salamAt = this.autoGreeted.get(key);
+        this.autoGreeted.delete(key);
+        const autoGreeted = Boolean(conversation.step === 'new' && salamAt && Date.now() - salamAt < 10 * 60 * 1000);
+
+        // AI chat mode (Pengaturan > Mode bot): the AI writes from the shop's data (chat.js).
+        if (config.bot.mode === 'ai') {
+            // A new (or started-over) conversation: the lines of the old one are not its context.
+            const history = conversation.step === 'new' ? [] : this.store.recentHistory?.(sessionKey, jid, texts.length, 12) ?? [];
+            const turn = await this.chat(conversation, { text, hasImage, hasAudio, attachments, history, who: key, autoGreeted }, { media: this.media });
+            const classified = { intent: turn.silent ? 'ai_diam' : 'ai', source: 'ai' };
+
+            this.store.tagIncoming(sessionKey, jid, classified.intent);
+            // CS may have replied while the AI was writing.
+            if (this.store.loadConversation(sessionKey, jid).step === 'handed_over') return;
+
+            return this.#deliver(sessionKey, transport, jid, conversation, text, classified, turn);
+        }
+
         const classified = await this.classify({
             text,
             hasImage,
@@ -190,14 +214,13 @@ export class Bot {
         // CS may have replied while the classifier was thinking.
         if (this.store.loadConversation(sessionKey, jid).step === 'handed_over') return;
 
-        // The WhatsApp Business Salam answered this new customer a moment ago (10 minutes at most).
-        const key = `${sessionKey}|${jid}`;
-        const salamAt = this.autoGreeted.get(key);
-        this.autoGreeted.delete(key);
-        const autoGreeted = conversation.step === 'new' && salamAt && Date.now() - salamAt < 10 * 60 * 1000;
+        const turn = decide(autoGreeted ? { ...conversation, autoGreeted: true } : conversation, classified, this.media);
 
-        const { actions, patch } = decide(autoGreeted ? { ...conversation, autoGreeted: true } : conversation, classified, this.media);
+        return this.#deliver(sessionKey, transport, jid, conversation, text, classified, turn);
+    }
 
+    /** Sends a turn ({ actions, patch }, from the script or the AI) and stores where the conversation went. */
+    async #deliver(sessionKey, transport, jid, conversation, text, classified, { actions, patch }) {
         this.log.info(
             { jid, step: conversation.step, intent: classified.intent, product: classified.product, via: classified.source, next: patch.step ?? conversation.step },
             'pesan dikenali',
@@ -226,7 +249,10 @@ export class Bot {
             if (!links.length) return files();
 
             const [first, ...rest] = links;
-            const produk = action.product ? productName(action.product) : 'produk';
+            // The shop-wide catalog sent for a product without its own is not
+            // "katalog Jas Almamater": it is named as the shop's.
+            const shopWide = action.kind === 'katalog' && action.product && first === this.media.link?.('katalog', null);
+            const produk = action.product && !shopWide ? productName(action.product) : 'produk';
 
             // A catalog link replaces the pictures (WhatsApp shows the product cards).
             if (action.kind === 'katalog') {

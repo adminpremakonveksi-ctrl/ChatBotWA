@@ -323,6 +323,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
     <button class="nav" data-page="template"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>Template balasan<span class="count hidden" id="navTpl"></span></button>
     <button class="nav" data-page="pola"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/><circle cx="12" cy="12" r="3"/></svg>Pola jawaban<span class="count hidden" id="navPola"></span></button>
     <button class="nav" data-page="produk"><svg class="i" viewBox="0 0 24 24"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Produk</button>
+    <button class="nav" data-page="pengetahuan"><svg class="i" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14zM20 17v4H6.5A2.5 2.5 0 0 1 4 18.5"/></svg>Pengetahuan<span class="count hidden" id="navKnow"></span></button>
     <button class="nav" data-page="latih"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8l5.5-.8z"/></svg>Latih bot<span class="count hidden" id="navTeach"></span></button>
     <button class="nav" data-page="statistik"><svg class="i" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistik</button>
     <button class="nav" data-page="media"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>Media<span class="count hidden" id="navMedia"></span></button>
@@ -425,6 +426,18 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
             <div class="card"><h3>Coba pesan ini</h3><p class="hint">Klik untuk mengirim. Campur pertanyaan, typo, dan bahasa sehari-hari.</p><div class="quick" id="quick"></div></div>
           </div>
         </div>
+        <div class="stack" style="margin-top:16px">
+          <div class="card stack">
+            <div class="row" style="flex-wrap:wrap"><h3 style="flex:1">Uji AI</h3><span class="small muted" id="scnSummary"></span><button class="btn" id="scnNew">+ Skenario</button><button class="btn primary" id="scnRunAll">Jalankan semua</button></div>
+            <p class="hint">Percakapan "jebakan" yang dijalankan ke AI sungguhan (memakai kuota AI, tidak ada yang dikirim ke WhatsApp). Gagal kalau balasan memuat isi <b>Tidak boleh</b>, tidak memuat isi <b>Harus ada</b> (dicek di kalimat AI saja), atau bot diam. Kode khusus: <code>#angka</code> angka apa pun, <code>#angka-uang</code> nominal uang, <code>#link</code> link, <code>#serah</code> harus diserahkan ke CS, <code>#diam</code> bot tidak boleh diam. Jalankan lagi setiap Pengetahuan atau instruksi AI diubah.</p>
+            <div class="stack" id="scnList"></div>
+          </div>
+          <div class="card stack">
+            <div class="row"><h3 style="flex:1">Balasan AI yang ditahan</h3><button class="btn" id="aiLogRefresh">Muat ulang</button><button class="btn danger" id="aiLogClear">Kosongkan</button></div>
+            <p class="hint">Balasan AI yang tidak lolos penjaga (harga, kata terlarang, angka atau link di luar data). <b>Ditulis ulang</b>: AI memperbaikinya dan yang terkirim versi perbaikan. <b>Diam</b>: dua kali tidak lolos, bot tidak membalas. <b>Error</b>: AI tidak menjawab. Banyak yang sama berarti Pengetahuan atau instruksinya perlu dirapikan.</p>
+            <div id="aiLogList"></div>
+          </div>
+        </div>
       </section>
 
       <!-- TEMPLATE BALASAN -->
@@ -454,6 +467,24 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
           <p class="hint">Daftar produk yang dikenali bot. <b>Punya price list</b>: bot mengirim katalognya. <b>Harga tergantung desain</b>: bot menanyakan referensi desain. Semua bisa diubah atau dihapus; perubahan langsung berlaku.</p>
         </div>
         <div class="stack" id="prodList"></div>
+      </section>
+
+      <!-- PENGETAHUAN -->
+      <section data-page="pengetahuan" class="hidden stack">
+        <div class="card">
+          <h3>Pengetahuan Mawar</h3>
+          <p class="hint">Di mode AI, Mawar menjawab pelanggan <b>hanya</b> dari isi halaman ini, detail tiap produk di halaman <a href="#produk" data-goto="produk">Produk</a>, dan <a href="#pola" data-goto="pola">Pola jawaban</a>. Yang dikosongkan tidak ditebak: Mawar bilang akan ditanyakan ke CS. Jangan tulis harga: Mawar tidak pernah menyebut harga. Perubahan langsung berlaku.</p>
+        </div>
+        <div class="card stack">
+          <div class="row"><h3 style="flex:1">Info toko</h3><span class="small muted" id="topicCount"></span><button class="btn primary" id="topicNew">+ Topik baru</button></div>
+          <p class="hint">Satu topik satu hal: lokasi, jam kerja, cara pesan, DP, pengiriman, dan sebagainya. Tulis seperti menjelaskan ke karyawan baru.</p>
+          <div class="stack" id="topicList"></div>
+        </div>
+        <div class="card stack">
+          <div class="row"><h3 style="flex:1">Tanya-jawab</h3><span class="small muted" id="faqCount"></span><button class="btn primary" id="faqNew">+ Tanya-jawab baru</button></div>
+          <p class="hint">Pertanyaan yang sering masuk dan jawaban yang biasa diberikan CS. Boleh untuk semua produk atau satu produk saja. Mawar memakai jawabannya, dengan kalimatnya sendiri.</p>
+          <div class="stack" id="faqList"></div>
+        </div>
       </section>
 
       <!-- LATIH BOT -->
@@ -525,6 +556,8 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
           <div class="form">
             <label>Nama bot<small>Muncul di sapaan: "izinkan saya … selaku AI Agent"</small></label><input class="f" name="botName" required>
             <label>Nama CS<small>"sembari menunggu CS … online"</small></label><input class="f" name="csName" required>
+            <label>Mode bot<small>AI: setelah sapaan, Mawar mengobrol sendiri dari isi halaman <a href="#pengetahuan" data-goto="pengetahuan">Pengetahuan</a> dan Produk. Kalau AI mati, bot diam. Naskah: alur tetap dari spesifikasi.</small></label>
+            <select class="f" name="botMode"><option value="ai">AI: mengobrol dari data toko</option><option value="naskah">Naskah: alur tetap</option></select>
             <label>Jam bot menjawab<small>Senin–Sabtu. Minggu (dan Mode libur) selalu 24 jam. Di luar jam ini bot diam dan CS yang membalas.</small></label>
             <div class="stack" style="gap:6px">
               <div class="inline"><span>mulai</span><input class="f" type="time" name="activeFrom" required><span>sampai</span><input class="f" type="time" name="activeUntil" required></div>
@@ -567,7 +600,11 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
           </div>
           <details style="margin-top:12px"><summary><b>Instruksi & batas AI</b> <span class="small muted" id="aiPromptState"></span></summary>
             <div class="form" style="margin-top:10px">
-              <label>Instruksi kalimat pembuka<small>Gaya kalimat pendek sebelum balasan. Larangan (angka, harga, janji, link) selalu ditambahkan otomatis.</small></label>
+              <label>Siapa Mawar & gaya bicaranya<small>Mode AI. Tulis seperti memberi arahan ke karyawan baru: perannya, gaya bahasa, apa yang ditanyakan ke pelanggan. Aturan tetap (hanya dari data toko, tanpa harga, tanpa janji tanggal, tanpa teknik yang tidak dilayani) selalu ditambahkan otomatis. {bot} dan {cs} diganti nama di atas.</small></label>
+              <textarea class="f" name="aiChatPrompt" rows="6"></textarea>
+              <label>Contoh percakapan yang bagus<small>Mode AI. Beberapa contoh chat seperti yang diinginkan owner ("Pelanggan: …" lalu "{bot}: …"). AI meniru cara bicaranya; faktanya tetap dari Pengetahuan. Kosongkan untuk kembali ke contoh bawaan.</small></label>
+              <textarea class="f" name="aiChatExamples" rows="8"></textarea>
+              <label>Instruksi kalimat pembuka<small>Mode naskah. Gaya kalimat pendek sebelum balasan. Larangan (angka, harga, janji, link) selalu ditambahkan otomatis.</small></label>
               <textarea class="f" name="aiOpeningPrompt" rows="4"></textarea>
               <label>Instruksi menjawab pertanyaan<small>Gaya jawaban. AI tetap hanya menjawab dari Pengetahuan toko, produk dan Pola jawaban.</small></label>
               <textarea class="f" name="aiAnswerPrompt" rows="4"></textarea>
@@ -580,12 +617,6 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
           </details>
           <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px"><button type="button" class="btn" id="aiTest">Tes koneksi</button><button class="btn primary">Simpan</button></div>
           <div class="small" id="aiTestOut" style="margin-top:10px"></div>
-        </form>
-
-        <form class="card" id="knowForm">
-          <div class="row"><h3 style="flex:1">Pengetahuan toko (untuk AI)</h3><button class="btn primary">Simpan</button></div>
-          <p class="hint">Hanya dipakai kalau AI aktif. Pertanyaan yang tidak ada jawabannya di bot dijawab AI <b>hanya</b> dari catatan ini, daftar produk, dan Pola jawaban. Kalau tidak ada di sini, bot bilang belum tahu dan menawarkan CS. AI tidak pernah menyebut harga, angka, diskon atau janji, jadi jangan tulis harga di sini.</p>
-          <textarea class="f" name="storeKnowledge" rows="8" style="width:100%;font-family:inherit" placeholder="Contoh:&#10;Bahan kaos: cotton combed, bisa pilih warna.&#10;Sablon: plastisol dan DTF.&#10;Pembayaran: transfer bank, DP dulu sebelum produksi.&#10;Pengerjaan: tergantung jumlah, CS yang menginfokan jadwalnya."></textarea>
         </form>
 
         <form class="card" id="autoForm">
@@ -708,10 +739,10 @@ const num = (n) => Number(n || 0).toLocaleString('id-ID');
 const toast = (text) => { const t = document.createElement('div'); t.className = 'toast'; t.textContent = text; $('#toasts').append(t); setTimeout(() => t.remove(), 3200); };
 const store = { get(k) { try { return localStorage.getItem(k); } catch { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch {} } };
 
-const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', price:'Tanya harga', ask_first:'Mau tanya dulu', ack:'Oke / makasih', human:'Minta bicara dengan CS', about_bot:'"Kamu bot ya?"', product_unknown:'Produk tidak ada di daftar', cs_question:'Pertanyaan untuk CS', image:'Kirim gambar', voice:'Pesan suara', custom:'Pola jawaban', other:'Tidak dikenali' };
+const INTENT = { greeting:'Menyapa', introduction:'Perkenalan', product:'Tanya / pesan produk', size_chart:'Size chart', location:'Lokasi', shipping:'Pengiriman', trust:'Ragu / takut ditipu', design_reference:'Contoh desain / katalog', moq:'Minimal order', no_reference:'Belum punya desain', has_reference:'Kirim desain', quantity:'Jumlah pesanan', price:'Tanya harga', ask_first:'Mau tanya dulu', ack:'Oke / makasih', human:'Minta bicara dengan CS', about_bot:'"Kamu bot ya?"', product_unknown:'Produk tidak ada di daftar', cs_question:'Pertanyaan untuk CS', image:'Kirim gambar', voice:'Pesan suara', custom:'Pola jawaban', other:'Tidak dikenali', ai:'Dijawab AI', ai_diam:'AI diam (lihat error)' };
 const STEPS = [['new','Sapa'], ['awaiting_intro','Kenalan'], ['awaiting_product','Produk'], ['awaiting_design','Desain'], ['awaiting_quantity','Jumlah'], ['handed_over','Ke CS']];
-const STEP_INDEX = { new:0, awaiting_intro:1, awaiting_product:2, awaiting_size_chart_product:2, awaiting_detail:2, awaiting_design:3, awaiting_quantity:4, handed_over:5 };
-const STEP_LABEL = { new:'baru menyapa', awaiting_intro:'ditanya nama', awaiting_product:'ditanya produk', awaiting_size_chart_product:'ditanya produk size chart', awaiting_detail:'ditanya detail produk', awaiting_design:'ditanya desain', awaiting_quantity:'ditanya jumlah', handed_over:'di CS' };
+const STEP_INDEX = { new:0, awaiting_intro:1, awaiting_product:2, awaiting_size_chart_product:2, awaiting_detail:2, awaiting_design:3, awaiting_quantity:4, chat:2, handed_over:5 };
+const STEP_LABEL = { new:'baru menyapa', awaiting_intro:'ditanya nama', awaiting_product:'ditanya produk', awaiting_size_chart_product:'ditanya produk size chart', awaiting_detail:'ditanya detail produk', awaiting_design:'ditanya desain', awaiting_quantity:'ditanya jumlah', chat:'ngobrol dengan AI', handed_over:'di CS' };
 const AVA = ['#2f7d6d', '#3d6fb6', '#b0623b', '#7a5aa6', '#4f8a3c', '#a2486a', '#5e6b7a'];
 const avaColor = (s) => AVA[[...String(s)].reduce((a, c) => a + c.charCodeAt(0), 0) % AVA.length];
 const initials = (name) => name ? name.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() : '?';
@@ -768,11 +799,17 @@ const HELP = {
     <li>Pilih setelah menjawab: tetap di alur, atau serahkan ke CS.</li>
     <li>Coba di kotak "Coba kalimat".</li></ol>
     <div class="tip">Pola bawaan (Lokasi, Pengiriman, Ragu, Minimal order) bisa diubah, dihapus, dan dipulihkan.</div>`,
+  pengetahuan: `<p>Semua yang diketahui Mawar di <b>mode AI</b>. Mawar menjawab pelanggan dengan kalimatnya sendiri, tapi isinya hanya dari sini, dari detail produk, dan dari Pola jawaban.</p><ol>
+    <li><b>Info toko</b>: satu topik satu hal (lokasi, jam kerja, cara pesan, DP, pengiriman, garansi...). Isi jawabannya lalu <b>Simpan</b>. Topik yang kosong ditandai "belum diisi": Mawar bilang hal itu ditanyakan ke CS.</li>
+    <li><b>+ Topik baru</b> untuk hal lain. ↑ ↓ untuk mengurutkan, <b>Hapus topik</b> kalau tidak perlu.</li>
+    <li><b>Tanya-jawab</b>: pertanyaan yang sering masuk dan jawaban toko, untuk semua produk atau satu produk.</li></ol>
+    <div class="tip">Jangan tulis harga. Mawar tidak pernah menyebut harga, diskon, atau janji tanggal jadi, dan balasan yang melanggar tidak dikirim.</div>`,
   produk: `<p>Produk yang dikenali bot.</p><ol>
     <li><b>+ Produk baru</b>, atau klik produk untuk mengubah.</li>
     <li><b>Jenis</b>: punya price list (bot mengirim katalog) atau harga tergantung desain (bot menanyakan desain).</li>
     <li><b>Kata kunci</b>: cara pelanggan menyebut produk ini.</li>
-    <li><b>Pertanyaan lanjutan</b>: satu per baris, mis. "Kemejanya jenis apa?" lalu "Ukurannya apa saja?". Bot menanyakannya satu per satu dan jawabannya muncul di Percakapan.</li>
+    <li><b>Detail untuk Mawar</b> (mode AI): nama lain, model, bahan, cara cetak yang dilayani dan yang <b>tidak</b>, warna, ukuran, minimal order, dan apa yang perlu ditanyakan. Satu hal per baris; bahan ditulis "nama: seperti apa", yang tidak dilayani "teknik: gantinya". Mawar tidak akan menawarkan yang tidak tertulis.</li>
+    <li><b>Pertanyaan lanjutan</b> (mode naskah): satu per baris, mis. "Kemejanya jenis apa?" lalu "Ukurannya apa saja?". Bot menanyakannya satu per satu dan jawabannya muncul di Percakapan.</li>
     <li><b>Hapus produk</b>: bot tidak lagi mengenalinya.</li></ol>`,
   latih: `<p>Mengajari bot kalimat yang belum dimengerti.</p><ol>
     <li>Di kiri ada pesan pelanggan yang <b>belum dikenali</b> (bot menyerahkannya ke CS).</li>
@@ -931,8 +968,13 @@ async function loadRingkasan() {
     : '<div class="empty">Tidak ada yang menunggu. 🎉</div>';
 
   // readiness
+  const k = info.knowledge || { topics: 0, filled: 0, faq: 0 };
   const checks = [
     [main?.connected, 'Nomor WhatsApp tersambung', main?.connected ? '+' + esc(main.phoneNumber) : 'Scan QR di kartu sebelah'],
+    ...(info.botMode === 'ai' ? [
+      [info.aiReady, 'AI tersambung (mode AI)', info.aiReady ? esc(info.ai) : 'mode AI tanpa kunci: setelah sapaan bot diam · <a href="#pengaturan" data-goto="pengaturan">isi kunci AI</a>'],
+      [k.filled > 0, 'Pengetahuan toko diisi', `${k.filled} dari ${k.topics} topik terisi, ${k.faq} tanya-jawab · <a href="#pengetahuan" data-goto="pengetahuan">isi</a>`],
+    ] : []),
     [!info.mediaMissing, 'File katalog & size chart lengkap', info.mediaMissing ? `${info.mediaMissing} file belum ada · <a href="#media" data-goto="media">lihat</a>` : 'semua ada'],
     [info.recapTo.length > 0, 'Rekap pagi ke CS', info.recapTo.length ? `jam ${esc(info.recapAt)} ke ${info.recapTo.map(esc).join(', ')}` : 'isi nomor penerima · <a href="#pengaturan" data-goto="pengaturan">atur</a>'],
     [info.backupOutside, 'Backup keluar dari PC ini', info.backupOutside ? esc(info.backupDir) : 'pilih folder Google Drive/OneDrive · <a href="#pengaturan" data-goto="pengaturan">atur</a>'],
@@ -1012,13 +1054,19 @@ function whoBanner(c) {
 function orderSummary(c, row) {
   let details = [];
   try { details = JSON.parse(c.details || '[]'); } catch {}
-  const notes = csNotes(c);
-  if (!c.product && !c.quantity && !details.length && !notes.length) return '';
+  let notes = csNotes(c);
+  // AI mode: what the customer answered per item (order_info); its first note is the same summary, in one line.
+  let order = null;
+  try { order = JSON.parse(c.order_info || 'null'); } catch {}
+  const answers = order?.jawaban ? Object.entries(order.jawaban) : [];
+  if (order) notes = notes.filter((n) => !String(n).startsWith('Pesanan '));
+  if (!c.product && !c.quantity && !details.length && !notes.length && !answers.length) return '';
   return `<dl class="order">
     ${c.product ? `<dt>Produk</dt><dd>${esc(row.product_name || c.product)}</dd>` : ''}
     ${c.quantity ? `<dt>Jumlah</dt><dd>${esc(c.quantity)}</dd>` : ''}
     ${details.map((d) => `<dt>${esc(d.q)}</dt><dd>${esc(d.a)}</dd>`).join('')}
-    ${notes.length ? `<dt>❓ Untuk dijawab CS</dt>${notes.map((n) => `<dd>• ${esc(n)}</dd>`).join('')}` : ''}
+    ${answers.map(([hal, isi]) => `<dt>${esc(hal)}</dt><dd>${esc(isi)}${/^\s*(menyusul|nanti|belum)\b/i.test(isi) ? ' <span class="pill quiet">ditunggu</span>' : ''}</dd>`).join('')}
+    ${notes.length ? `<dt>${order ? '📝 Catatan AI untuk CS' : '❓ Untuk dijawab CS'}</dt>${notes.map((n) => `<dd>• ${esc(n)}</dd>`).join('')}` : ''}
   </dl>`;
 }
 async function openConv(session, jid, quiet) {
@@ -1083,7 +1131,9 @@ $('#simForm').onsubmit = async (e) => {
   try {
     const r = await api('/simulate', { method:'POST', body: JSON.stringify({ id: simId, text, hasImage }) });
     const tags = [r.intent, ...(r.extras || [])].map((i) => `<span class="tag">${esc(INTENT[i] || i)}</span>`).join('') + (r.product ? `<span class="tag">${esc(r.product)}</span>` : '') + (r.name ? `<span class="tag">nama: ${esc(r.name)}</span>` : '');
-    simAdd(`<div class="sys" style="align-self:flex-end">dikenali ${r.via === 'ai' ? 'AI' : 'kata kunci'}: ${tags}</div>`);
+    if (r.intent === 'ai' || r.intent === 'ai_diam') simAdd(`<div class="sys" style="align-self:flex-end">mode AI${r.silent ? ` · <b>bot diam</b>: ${esc(r.silent)}` : ''}</div>`);
+    else simAdd(`<div class="sys" style="align-self:flex-end">dikenali ${r.via === 'ai' ? 'AI' : 'kata kunci'}: ${tags}</div>`);
+    if (r.thought) simAdd(`<details class="sys" style="align-self:stretch;text-align:left"><summary>🧠 cara berpikir AI</summary><div class="small" style="margin-top:4px">${esc(r.thought).replace(/ · /g, '<br>')}</div></details>`);
     if (!r.replies.length) simAdd('<div class="sys">bot tidak membalas</div>');
     for (const m of r.replies) {
       await new Promise((res) => setTimeout(res, 280));
@@ -1103,6 +1153,88 @@ $('#simReset').onclick = async () => {
   await api('/simulate/reset', { method:'POST', body: JSON.stringify({ id: simId }) });
   sim.innerHTML = '<div class="sys">Percakapan baru.</div>'; $('#simSteps').innerHTML = stepper('new'); $('#simLast').textContent = '';
 };
+
+/* ------------------------------------------------------------ uji AI --- */
+let scenarios = [], scnResults = {}, scnOpen = null, scnDraft = false;
+const OUTCOME = { 'ditulis ulang': ['quiet', 'ditulis ulang'], diam: ['warn', 'diam'], error: ['bad', 'error'] };
+
+async function loadUjiAi() {
+  const [s, l] = await Promise.all([api('/ai/scenarios'), api('/ai/log')]);
+  scenarios = s.scenarios;
+  renderScenarios(); renderAiLog(l.log);
+}
+function scnSummary() {
+  const ran = Object.values(scnResults).filter((r) => r.pass !== undefined);
+  $('#scnSummary').textContent = ran.length ? `${ran.filter((r) => r.pass).length} dari ${ran.length} lulus` : `${scenarios.length} skenario`;
+}
+function renderScenarios() {
+  const rows = [...(scnDraft ? [{ id: 0, name: '', messages: [], forbid: [], expect: ['#diam'] }] : []), ...scenarios];
+  $('#scnList').innerHTML = rows.map((s) => {
+    const res = scnResults[s.id];
+    const open = scnOpen === s.id || s.id === 0;
+    const badge = res?.running ? '<span class="pill quiet">berjalan…</span>' : res?.error ? '<span class="pill bad">gagal dijalankan</span>' : res ? `<span class="pill ${res.pass ? 'good' : 'warn'}">${res.pass ? 'lulus' : 'gagal'}</span>` : '';
+    return `<div class="card pola-card" data-scn="${s.id}" style="padding:12px">
+      <div class="pola-sum" data-toggle><b style="flex:1">${esc(s.name || 'Skenario baru')}</b>${badge}<span class="small muted">${s.messages.length} pesan</span>
+        ${s.id ? '<button class="btn sm" data-run>Jalankan</button>' : ''}<span class="muted">${open ? '▴' : '▾'}</span></div>
+      ${res?.problems?.length ? `<ul class="small" style="margin:6px 0 0 18px;color:var(--warn,#b45309)">${res.problems.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
+      ${res?.error ? `<p class="small" style="margin-top:6px">${esc(res.error)}</p>` : ''}
+      ${res?.transcript ? `<details style="margin-top:6px"><summary class="small">Lihat percakapan</summary><div class="stack" style="gap:4px;margin-top:6px">${res.transcript.map((t) => `<div class="small"><b>${t.from === 'pelanggan' ? 'Pelanggan' : t.from === 'bot' ? (t.ai ? 'Mawar (AI)' : 'Mawar (template)') : t.from === 'pikir' ? '🧠 Cara berpikir' : 'Sistem'}:</b> ${esc(t.text).replace(/\n/g, '<br>')}</div>`).join('')}</div></details>` : ''}
+      ${open ? `<div class="pola-body" style="display:block">
+        <label class="lb">Nama</label><input class="f" data-name value="${esc(s.name)}" maxlength="80" placeholder="mis. Tanya harga">
+        <label class="lb">Pesan pelanggan <span class="small muted" style="font-weight:400">· satu per baris, dikirim berurutan</span></label>
+        <textarea class="f" data-msgs rows="3" style="width:100%;font-family:inherit" placeholder="halo kak&#10;brp harga kaos 50 pcs?">${esc(s.messages.join('\n'))}</textarea>
+        <label class="lb">Tidak boleh muncul <span class="small muted" style="font-weight:400">· pisahkan dengan koma</span></label>
+        <input class="f" data-forbid value="${esc(s.forbid.join(', '))}" placeholder="#angka-uang, dijamin">
+        <label class="lb">Harus ada <span class="small muted" style="font-weight:400">· pisahkan dengan koma</span></label>
+        <input class="f" data-expect value="${esc(s.expect.join(', '))}" placeholder="#diam, CS">
+        <div class="row" style="gap:8px;margin-top:10px"><button class="btn primary sm" data-save>Simpan</button><button class="btn danger sm" data-delete>${s.id ? 'Hapus' : 'Batal'}</button></div>
+      </div>` : ''}
+    </div>`;
+  }).join('') || '<div class="empty">Belum ada skenario.</div>';
+  scnSummary();
+  $$('#scnList [data-scn]').forEach((card) => {
+    const id = Number(card.dataset.scn);
+    $('[data-toggle]', card).onclick = (e) => { if (e.target.closest('[data-run]')) return; if (id) { scnOpen = scnOpen === id ? null : id; renderScenarios(); } };
+    $('[data-run]', card)?.addEventListener('click', () => runScenario(id));
+    $('[data-save]', card)?.addEventListener('click', async () => {
+      const body = JSON.stringify({ name: $('[data-name]', card).value, messages: $('[data-msgs]', card).value, forbid: $('[data-forbid]', card).value, expect: $('[data-expect]', card).value });
+      try {
+        const { scenario } = await api(id ? '/ai/scenarios/' + id : '/ai/scenarios', { method: id ? 'PUT' : 'POST', body });
+        if (id) scenarios = scenarios.map((s) => (s.id === id ? scenario : s)); else { scenarios.push(scenario); scnDraft = false; scnOpen = scenario.id; }
+        renderScenarios(); toast('Skenario tersimpan');
+      } catch (err) { toast('Belum tersimpan: ' + err.message); }
+    });
+    $('[data-delete]', card)?.addEventListener('click', async () => {
+      if (!id) { scnDraft = false; renderScenarios(); return; }
+      if (!confirm('Hapus skenario ini?')) return;
+      await api('/ai/scenarios/' + id, { method:'DELETE' }); scenarios = scenarios.filter((s) => s.id !== id); delete scnResults[id]; renderScenarios();
+    });
+  });
+}
+async function runScenario(id) {
+  scnResults[id] = { running: true }; renderScenarios();
+  try { scnResults[id] = await api(`/ai/scenarios/${id}/run`, { method:'POST', body: '{}' }); }
+  catch (err) { scnResults[id] = { error: err.message }; }
+  renderScenarios();
+}
+$('#scnRunAll').onclick = async (e) => {
+  e.target.disabled = true;
+  try { for (const s of scenarios) await runScenario(s.id); renderAiLog((await api('/ai/log')).log); }
+  finally { e.target.disabled = false; }
+};
+$('#scnNew').onclick = () => { scnDraft = true; renderScenarios(); $('#scnList [data-scn="0"] [data-name]')?.focus(); };
+function renderAiLog(log) {
+  $('#aiLogList').innerHTML = log.length ? `<div class="stack" style="gap:8px">${log.map((l) => {
+    const [cls, label] = OUTCOME[l.outcome] || ['quiet', l.outcome];
+    const who = String(l.who || '').startsWith('uji|') ? 'Uji AI' : String(l.who || '').startsWith('coba|') ? 'Coba bot' : '+' + String(l.who || '').split('|').pop().split('@')[0];
+    return `<div class="card" style="padding:10px"><div class="row" style="gap:8px;flex-wrap:wrap"><span class="pill ${cls}">${label}</span><span class="small muted">${esc(l.created_at)} · ${esc(who)}</span></div>
+      <div class="small" style="margin-top:6px"><b>Alasan:</b> ${esc(l.problem)}</div>
+      ${l.message ? `<div class="small muted">Pesan pelanggan: "${esc(l.message)}"</div>` : ''}
+      ${l.reply ? `<div class="small muted">Balasan yang ditahan: "${esc(l.reply)}"</div>` : ''}</div>`;
+  }).join('')}</div>` : '<div class="empty">Belum ada balasan yang ditahan.</div>';
+}
+$('#aiLogRefresh').onclick = async () => renderAiLog((await api('/ai/log')).log);
+$('#aiLogClear').onclick = async () => { if (!confirm('Kosongkan daftar balasan yang ditahan?')) return; await api('/ai/log', { method:'DELETE' }); renderAiLog([]); };
 
 /* ---------------------------------------------------------- template --- */
 let templates = [], tplGroup = null, tplLoaded = false;
@@ -1188,6 +1320,29 @@ $('#tplSearch').oninput = () => renderTemplates();
 
 /* ------------------------------------------------------------ produk --- */
 let products = [], prodLoaded = false, prodOpen = null;
+// What the team tells Mawar about a product (AI mode); lines, "nama: keterangan" for the pairs.
+const INFO_FIELDS = [
+  ['sebutan', 'Nama lain dari pelanggan', 'satu per baris', 2],
+  ['model', 'Model / pilihan', 'satu per baris', 3],
+  ['bahan', 'Bahan yang dipakai', 'satu per baris, "nama: seperti apa"', 4],
+  ['teknik', 'Cara cetak / hias yang dilayani', 'satu per baris', 3],
+  ['tidak', 'Yang TIDAK dilayani', 'satu per baris, "teknik: gantinya"', 2],
+  ['warna', 'Warna', 'bebas ditulis', 2],
+  ['ukuran', 'Ukuran', 'bebas ditulis', 2],
+  ['moq', 'Minimal order', 'kalau beda dari Info toko', 1],
+  ['tanya', 'Yang perlu ditanyakan ke pelanggan', 'satu per baris, sebelum dibuatkan penawaran; ukuran ditanyakan paling akhir', 4],
+  ['catatan', 'Catatan lain', 'bebas ditulis', 2],
+];
+const INFO_PLACEHOLDER = {
+  sebutan: 'mis. almet\njas kampus', model: 'mis. lengan pendek\nlengan panjang', bahan: 'mis. Cotton combed 24s: adem, paling umum\nCotton combed 20s: lebih tebal',
+  teknik: 'mis. sablon plastisol\nbordir komputer', tidak: 'mis. sablon: logo dibordir', warna: 'mis. bebas pilih, tergantung stok bahan',
+  ukuran: 'mis. S sampai XXL, ukuran anak bisa', moq: 'mis. 24 pcs per desain', tanya: 'mis. jumlah\nwarna\nlogo\nrincian ukuran', catatan: '',
+};
+const infoText = (info, k) => {
+  const v = info?.[k];
+  if (Array.isArray(v)) return v.map((x) => (typeof x === 'string' ? x : x.ket || x.ganti ? `${x.nama}: ${x.ket || x.ganti}` : x.nama)).join('\n');
+  return v || '';
+};
 
 async function loadProduk() {
   ({ products } = await api('/products'));
@@ -1203,6 +1358,7 @@ function renderProduk() {
       <div class="pola-sum" data-toggle><b style="flex:1">${esc(p.name)}</b>
         <span class="pill ${p.catalog ? 'good' : 'quiet'}">${p.catalog ? 'punya price list' : 'harga tergantung desain'}</span>
         ${p.sizeChart ? '<span class="pill quiet">size chart</span>' : ''}
+        ${INFO_FIELDS.some(([k]) => infoText(p.info, k)) ? `<span class="pill good">detail ${INFO_FIELDS.filter(([k]) => infoText(p.info, k)).length}/${INFO_FIELDS.length}</span>` : '<span class="pill warn">detail belum diisi</span>'}
         ${(p.questions || []).length ? `<span class="pill quiet">${p.questions.length} pertanyaan</span>` : ''}
         <span class="small muted">${p.keywords.length} kata kunci</span>${p.builtin ? '<span class="pill quiet">bawaan</span>' : ''}
         <span class="muted">${open ? '▴' : '▾'}</span></div>
@@ -1214,7 +1370,10 @@ function renderProduk() {
           <label class="row lb" style="gap:6px"><input type="checkbox" data-size ${p.sizeChart ? 'checked' : ''}> Punya size chart (muncul di halaman Media)</label>
           <label class="lb">Kata kunci <span class="small muted" style="font-weight:400">· satu per baris atau pisahkan dengan koma; tahan typo</span></label>
           <textarea class="f" data-kw rows="6">${esc(p.keywords.join('\n'))}</textarea>
-          <label class="lb">Pertanyaan lanjutan <span class="small muted" style="font-weight:400">· satu pertanyaan per baris, maks. 6. Ditanyakan satu per satu setelah produk dikenali${p.catalog ? ' (setelah katalog)' : ''}; jawabannya disimpan untuk CS. Kosongkan kalau tidak perlu.</span></label>
+          <h4 style="margin:18px 0 2px">Detail untuk Mawar <span class="small muted" style="font-weight:400">· mode AI. Mawar hanya menyebut yang tertulis di sini; yang kosong ditanyakan ke CS.</span></h4>
+          ${INFO_FIELDS.map(([k, label, hint, rows]) => `<label class="lb">${label} <span class="small muted" style="font-weight:400">· ${hint}</span></label>
+          <textarea class="f" data-i="${k}" rows="${rows}" placeholder="${esc(INFO_PLACEHOLDER[k] || '')}">${esc(infoText(p.info, k))}</textarea>`).join('')}
+          <label class="lb">Pertanyaan lanjutan <span class="small muted" style="font-weight:400">· mode naskah. Satu pertanyaan per baris, maks. 6. Ditanyakan satu per satu setelah produk dikenali${p.catalog ? ' (setelah katalog)' : ''}; jawabannya disimpan untuk CS. Kosongkan kalau tidak perlu.</span></label>
           <textarea class="f" data-q rows="4" placeholder="Kemejanya mau jenis apa kak?&#10;Untuk ukurannya apa saja kak?">${esc((p.questions || []).join('\n'))}</textarea>
           <div class="row" style="margin-top:14px"><button class="btn primary" data-save>Simpan</button><button class="btn danger" data-delete>Hapus produk</button></div>
         </div>
@@ -1232,7 +1391,8 @@ function renderProduk() {
     if (prodOpen !== key) return;
     $('[data-save]', card).onclick = async () => {
       try {
-        const r = await api('/products/' + encodeURIComponent(key), { method:'PUT', body: JSON.stringify({ name: $('[data-name]', card).value, catalog: $('[data-kind]', card).value === 'catalog', sizeChart: $('[data-size]', card).checked, keywords: $('[data-kw]', card).value, questions: $('[data-q]', card).value }) });
+        const info = Object.fromEntries($$('[data-i]', card).map((el) => [el.dataset.i, el.value]));
+        const r = await api('/products/' + encodeURIComponent(key), { method:'PUT', body: JSON.stringify({ name: $('[data-name]', card).value, catalog: $('[data-kind]', card).value === 'catalog', sizeChart: $('[data-size]', card).checked, keywords: $('[data-kw]', card).value, questions: $('[data-q]', card).value, info }) });
         Object.assign(p, r.product);
         toast(r.taken.length ? `Tersimpan. Dilewati: ${r.taken.join(', ')}` : 'Tersimpan. Bot langsung memakainya.');
         kwMeta = null; renderProduk(); loadStatus();
@@ -1253,6 +1413,85 @@ $('#prodNew').onclick = async () => {
     prodOpen = r.product.key; kwMeta = null; toast('Produk ditambahkan. Lengkapi kata kuncinya lalu Simpan.'); loadProduk();
   } catch (err) { toast('Gagal: ' + err.message); }
 };
+
+/* ------------------------------------------------------- pengetahuan --- */
+let topics = [], faqs = [], faqDraft = false;
+
+async function loadPengetahuan() {
+  const [k, p] = await Promise.all([api('/knowledge'), products.length ? null : api('/products')]);
+  ({ topics, faq: faqs } = k);
+  if (p) products = p.products;
+  renderTopics(); renderFaq();
+}
+function knowCounts() {
+  const empty = topics.filter((t) => !t.content.trim()).length;
+  $('#topicCount').textContent = `${topics.length - empty} dari ${topics.length} terisi`;
+  $('#faqCount').textContent = `${faqs.length} tanya-jawab`;
+  const nk = $('#navKnow'); nk.textContent = empty; nk.classList.toggle('hidden', !empty);
+}
+function renderTopics() {
+  $('#topicList').innerHTML = topics.length ? topics.map((t, i) => `<div class="card pola-card" data-topic="${t.id}" style="padding:12px">
+      <div class="row" style="gap:8px;flex-wrap:wrap">
+        <input class="f" data-title value="${esc(t.title)}" maxlength="120" style="flex:1;min-width:180px;font-weight:600">
+        ${t.content.trim() ? '' : '<span class="pill warn">belum diisi</span>'}
+        <button class="btn sm" data-up ${i === 0 ? 'disabled' : ''} title="Naikkan">↑</button><button class="btn sm" data-down ${i === topics.length - 1 ? 'disabled' : ''} title="Turunkan">↓</button>
+      </div>
+      <textarea class="f" data-content rows="3" style="margin-top:8px;width:100%;font-family:inherit" placeholder="Belum diisi. Mawar akan bilang hal ini ditanyakan ke CS.">${esc(t.content)}</textarea>
+      <div class="row" style="gap:8px;margin-top:8px"><button class="btn primary sm" data-save>Simpan</button><button class="btn danger sm" data-delete>Hapus topik</button></div>
+    </div>`).join('') : '<div class="empty">Belum ada topik. Tambah dengan "+ Topik baru".</div>';
+  knowCounts();
+  $$('#topicList [data-topic]').forEach((card) => {
+    const id = Number(card.dataset.topic);
+    $('[data-save]', card).onclick = async () => {
+      try {
+        const { topic } = await api('/knowledge/topics/' + id, { method:'PUT', body: JSON.stringify({ title: $('[data-title]', card).value, content: $('[data-content]', card).value }) });
+        topics = topics.map((t) => (t.id === id ? topic : t)); renderTopics(); toast('Tersimpan. Mawar langsung memakainya.');
+      } catch (err) { toast('Belum tersimpan: ' + err.message); }
+    };
+    $('[data-delete]', card).onclick = async () => {
+      if (!confirm('Hapus topik ini? Mawar tidak akan tahu isinya lagi.')) return;
+      await api('/knowledge/topics/' + id, { method:'DELETE' }); topics = topics.filter((t) => t.id !== id); renderTopics(); toast('Topik dihapus');
+    };
+    const move = async (by) => { ({ topics } = await api(`/knowledge/topics/${id}/move`, { method:'POST', body: JSON.stringify({ by }) })); renderTopics(); };
+    $('[data-up]', card).onclick = () => move(-1);
+    $('[data-down]', card).onclick = () => move(1);
+  });
+}
+$('#topicNew').onclick = async () => {
+  const title = prompt('Judul topik (mis. "Bisa pesan satuan?"):'); if (!title) return;
+  try { const { topic } = await api('/knowledge/topics', { method:'POST', body: JSON.stringify({ title, content: '' }) }); topics.push(topic); renderTopics(); toast('Topik ditambah. Isi jawabannya lalu Simpan.'); }
+  catch (err) { toast('Gagal: ' + err.message); }
+};
+function faqProductOptions(selected) {
+  return `<option value="">Semua produk</option>` + products.map((p) => `<option value="${esc(p.key)}" ${p.key === selected ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+}
+function renderFaq() {
+  const rows = [...(faqDraft ? [{ id: 0, product: null, question: '', answer: '' }] : []), ...faqs];
+  $('#faqList').innerHTML = rows.length ? rows.map((f) => `<div class="card pola-card" data-faq="${f.id}" style="padding:12px">
+      <div class="row" style="gap:8px;flex-wrap:wrap"><select class="f" data-product style="width:auto">${faqProductOptions(f.product)}</select>${f.id ? '' : '<span class="pill warn">baru</span>'}</div>
+      <label class="lb">Pertanyaan pelanggan</label><input class="f" data-q value="${esc(f.question)}" maxlength="500" placeholder="mis. Sablonnya awet dicuci?">
+      <label class="lb">Jawaban toko</label><textarea class="f" data-a rows="3" style="width:100%;font-family:inherit" placeholder="mis. Awet kak, asal tidak disetrika langsung di atas sablonnya.">${esc(f.answer)}</textarea>
+      <div class="row" style="gap:8px;margin-top:8px"><button class="btn primary sm" data-save>Simpan</button><button class="btn danger sm" data-delete>${f.id ? 'Hapus' : 'Batal'}</button></div>
+    </div>`).join('') : '<div class="empty">Belum ada tanya-jawab.</div>';
+  knowCounts();
+  $$('#faqList [data-faq]').forEach((card) => {
+    const id = Number(card.dataset.faq);
+    $('[data-save]', card).onclick = async () => {
+      const body = JSON.stringify({ product: $('[data-product]', card).value || null, question: $('[data-q]', card).value, answer: $('[data-a]', card).value });
+      try {
+        const { faq } = await api(id ? '/knowledge/faq/' + id : '/knowledge/faq', { method: id ? 'PUT' : 'POST', body });
+        if (id) faqs = faqs.map((f) => (f.id === id ? faq : f)); else { faqs.push(faq); faqDraft = false; }
+        renderFaq(); toast('Tersimpan. Mawar langsung memakainya.');
+      } catch (err) { toast('Belum tersimpan: ' + err.message); }
+    };
+    $('[data-delete]', card).onclick = async () => {
+      if (!id) { faqDraft = false; renderFaq(); return; }
+      if (!confirm('Hapus tanya-jawab ini?')) return;
+      await api('/knowledge/faq/' + id, { method:'DELETE' }); faqs = faqs.filter((f) => f.id !== id); renderFaq(); toast('Dihapus');
+    };
+  });
+}
+$('#faqNew').onclick = () => { faqDraft = true; renderFaq(); $('#faqList [data-faq="0"] [data-q]')?.focus(); };
 
 /* -------------------------------------------------------------- pola --- */
 let polas = [], polaLoaded = false, polaOpen = Number(new URLSearchParams(location.search).get('pola')) || null, polaCatalog = [];
@@ -1792,10 +2031,12 @@ function renderAi(ai) {
     ? `Tersimpan: ${ai.keyMasked} (dari ${ai.keySource}). Kosongkan kalau tidak diubah.`
     : 'Belum ada kunci.';
   $('#aiKeyRemove').classList.toggle('hidden', ai.keySource !== 'pengaturan');
-  $('#aiPromptState').textContent = ai.promptsChanged ? '· instruksi diubah tim' : '· bawaan';
+  $('#aiPromptState').textContent = ai.promptsChanged || ai.chatPromptChanged ? '· instruksi diubah tim' : '· bawaan';
   if (!document.activeElement?.closest('#aiForm')) {
     $('#aiForm [name=aiModel]').value = ai.model || '';
     $('#aiForm [name=aiHost]').value = ai.hostSet ? ai.host : '';
+    $('#aiForm [name=aiChatPrompt]').value = ai.chatPrompt || '';
+    $('#aiForm [name=aiChatExamples]').value = ai.chatExamples || '';
     $('#aiForm [name=aiOpeningPrompt]').value = ai.openingPrompt || '';
     $('#aiForm [name=aiAnswerPrompt]').value = ai.answerPrompt || '';
     $('#aiForm [name=aiPerCustomer]').value = ai.perCustomer ?? '';
@@ -1805,7 +2046,7 @@ function renderAi(ai) {
 async function loadAi() { renderAi(await api('/ai')); }
 $('#aiForm').onsubmit = async (e) => {
   e.preventDefault();
-  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, openingPrompt: f.aiOpeningPrompt.value, answerPrompt: f.aiAnswerPrompt.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value };
+  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, openingPrompt: f.aiOpeningPrompt.value, answerPrompt: f.aiAnswerPrompt.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value };
   if (f.aiKey.value.trim()) body.key = f.aiKey.value;
   try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify(body) })); f.aiKey.value = ''; toast('Pengaturan AI tersimpan dan langsung berlaku'); loadStatus(); }
   catch (err) { /* shown in the error pop-up */ }
@@ -1813,6 +2054,11 @@ $('#aiForm').onsubmit = async (e) => {
 $('#aiKeyRemove').onclick = async () => {
   if (!confirm('Hapus kunci API Ollama dari Pengaturan?')) return;
   renderAi(await api('/ai', { method:'PUT', body: JSON.stringify({ key: '' }) })); toast('Kunci dihapus');
+};
+$('#aiPromptReset').onclick = async () => {
+  if (!confirm('Kembalikan semua instruksi AI ke bawaan? Instruksi yang diubah tim akan hilang.')) return;
+  try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify({ chatPrompt: '', chatExamples: '', openingPrompt: '', answerPrompt: '' }) })); toast('Instruksi kembali ke bawaan'); }
+  catch (err) { /* shown in the error pop-up */ }
 };
 $('#aiTest').onclick = async (e) => {
   e.target.disabled = true; $('#aiTestOut').innerHTML = '<span class="muted">Menghubungi Ollama…</span>';
@@ -1838,13 +2084,12 @@ async function loadPengaturan() {
   // Do not overwrite what someone is typing when the page refreshes.
   if (!settingsLoaded || !document.activeElement?.closest('form')) {
     const set = (form, name, v) => { const el = $(`${form} [name=${name}]`); if (el) el.value = v ?? ''; };
-    for (const n of ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'detailWaitDays']) set('#settingsForm', n, values[n]);
+    for (const n of ['botName', 'csName', 'botMode', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'detailWaitDays']) set('#settingsForm', n, values[n]);
     set('#settingsForm', 'holidays', (values.holidays || []).map((h) => `${h.from}${h.to !== h.from ? ' - ' + h.to : ''}${h.label ? ' ' + h.label : ''}`).join('\n'));
     set('#recapForm', 'recapTo', (values.recapTo || []).map((n) => '0' + n.slice(2)).join(', '));
     set('#recapForm', 'recapAt', values.recapAt);
     set('#backupForm', 'backupDir', values.backupDir);
     set('#autoForm', 'autoMessages', values.autoMessages);
-    set('#knowForm', 'storeKnowledge', values.storeKnowledge);
     settingsLoaded = true;
   }
   renderHours();
@@ -1878,11 +2123,10 @@ async function saveForm(form, fields) {
   catch (err) { toast('Belum tersimpan: ' + err.message); }
   finally { btn.disabled = false; }
 }
-$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'detailWaitDays', 'holidays']); };
+$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'botMode', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'detailWaitDays', 'holidays']); };
 $('#recapForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['recapTo', 'recapAt']); };
 $('#backupForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['backupDir']); };
 $('#autoForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['autoMessages']); };
-$('#knowForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['storeKnowledge']); };
 $('#backupNow').onclick = async (e) => {
   e.target.disabled = true;
   try { const r = await api('/backup/now', { method:'POST' }); toast('Backup tersimpan: ' + r.file); }
@@ -1908,6 +2152,8 @@ async function refresh() {
     if (page === 'template' && !tplLoaded) await loadTemplates();
     if (page === 'pola' && !polaLoaded) await loadPola();
     if (page === 'produk' && !prodLoaded) await loadProduk();
+    if (page === 'pengetahuan') await loadPengetahuan();
+    if (page === 'coba') await loadUjiAi();
     if (page === 'statistik') await loadStatistik();
     if (page === 'media') { kwMeta ??= await api('/keywords'); await loadMedia(); }
     if (page === 'pengaturan') await loadPengaturan();
