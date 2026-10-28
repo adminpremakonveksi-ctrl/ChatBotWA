@@ -26,6 +26,8 @@ const KEYS = {
     // How often the AI may be asked (classify.js AI_LIMITS).
     perCustomer: 'ai:limit_customer',
     total: 'ai:limit_total',
+    // Seconds one AI answer may take before the bot gives up on it.
+    timeout: 'ai:timeout_s',
 };
 
 // What .env said, to fall back to when the console value is cleared.
@@ -53,6 +55,7 @@ export function loadAiSettings() {
         perCustomer: Number(getSetting(KEYS.perCustomer)) || DEFAULT_LIMITS.perCustomer,
         total: Number(getSetting(KEYS.total)) || DEFAULT_LIMITS.total,
     };
+    config.ollama.timeoutMs = (Number(getSetting(KEYS.timeout)) || 0) * 1000 || fromEnv.timeoutMs;
 }
 
 /** AI calls per customer per 10 minutes, and for the whole bot per minute. */
@@ -79,6 +82,7 @@ export function aiSettings() {
         promptsChanged: Boolean(config.ollama.openingPrompt || config.ollama.answerPrompt),
         perCustomer: config.ollama.limits?.perCustomer ?? DEFAULT_LIMITS.perCustomer,
         total: config.ollama.limits?.total ?? DEFAULT_LIMITS.total,
+        timeoutSeconds: Math.round(config.ollama.timeoutMs / 1000),
     };
 }
 
@@ -86,7 +90,7 @@ export function aiSettings() {
  * Saves what the console sent. key: undefined = unchanged, '' = remove the
  * console key (back to .env). model/host: '' = back to the default.
  */
-export function updateAiSettings({ key, model, host, chatPrompt, chatExamples, openingPrompt, answerPrompt, perCustomer, total } = {}) {
+export function updateAiSettings({ key, model, host, chatPrompt, chatExamples, openingPrompt, answerPrompt, perCustomer, total, timeoutSeconds } = {}) {
     // Instructions: the default (or empty) text means "use the default".
     for (const [name, value, fallback] of [['chatPrompt', chatPrompt, DEFAULT_CHAT_PROMPT], ['chatExamples', chatExamples, DEFAULT_CHAT_EXAMPLES], ['openingPrompt', openingPrompt, DEFAULT_OPENING_PROMPT], ['answerPrompt', answerPrompt, DEFAULT_ANSWER_PROMPT]]) {
         if (value === undefined) continue;
@@ -97,7 +101,7 @@ export function updateAiSettings({ key, model, host, chatPrompt, chatExamples, o
         else setSetting(KEYS[name], text);
     }
 
-    for (const [name, value, min, max, label] of [['perCustomer', perCustomer, 1, 500, 'Batas AI per pelanggan'], ['total', total, 1, 1000, 'Batas AI per menit']]) {
+    for (const [name, value, min, max, label] of [['perCustomer', perCustomer, 1, 500, 'Batas AI per pelanggan'], ['total', total, 1, 1000, 'Batas AI per menit'], ['timeout', timeoutSeconds, 10, 180, 'Batas waktu jawaban AI (detik)']]) {
         if (value === undefined) continue;
         const n = Number(value);
         if (!Number.isInteger(n) || n < min || n > max) fail(`${label}: ${min}-${max}`);

@@ -108,7 +108,9 @@ export const config = {
         host: text('OLLAMA_HOST', 'https://ollama.com').replace(/\/+$/, ''),
         hostSet: Boolean(text('OLLAMA_HOST')),
         model: text('OLLAMA_MODEL', 'gemma4:31b'),
-        timeoutMs: number('OLLAMA_TIMEOUT_MS', 20000),
+        // A reply with thinking and the shop's data takes longer than a label: 20 s
+        // ran out on a client PC (2026-10-28). Pengaturan > AI overrides it.
+        timeoutMs: number('OLLAMA_TIMEOUT_MS', 60000),
         // Context size asked of Ollama: its default (2048-4096) silently cuts the shop's data off.
         numCtx: number('OLLAMA_NUM_CTX', 16384),
     },

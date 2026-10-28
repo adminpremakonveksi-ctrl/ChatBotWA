@@ -535,6 +535,15 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
             }
         },
     },
+    {
+        // .env.example shipped OLLAMA_TIMEOUT_MS=20000 and the client's .env is a copy of it:
+        // too short for a reply with thinking and the shop's data (2026-10-28). The console
+        // setting beats .env, so it gets 60 s unless the team already chose a value.
+        id: '020_ai_timeout_60s',
+        up(db) {
+            db.prepare(`INSERT INTO settings ("key", value, updated_at) VALUES ('ai:timeout_s', '60', ?) ON CONFLICT("key") DO NOTHING`).run(stamp());
+        },
+    },
 ];
 
 /** Adds the away message to a list the team already saved, once; a fresh install gets it as the default. */

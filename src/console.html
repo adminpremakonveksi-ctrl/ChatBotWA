@@ -344,6 +344,11 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
     <div class="content">
       <!-- RINGKASAN -->
       <section data-page="ringkasan" class="stack">
+        <div class="card" id="startCard">
+          <div class="row"><h3 style="flex:1">Siap mulai</h3><span class="small muted" id="startWhen"></span><button class="btn sm" type="button" id="startRecheck">Cek ulang</button></div>
+          <p class="hint" id="startText">Mengecek internet, jam PC, WhatsApp, AI dan versi bot…</p>
+          <div id="startList"></div>
+        </div>
         <div class="card">
           <div class="hero">
             <div class="avatar" id="heroAva">🌹<span class="badge" id="heroBadge"></span></div>
@@ -612,6 +617,8 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
               <input class="f" type="number" name="aiPerCustomer" min="1" max="500" style="width:110px">
               <label>Batas total<small>Panggilan AI seluruh bot per menit (melindungi kuota dari spam).</small></label>
               <input class="f" type="number" name="aiTotal" min="1" max="1000" style="width:110px">
+              <label>Batas waktu jawaban AI<small>Detik. Lewat dari ini bot diam untuk pesan itu (error "aborted due to timeout"). Naikkan kalau internet atau AI-nya lambat.</small></label>
+              <input class="f" type="number" name="aiTimeout" min="10" max="180" style="width:110px">
             </div>
             <div class="row" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn sm" id="aiPromptReset">Kembalikan instruksi bawaan</button></div>
           </details>
@@ -664,6 +671,7 @@ let appVersion = '';
 function errorText(e) {
   const d = e.detail || {};
   const lines = [
+    ...(e.meaning ? [`Artinya : ${e.meaning}`, ''] : []),
     `Waktu   : ${d.time || e.time || new Date().toLocaleString('id-ID')}`,
     `Sumber  : ${e.source || ''}${d.method ? ` ${d.method} ${d.path || ''}` : ''}${d.status ? ` (HTTP ${d.status})` : ''}`,
     `Level   : ${e.level || 'error'}`,
@@ -703,7 +711,7 @@ const api = async (url, options = {}) => {
   } catch (error) {
     // The bot is not running or the PC is unreachable.
     const err = new Error(`Tidak bisa menghubungi bot: ${error.message}`);
-    showError({ source: 'konsol → bot', message: err.message, detail: { method: options.method || 'GET', path: url, stack: error.stack } });
+    showError({ source: 'konsol → bot', message: err.message, meaning: 'Halaman ini tidak bisa menghubungi bot: bot belum jalan atau jendelanya tertutup. Klik "Mulai ChatBot Prema".', detail: { method: options.method || 'GET', path: url, stack: error.stack } });
     err.shown = true; throw err;
   }
   const body = await r.json().catch(() => ({}));
@@ -914,7 +922,20 @@ function sparkline(values) {
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,${H} ${line} ${W},${H}" fill="var(--series-wash)"/><polyline points="${line}" fill="none" stroke="var(--series)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/><circle cx="${last[0]}" cy="${last[1]}" r="4" fill="var(--series)" stroke="var(--panel)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
 }
 
+// "Siap mulai": live checks of what this PC needs, each problem with what to do (raw error below it).
+async function loadStartChecks(fresh) {
+  const r = await api('/checks' + (fresh ? '?fresh=1' : ''));
+  const bad = r.checks.filter((c) => !c.ok);
+  $('#startCard').style.borderColor = bad.length ? 'var(--warn)' : '';
+  $('#startText').textContent = bad.length ? `${bad.length} hal perlu dibereskan supaya bot bisa bekerja:` : 'Semua siap: internet, jam PC, WhatsApp, AI dan versi bot.';
+  $('#startWhen').textContent = 'dicek ' + new Date(r.checkedAt).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+  // Problems first; what is fine stays a one-liner.
+  $('#startList').innerHTML = [...bad, ...r.checks.filter((c) => c.ok)].map((c) => `<div class="check"><span class="mark ${c.ok ? 'ok' : 'no'}">${c.ok ? '✓' : '!'}</span><div style="min-width:0"><div>${esc(c.title)}</div><div class="small muted">${esc(c.detail)}</div>${c.ok ? '' : `${c.fix ? `<div class="small"><b>Yang perlu dilakukan:</b> ${esc(c.fix)}</div>` : ''}${c.raw ? `<div class="small muted" style="overflow-wrap:anywhere">Error asli: <code>${esc(c.raw)}</code></div>` : ''}`}</div></div>`).join('');
+}
+document.getElementById('startRecheck')?.addEventListener('click', () => { $('#startText').textContent = 'Mengecek…'; loadStartChecks(true); });
+
 async function loadRingkasan() {
+  loadStartChecks(false).catch(() => {});
   const [a, { conversations }] = await Promise.all([api('/analytics?days=14'), api('/conversations?hours=24')]);
   drawTimeline();
   const main = sessions[0];
@@ -2041,12 +2062,13 @@ function renderAi(ai) {
     $('#aiForm [name=aiAnswerPrompt]').value = ai.answerPrompt || '';
     $('#aiForm [name=aiPerCustomer]').value = ai.perCustomer ?? '';
     $('#aiForm [name=aiTotal]').value = ai.total ?? '';
+    $('#aiForm [name=aiTimeout]').value = ai.timeoutSeconds ?? '';
   }
 }
 async function loadAi() { renderAi(await api('/ai')); }
 $('#aiForm').onsubmit = async (e) => {
   e.preventDefault();
-  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, openingPrompt: f.aiOpeningPrompt.value, answerPrompt: f.aiAnswerPrompt.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value };
+  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, openingPrompt: f.aiOpeningPrompt.value, answerPrompt: f.aiAnswerPrompt.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value, timeoutSeconds: f.aiTimeout.value };
   if (f.aiKey.value.trim()) body.key = f.aiKey.value;
   try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify(body) })); f.aiKey.value = ''; toast('Pengaturan AI tersimpan dan langsung berlaku'); loadStatus(); }
   catch (err) { /* shown in the error pop-up */ }

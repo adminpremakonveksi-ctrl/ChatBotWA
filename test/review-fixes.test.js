@@ -432,3 +432,13 @@ test('a customer message delivered late (bot reconnecting) is still answered; ol
     assert.match(branch, /isRecentCatchUp\(message\)/);
     assert.match(branch, /pesan lama dari sinkronisasi dilewati/, 'never dropped without a trace');
 });
+
+test('no history sync: Baileys never holds customer messages back waiting for it (a week of silence, 2026-10-27)', async () => {
+    const fs = await import('node:fs');
+    const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
+    assert.match(source, /shouldSyncHistoryMessage:\s*\(\)\s*=>\s*false/);
+
+    // What that option does in the pinned Baileys: no history sync means Online and flush at once.
+    const chats = fs.readFileSync(new URL('../node_modules/baileys/lib/Socket/chats.js', import.meta.url), 'utf8');
+    assert.match(chats, /if \(!willSyncHistory\) \{[\s\S]{0,200}syncState = SyncState\.Online;[\s\S]{0,60}ev\.flush\(\)/, 'Baileys 6.7.24 behaviour this fix relies on');
+});

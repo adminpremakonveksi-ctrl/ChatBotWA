@@ -113,6 +113,12 @@ export class Session {
             browser: ['ChatBot Prema', 'Chrome', '1.0.0'],
             markOnlineOnConnect: false,
             syncFullHistory: false,
+            // No history sync at all. Baileys holds every event back (messages
+            // included) while it syncs history, until the phone's app-state key
+            // arrives; when that key's message could not be decrypted, the hold
+            // never ended and no customer message reached the bot for a week
+            // (2026-10-20..27), with no error. The bot never uses chat history.
+            shouldSyncHistoryMessage: () => false,
             // Without this the socket dies silently behind some NATs.
             keepAliveIntervalMs: 25000,
             // The start-up queries (account props, block list, privacy settings)

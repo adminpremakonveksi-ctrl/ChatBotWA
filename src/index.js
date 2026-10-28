@@ -26,6 +26,8 @@ import { WORD_LISTS, addWord, removeWord, updateWord, wordRows } from './bot/wor
 import { aiSettings, listOllamaModels, loadAiSettings, updateAiSettings } from './ai-settings.js';
 import { classifyWithOllama } from './bot/classify-ollama.js';
 import { backup, buildRecap, sendTestRecap, startMaintenance } from './maintenance.js';
+import { startUpdateCheck, updateStatus } from './update-check.js';
+import { startupChecks } from './startup-check.js';
 import { manager } from './manager.js';
 import { backupSuggestions, currentSettings, loadSettings, updateSettings } from './settings.js';
 import { releaseAutoHandovers } from './bot/auto-messages.js';
@@ -148,6 +150,8 @@ app.get('/info', wrap(async (req, res) => {
     res.json({
         version: packageVersion,
         commit: installedVersion(),
+        // A newer version on GitHub (Ringkasan banner); checked every few hours.
+        update: updateStatus(),
         botName: config.bot.botName,
         csName: config.bot.csName,
         schedule: describeHours(config.bot.activeFrom, config.bot.activeUntil),
@@ -189,6 +193,11 @@ app.get('/info', wrap(async (req, res) => {
 }));
 
 /* ------------------------------------------------------------- sessions --- */
+
+/** "Siap mulai" on Ringkasan: internet, PC clock, WhatsApp, AI, version, checked live. */
+app.get('/checks', wrap(async (req, res) => {
+    res.json(await startupChecks({ manager, fresh: req.query.fresh === '1' }));
+}));
 
 app.get('/sessions', wrap(async (req, res) => {
     res.json({ sessions: manager.list(), botActive: isBotActive() });
@@ -743,6 +752,7 @@ async function main() {
 
     await manager.boot(bot);
     startMaintenance({ manager, bot });
+    startUpdateCheck();
 
     const missing = media.checklist().filter((item) => !item.ok);
     if (missing.length) {

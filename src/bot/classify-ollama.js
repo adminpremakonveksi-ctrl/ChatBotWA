@@ -17,6 +17,10 @@ import { resultSchema, systemPrompt, userTurn } from './classify-ai.js';
 
 export const ollamaEnabled = () => Boolean(config.ollama.apiKey || config.ollama.hostSet);
 
+// The last real call, for the console's "Siap mulai" check (a timeout there is the usual client problem).
+let lastCall = null;
+export const lastOllamaCall = () => lastCall;
+
 /** The JSON object in a reply, also when the model wraps it in ```json fences or prose. */
 export function parseJson(content) {
     const text = String(content ?? '').trim();
@@ -32,11 +36,23 @@ export function parseJson(content) {
  * One chat call to Ollama that must answer with a JSON object of `schema`
  * (a zod schema). Returns the raw parsed object; callers validate it.
  */
+/** The HTTP call itself; a network failure or timeout is remembered before it is thrown. */
+async function post(fetchImpl, options) {
+    const started = Date.now();
+    try {
+        return await fetchImpl(`${config.ollama.host}/api/chat`, options);
+    } catch (error) {
+        lastCall = { ok: false, at: new Date().toISOString(), ms: Date.now() - started, error: error.message };
+        throw error;
+    }
+}
+
 export async function ollamaJson({ system, user, schema, temperature = 0, messages = null }, { fetchImpl = fetch } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (config.ollama.apiKey) headers.Authorization = `Bearer ${config.ollama.apiKey}`;
 
-    const response = await fetchImpl(`${config.ollama.host}/api/chat`, {
+    const started = Date.now();
+    const response = await post(fetchImpl, {
         method: 'POST',
         headers,
         signal: AbortSignal.timeout(config.ollama.timeoutMs),
@@ -57,8 +73,11 @@ export async function ollamaJson({ system, user, schema, temperature = 0, messag
     const body = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-        throw new Error(`Ollama ${response.status}: ${String(body.error ?? '').slice(0, 160)}`);
+        const error = new Error(`Ollama ${response.status}: ${String(body.error ?? '').slice(0, 160)}`);
+        lastCall = { ok: false, at: new Date().toISOString(), ms: Date.now() - started, error: error.message };
+        throw error;
     }
+    lastCall = { ok: true, at: new Date().toISOString(), ms: Date.now() - started, error: null };
 
     const raw = String(body.message?.content ?? '');
     try {
