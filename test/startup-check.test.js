@@ -35,6 +35,8 @@ test('client PC errors get a plain meaning above the raw text, which stays as lo
     assert.match(meaningOf('pesan tidak dijawab AI', { err: 'The operation was aborted due to timeout' }), /terlalu lama/);
     assert.match(meaningOf('fetch failed'), /tidak bisa menjangkau internet/);
     assert.match(meaningOf('Ollama 429: limit'), /Jatah/);
+    assert.match(meaningOf('stream errored out', { node: { attrs: { code: '515' } } }), /kode 515/);
+    assert.match(meaningOf('dropping spoofed self-only protocolMessage from non-self origin'), /sinkronisasi internal/);
     assert.equal(meaningOf('sesuatu yang belum dikenal'), null);
     // A stack naming decryptMessage must not turn an unrelated error into "pesan tidak bisa dibuka".
     assert.equal(meaningOf('gagal', { stack: 'at decryptMessage (x.js:1)' }), null);

@@ -178,13 +178,14 @@ export class Bot {
         const key = `${sessionKey}|${jid}`;
         const salamAt = this.autoGreeted.get(key);
         this.autoGreeted.delete(key);
-        const autoGreeted = Boolean(conversation.step === 'new' && salamAt && Date.now() - salamAt < 10 * 60 * 1000);
+        const salamRecent = Boolean(salamAt && Date.now() - salamAt < 10 * 60 * 1000);
+        const autoGreeted = conversation.step === 'new' && salamRecent;
 
         // AI chat mode (Pengaturan > Mode bot): the AI writes from the shop's data (chat.js).
         if (config.bot.mode === 'ai') {
             // A new (or started-over) conversation: the lines of the old one are not its context.
             const history = conversation.step === 'new' ? [] : this.store.recentHistory?.(sessionKey, jid, texts.length, 12) ?? [];
-            const turn = await this.chat(conversation, { text, hasImage, hasAudio, attachments, history, who: key, autoGreeted }, { media: this.media });
+            const turn = await this.chat(conversation, { text, hasImage, hasAudio, attachments, history, who: key, autoGreeted: salamRecent }, { media: this.media });
             const classified = { intent: turn.silent ? 'ai_diam' : 'ai', source: 'ai' };
 
             this.store.tagIncoming(sessionKey, jid, classified.intent);

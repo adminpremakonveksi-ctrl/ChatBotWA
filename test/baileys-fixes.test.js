@@ -60,3 +60,29 @@ test('the placeholder cache takes an empty key without throwing (NodeCache.del(n
     const fs = await import('node:fs');
     assert.match(fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8'), /placeholderResendCache: makePlaceholderCache\(\)/);
 });
+
+test('Baileys connection errors the session handles go to the log file, not the pop-up (515 "restart required")', async () => {
+    const { sessionHandledLog } = await import('../src/baileys-fixes.js');
+    const seen = [];
+    const fake = (tag) => ({
+        level: 'warn',
+        info: (...a) => seen.push([tag, 'info', a.find((x) => typeof x === 'string')]),
+        warn: (...a) => seen.push([tag, 'warn', a.find((x) => typeof x === 'string')]),
+        error: (...a) => seen.push([tag, 'error', a.find((x) => typeof x === 'string')]),
+        trace() {}, debug() {}, fatal() {},
+        child: () => fake(`${tag}+`),
+    });
+    const log = sessionHandledLog(fake('baileys'), fake('session'));
+
+    log.error({ node: { tag: 'stream:error', attrs: { code: '515' } } }, 'stream errored out');
+    log.child({ class: 'socket' }).error({ err: 'Connection Closed' }, 'error in validating connection');
+    log.warn({ msgId: 'A1', type: 17, from: '123@lid' }, 'dropping spoofed self-only protocolMessage from non-self origin');
+    log.error({ err: 'x' }, 'failed to decrypt message');
+    assert.deepEqual(seen, [
+        ['session', 'info', 'stream errored out'],
+        ['session+', 'info', 'error in validating connection'],
+        ['session', 'info', 'dropping spoofed self-only protocolMessage from non-self origin'],
+        ['baileys', 'error', 'failed to decrypt message'],
+    ]);
+    assert.equal(log.level, 'warn');
+});

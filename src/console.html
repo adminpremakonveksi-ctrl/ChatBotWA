@@ -703,17 +703,27 @@ document.getElementById('errCopy')?.addEventListener('click', async () => { try 
 window.addEventListener('error', (ev) => showError({ source: 'konsol (browser)', message: ev.message, detail: { file: ev.filename, line: ev.lineno, col: ev.colno, stack: ev.error?.stack } }));
 window.addEventListener('unhandledrejection', (ev) => { if (!ev.reason?.shown) showError({ source: 'konsol (browser)', message: ev.reason?.message || String(ev.reason), detail: { stack: ev.reason?.stack } }); });
 
+const BOT_RESTART_GRACE_MS = 20000;
+let botDownSince = null;
 const api = async (url, options = {}) => {
   let r;
   try {
     // X-Page: the Log page records changes with the page they were made on.
     r = await fetch(url, { headers: { ...headers, 'X-Page': TITLES[page] || page }, ...options });
   } catch (error) {
-    // The bot is not running or the PC is unreachable.
+    // The bot is not running or the PC is unreachable. A restart (Mulai, an update) takes
+    // a few seconds: say so on the pill first; the pop-up only if it is still down after that.
     const err = new Error(`Tidak bisa menghubungi bot: ${error.message}`);
+    botDownSince ??= Date.now();
+    if (Date.now() - botDownSince < BOT_RESTART_GRACE_MS) {
+      const wa = document.getElementById('waPill');
+      if (wa) { wa.className = 'pill warn pulse'; wa.innerHTML = '<span class="dot"></span>Bot sedang menyala ulang…'; }
+      err.shown = true; throw err;
+    }
     showError({ source: 'konsol → bot', message: err.message, meaning: 'Halaman ini tidak bisa menghubungi bot: bot belum jalan atau jendelanya tertutup. Klik "Mulai ChatBot Prema".', detail: { method: options.method || 'GET', path: url, stack: error.stack } });
     err.shown = true; throw err;
   }
+  botDownSince = null;
   const body = await r.json().catch(() => ({}));
   if (!r.ok) {
     const err = new Error(body.error || r.statusText);

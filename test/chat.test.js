@@ -533,3 +533,33 @@ test('last touch (2026-10-27): the AI knows the time and when CS is back; no rep
     assert.match(checkReply('Siap kak 😊😊🙏🎉', ''), /emoji/);
     assert.equal(checkReply('Siap kak 😊🙏', ''), null);
 });
+
+test('"halo" again mid-chat (2026-10-28): the greeting is returned whole, not cut to "Juga Kak ..."', async () => {
+    let system = '';
+    const fetchImpl = async (url, options) => {
+        system = JSON.parse(options.body).messages[0].content;
+        return { ok: true, json: async () => ({ message: { content: JSON.stringify({ pikir: { maksud: '', fakta: '', belum_tahu: '', langkah: '' }, balasan: 'Halo lagi, Kak! Mau lanjut soal jas almamaternya?', kirim: [], serahkan_cs: false, alasan: '', catatan_cs: '', nama_pelanggan: '', produk: '', terjawab: [] }) } }) };
+    };
+    const conv = { step: 'chat', name: 'Haikal', order_info: JSON.stringify({ produk: 'jas-almamater', jawaban: {} }) };
+
+    // Mid-chat, nothing sent before this reply: the rule against greeting must not apply.
+    const mid = await withAi(() => chatTurn(conv, { text: 'Halo', who: 'g1' }, { media, fetchImpl }));
+    assert.deepEqual(texts(mid.actions), ['Halo lagi, Kak! Mau lanjut soal jas almamaternya?'], 'the hello is kept whole');
+    assert.doesNotMatch(system, /JANGAN menyapa lagi/);
+    assert.match(system, /menyapa lagi di tengah obrolan[\s\S]*mau melanjutkan/);
+
+    // Right after the fixed greeting (first message with a question): no second hello.
+    await withAi(() => chatTurn({ step: 'new' }, { text: 'halo kak bisa bikin kaos?', who: 'g2' }, { media, fetchImpl }));
+    assert.match(system, /JANGAN menyapa lagi/);
+
+    // The WhatsApp Business Salam went out mid-chat: it greeted, so the AI does not greet again.
+    const salam = await withAi(() => chatTurn(conv, { text: 'Halo', who: 'g3', autoGreeted: true }, { media, fetchImpl }));
+    assert.deepEqual(texts(salam.actions), ['Mau lanjut soal jas almamaternya?'], 'after a greeting the extra hello goes whole');
+
+    const { dropGreeting } = await import('../src/bot/ai-text.js');
+    assert.equal(dropGreeting('Halo juga, Kak Haikal! Mau lanjut?', 'Haikal'), 'Mau lanjut?');
+    assert.equal(dropGreeting('Halo kak bisa banget, minimal 12 pcs'), 'Bisa banget, minimal 12 pcs', 'a lowercase word after "kak" is not a name');
+    assert.equal(dropGreeting('Haikal suka?', 'Haikal'), 'Haikal suka?', 'no greeting, nothing cut');
+    assert.match(system, /JANGAN menyapa lagi/);
+    assert.match(system, /lewati sapaannya/);
+});

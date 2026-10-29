@@ -27,6 +27,10 @@ function plain(value, depth = 0) {
 const MEANINGS = [
     [/connection closed|connection lost|connection terminated|timed out.*(ws|websocket)|ECONNRESET|socket hang up/i,
         'Sambungan PC ke WhatsApp putus sebentar (internet putus atau lambat). Bot menyambung ulang sendiri; kalau di Ringkasan WhatsApp tetap "terputus" lebih dari 5 menit, cek internet PC ini.'],
+    [/stream errored out|stream:error|code.*515|restart required/i,
+        'WhatsApp meminta sambungan disegarkan (restart normal kode 515). Bot menyambung ulang sendiri secara otomatis.'],
+    [/dropping spoofed self-only protocolMessage/i,
+        'Pesan sinkronisasi internal akun WhatsApp diabaikan oleh Baileys. Ini normal dan tidak mengganggu percakapan pelanggan.'],
     [/ENOTFOUND|EAI_AGAIN|getaddrinfo|ENETUNREACH|EHOSTUNREACH|fetch failed/i,
         'PC ini tidak bisa menjangkau internet (Wi-Fi/kabel LAN putus, modem mati, atau kuota habis). Bot jalan lagi sendiri begitu internet kembali.'],
     [/aborted due to timeout|TimeoutError|operation was aborted/i,

@@ -74,3 +74,37 @@ export function makePlaceholderCache(ttlMs = 60 * 60 * 1000, clock = () => Date.
         },
     };
 }
+
+/**
+ * Baileys logs "stream errored out" (e.g. code 515, "restart required", sent by
+ * WhatsApp right after connecting or pairing), "error in validating
+ * connection" (the network dropped mid-handshake), and "dropping spoofed
+ * self-only protocolMessage from non-self origin" (companion peer sync messages
+ * addressed by LID before the self-LID was mapped) at warn/error level. The
+ * connection drops are handled by session reconnects, and the bot never uses
+ * companion peer sync history. So these go to the log file at info instead of
+ * popping up on the console. Everything else Baileys warns about is passed on
+ * unchanged.
+ */
+export const HANDLED_BY_SESSION = /^(stream errored out|error in validating connection|dropping spoofed self-only protocolMessage)/;
+
+export function sessionHandledLog(log, infoLog = log) {
+    const pass = (level) => (first, second, ...rest) => {
+        const message = typeof first === 'string' ? first : second;
+        if (HANDLED_BY_SESSION.test(String(message ?? ''))) return infoLog.info(first, second, ...rest);
+
+        return log[level](first, second, ...rest);
+    };
+
+    return {
+        get level() { return log.level; },
+        set level(value) { log.level = value; },
+        trace: (...args) => log.trace(...args),
+        debug: (...args) => log.debug(...args),
+        info: (...args) => log.info(...args),
+        warn: pass('warn'),
+        error: pass('error'),
+        fatal: (...args) => log.fatal(...args),
+        child: (bindings, options) => sessionHandledLog(log.child(bindings, options), infoLog.child(bindings)),
+    };
+}

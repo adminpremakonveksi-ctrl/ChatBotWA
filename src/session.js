@@ -16,7 +16,7 @@ import makeWASocket, {
 
 import { useSqliteAuthState } from './auth-state.js';
 import { recordSyncError, syncCatalog } from './bot/catalog.js';
-import { fixMexNotifications, makePlaceholderCache } from './baileys-fixes.js';
+import { fixMexNotifications, makePlaceholderCache, sessionHandledLog } from './baileys-fixes.js';
 import { conversationJid, learnFromKey, setOwnIdentity, userOf, withLidFallback } from './lid.js';
 import { MIME } from './bot/media.js';
 import { config } from './config.js';
@@ -24,6 +24,7 @@ import { now, run } from './db.js';
 import { logger } from './logger.js';
 
 const MAX_BACKOFF_MS = 60000;
+const RECONNECTS_BEFORE_ALERT = 3;
 // The catalog is read a minute after connecting, then retried on a time-out.
 const CATALOG_FIRST_DELAY_MS = 60000;
 const CATALOG_RETRY_MS = [3 * 60000, 10 * 60000];
@@ -75,7 +76,8 @@ export class Session {
         this.reconnectTimer = null;
         this.log = logger.child({ session: row.key });
         // Baileys is chatty at info (pairing blobs, handshakes); keep its warnings only.
-        this.baileysLog = logger.child({ session: row.key }, { level: 'warn' });
+        // Its connection errors that this session handles go to the log file, not the pop-up (baileys-fixes.js).
+        this.baileysLog = sessionHandledLog(logger.child({ session: row.key }, { level: 'warn' }), this.log);
     }
 
     async start() {
@@ -244,7 +246,15 @@ export class Session {
             }
 
             const delay = Math.min(MAX_BACKOFF_MS, 2000 * 2 ** this.attempts++);
-            this.log.info({ delay, statusCode }, 'menyambung ulang');
+            this.log.info({ delay, statusCode, error: this.lastError }, 'menyambung ulang');
+            // One drop is normal (WhatsApp's 515 after connecting, a network blip) and is
+            // retried quietly; still down after a few tries needs a person: said once, raw.
+            if (this.attempts === RECONNECTS_BEFORE_ALERT) {
+                this.log.error(
+                    { statusCode, error: this.lastError, attempts: this.attempts },
+                    `WhatsApp belum tersambung lagi setelah ${this.attempts} kali mencoba; bot terus mencoba`,
+                );
+            }
 
             this.reconnectTimer = setTimeout(() => {
                 this.start().catch((error) => this.log.error(error, 'gagal menyambung ulang'));

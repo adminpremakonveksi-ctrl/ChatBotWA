@@ -69,8 +69,12 @@ export function pickText(answer, key) {
 }
 
 // The bot has already greeted: "Halo Kak, senang bisa bantu ..." -> "Senang bisa bantu ...".
-export const dropGreeting = (text) => {
-    const rest = String(text ?? '').replace(/^\s*(halo|hallo|hai|hi|selamat (pagi|siang|sore|malam))\b[\s,!.]*(kak|kakak)?[\s,!.]*/i, '');
+export const dropGreeting = (text, name = '') => {
+    // "Halo juga/lagi, Kak Haikal!" goes whole: cutting only "Halo" left "Juga Kak Haikal" (2026-10-28).
+    let rest = String(text ?? '').replace(/^\s*(halo|hallo|hai|hi|selamat (pagi|siang|sore|malam))\b[\s,!.]*((juga|lagi)\b[\s,!.]*)?((kak|kakak)\b[\s,!.]*)?/i, '');
+    if (rest !== String(text ?? '') && name && rest.toLowerCase().startsWith(String(name).toLowerCase())) {
+        rest = rest.slice(String(name).length).replace(/^[\s,!.]+/, '');
+    }
 
     return rest ? rest.charAt(0).toUpperCase() + rest.slice(1) : rest;
 };
