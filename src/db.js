@@ -24,7 +24,9 @@ export function openDatabase(file) {
 
     database.pragma('journal_mode = WAL');
     database.pragma('busy_timeout = 5000');
-    database.pragma('synchronous = NORMAL');
+    // Auth keys and durable queues must survive an abrupt power loss as far
+    // as the disk supports fsync. The bot's message volume is modest.
+    database.pragma('synchronous = FULL');
     database.pragma('foreign_keys = ON');
 
     runMigrations(database);

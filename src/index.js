@@ -673,11 +673,14 @@ const crash = (label) => (reason) => {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
     process.on('unhandledRejection', crash('error tak tertangani (promise), bot dinyalakan ulang'));
     process.on('uncaughtException', crash('error tak tertangani, bot dinyalakan ulang'));
+    let shuttingDown = false;
     for (const signal of ['SIGINT', 'SIGTERM']) {
         process.on(signal, async () => {
+            if (shuttingDown) return;
+            shuttingDown = true;
             logger.info('menutup bot');
-            await bot.drain().catch(() => {});
             await manager.shutdown();
+            await bot.drain().catch(() => {});
             db.close();
             process.exit(0);
         });

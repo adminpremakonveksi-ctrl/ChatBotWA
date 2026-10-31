@@ -89,11 +89,18 @@ export function makePlaceholderCache(ttlMs = 60 * 60 * 1000, clock = () => Date.
  */
 export const HANDLED_BY_SESSION = /^(stream errored out|error in validating connection|dropping spoofed self-only protocolMessage)/;
 
-export function sessionHandledLog(log, infoLog = log, recover = () => {}) {
+export function sessionHandledLog(log, infoLog = log, recover = () => {}, healMessage = () => false) {
     const pass = (level) => (first, second, ...rest) => {
         const message = typeof first === 'string' ? first : second;
+        if (message === 'failed to decrypt message' && healMessage(first)) {
+            // Preserve the raw error at its original level in the technical
+            // log; user notification is deferred until recovery has failed.
+            return log[level]({ ...first, quiet: true, recovery: 'automatic' }, second, ...rest);
+        }
         const detail = first?.err?.message ?? first?.err ?? first?.trace ?? '';
-        if (message === 'error in sending keep alive' || (/unexpected error in 'processing message'/.test(String(message)) && /connection closed|timed? ?out/i.test(String(detail)))) recover();
+        if (message === 'error in sending keep alive' || (/unexpected error in 'processing message'/.test(String(message)) && /connection closed|timed? ?out/i.test(String(detail)))) {
+            if (recover() === true) return log[level]({ ...first, quiet: true, recovery: 'reconnect' }, second, ...rest);
+        }
         if (HANDLED_BY_SESSION.test(String(message ?? ''))) return infoLog.info(first, second, ...rest);
 
         return log[level](first, second, ...rest);
@@ -108,6 +115,6 @@ export function sessionHandledLog(log, infoLog = log, recover = () => {}) {
         warn: pass('warn'),
         error: pass('error'),
         fatal: (...args) => log.fatal(...args),
-        child: (bindings, options) => sessionHandledLog(log.child(bindings, options), infoLog.child(bindings), recover),
+        child: (bindings, options) => sessionHandledLog(log.child(bindings, options), infoLog.child(bindings), recover, healMessage),
     };
 }

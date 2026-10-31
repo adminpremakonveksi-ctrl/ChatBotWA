@@ -274,12 +274,13 @@ Kode produk yang ada: ${productKeys().join(', ') || '(belum ada)'}.`;
 
 const historyText = (history) => history.map((h) => `${h.who === 'pelanggan' ? 'pelanggan' : h.who === 'cs' ? `CS ${config.bot.csName}` : config.bot.botName}: ${h.text}`).join('\n');
 
-function userTurn({ text, history = [], attachments = [], name = null }) {
+function userTurn({ text, history = [], attachments = [], quoted = null, name = null }) {
     const sent = attachments.map((a) => `[pelanggan mengirim ${a.note || a.kind || 'file'}]`).join(' ');
 
     return [
         name ? `Nama pelanggan: ${name}` : null,
         history.length ? `<riwayat>\n${historyText(history)}\n</riwayat>` : null,
+        quoted ? `<kutipan>\n${String(quoted).slice(0, 300)}\n</kutipan>` : null,
         `<pesan>\n${String(text ?? '').slice(0, 1500)}${sent ? `\n${sent}` : ''}\n</pesan>`,
     ]
         .filter(Boolean)
@@ -597,22 +598,23 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
         return { actions, patch, silent: 'AI belum diatur' };
     }
     if (!allowAiCall(input.who)) {
-        logger.warn({ who: input.who }, 'batas panggilan AI tercapai: bot diam untuk pesan ini');
-        return { actions, patch, silent: 'batas AI' };
+        logger.warn({ quiet: true, who: input.who }, 'batas panggilan AI tercapai: pesan menunggu percobaan ulang');
+        return { actions, patch, silent: 'batas AI', retryable: true, retryAfterMs: 60000 };
     }
 
     let answer;
     try {
         answer = await ask(
             // greeted: our greeting, or the Salam (also mid-chat: WhatsApp sends it on its own schedule), was just sent.
-            { text: input.text, history: input.history ?? [], attachments: input.attachments ?? [], name, who: input.who, order, focus: order.produk ? [order.produk] : [], greeted: first || Boolean(input.autoGreeted), now: input.now },
+            { text: input.text, history: input.history ?? [], attachments: input.attachments ?? [], quoted: input.quoted, name, who: input.who, order, focus: order.produk ? [order.produk] : [], greeted: first || Boolean(input.autoGreeted), now: input.now },
             { media, fetchImpl },
         );
     } catch (error) {
-        logger.error({ err: error.message, reply: error.reply }, 'AI gagal membalas: bot diam untuk pesan ini');
+        const retryable = !error.refused && /timeout|timed? ?out|abort|fetch failed|econn|enotfound|connection closed|\b429\b|\b5\d{2}\b|overload|temporarily unavailable/i.test(error.message);
+        logger.error({ quiet: retryable, err: error.message, reply: error.reply }, 'AI gagal membalas: bot diam untuk pesan ini');
         recordAi({ who: input.who, message: input.text, reply: error.reply ?? '', problem: error.message, outcome: error.refused ? 'diam' : 'error' });
 
-        return { actions, patch, silent: error.message };
+        return { actions, patch, silent: error.message, retryable };
     }
 
     // The AI may recognise a product the keywords missed ("almet", a typo).

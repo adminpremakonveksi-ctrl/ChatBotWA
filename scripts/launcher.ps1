@@ -476,24 +476,31 @@ function Invoke-Service {
     Update-PathFromRegistry
     $node = Get-Node
     New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+    $watcherFile = Join-Path $PSScriptRoot 'health-watchdog.ps1'
+    $watcher = Start-Job -FilePath $watcherFile -ArgumentList $PID, (Get-Process -Id $PID).StartTime.Ticks, $entry, (Get-Port), $logFile
 
-    while ($true) {
-        if ((Test-Path $logFile) -and (Get-Item $logFile).Length -gt 20MB) {
-            Move-Item $logFile (Join-Path $logDir 'bot.old.log') -Force
+    try {
+        while ($true) {
+            if ((Test-Path $logFile) -and (Get-Item $logFile).Length -gt 20MB) {
+                Move-Item $logFile (Join-Path $logDir 'bot.old.log') -Force
+            }
+
+            Add-Content -Path $logFile -Value "`r`n===== $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') bot dinyalakan ====="
+
+            $env:PRINT_QR = 'false'
+            Push-Location $root
+            try {
+                & cmd.exe /c "`"$node`" `"$entry`" >> `"$logFile`" 2>&1"
+            } finally {
+                Pop-Location
+            }
+
+            Add-Content -Path $logFile -Value "===== $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') bot berhenti (kode $LASTEXITCODE), menyala lagi dalam 10 detik ====="
+            Start-Sleep -Seconds 10
         }
-
-        Add-Content -Path $logFile -Value "`r`n===== $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') bot dinyalakan ====="
-
-        $env:PRINT_QR = 'false'
-        Push-Location $root
-        try {
-            & cmd.exe /c "`"$node`" `"$entry`" >> `"$logFile`" 2>&1"
-        } finally {
-            Pop-Location
-        }
-
-        Add-Content -Path $logFile -Value "===== $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') bot berhenti (kode $LASTEXITCODE), menyala lagi dalam 10 detik ====="
-        Start-Sleep -Seconds 10
+    } finally {
+        Stop-Job -Job $watcher -ErrorAction SilentlyContinue
+        Remove-Job -Job $watcher -Force -ErrorAction SilentlyContinue
     }
 }
 

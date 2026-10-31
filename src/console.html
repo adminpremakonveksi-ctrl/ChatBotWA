@@ -823,7 +823,7 @@ async function loadStatus() {
   const main = sessions[0];
   const wa = $('#waPill');
   if (!main) { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Belum ada nomor'; }
-  else if (main.connected) { wa.className = main.pendingMessages ? 'pill warn' : 'pill good'; wa.innerHTML = `<span class="dot"></span>WhatsApp tersambung${main.pendingMessages ? ` · ${num(main.pendingMessages)} pesan menunggu dikirim` : ''}`; }
+  else if (main.connected) { wa.className = main.pendingMessages || main.pendingIncoming || main.healing?.pending ? 'pill warn' : 'pill good'; wa.innerHTML = `<span class="dot"></span>WhatsApp tersambung${main.healing?.pending ? ` · memulihkan ${num(main.healing.pending)} pesan` : main.pendingIncoming ? ` · ${num(main.pendingIncoming)} pesan menunggu diproses` : main.pendingMessages ? ` · ${num(main.pendingMessages)} pesan menunggu dikirim` : ''}`; }
   else if (main.state === 'qr') { wa.className = 'pill warn pulse'; wa.innerHTML = '<span class="dot"></span>Perlu scan QR'; }
   else if (main.state === 'replaced') { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Nomor dipakai program lain'; }
   else { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>WhatsApp terputus'; }
@@ -900,6 +900,8 @@ async function loadRingkasan() {
   else if (main.connected) wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp</h3><span class="pill good"><span class="dot"></span>tersambung</span></div>
       <p style="margin:6px 0 2px;font-size:18px;font-weight:650">+${esc(main.phoneNumber)}</p><p class="hint">${esc(main.pushName || main.label)} · tidak perlu scan ulang setelah PC restart.</p>
       ${main.pendingMessages ? `<p class="hint">${num(main.pendingMessages)} pesan menunggu dikirim. Bot mencoba lagi otomatis.</p>` : ''}
+      ${main.pendingIncoming ? `<p class="hint">${num(main.pendingIncoming)} pesan menunggu diproses. Pesan tetap tersimpan dan dicoba lagi otomatis.</p>` : ''}
+      ${main.healing?.pending ? `<p class="hint">${num(main.healing.pending)} pesan sedang dipulihkan otomatis.${main.healing.needsAttention ? ' Pemulihan lebih dari 5 menit; pastikan HP utama online dan WhatsApp Business dibuka.' : ' Tidak perlu scan ulang.'}</p>` : ''}
       <button class="btn sm" onclick="rescan('${esc(main.key)}')">Ganti nomor</button>`;
   else if (main.state === 'replaced') wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp dipakai program lain</h3><span class="pill bad"><span class="dot"></span>berhenti</span></div>
       <p class="small" style="margin:8px 0">WhatsApp memutus bot ini karena ada program lain yang tersambung dengan <b>kunci WhatsApp yang sama</b>, biasanya folder <code>data</code> yang disalin ke PC lain, atau bot kedua di nomor ini. Bot berhenti supaya keduanya tidak saling rebut (itu yang merusak enkripsi: "Bad MAC", "failed to decrypt").</p>

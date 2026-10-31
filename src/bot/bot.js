@@ -4,6 +4,8 @@ import { config } from '../config.js';
 import { recordActivity } from '../activity.js';
 import { logger } from '../logger.js';
 import { db } from '../db.js';
+import { withDeadline } from '../deadline.js';
+import { beginIncoming, cancelIncoming, completeIncoming, deferIncoming, enqueueIncoming, inboxExpired, incomingRows } from '../inbox.js';
 import { cancelDeliveries, completeDelivery, enqueueDelivery, pendingDeliveries } from '../delivery.js';
 import { classify as defaultClassify } from './classify.js';
 import { isAutoMessage, releaseAutoHandovers } from './auto-messages.js';
@@ -48,6 +50,7 @@ export class Bot {
         this.buffers = new Map();
         this.queues = new Map();
         this.deliveries = new Map();
+        this.claimedIncoming = new Set();
         // "session|jid" -> when the WhatsApp Business Salam went out to a new customer.
         this.autoGreeted = new Map();
         this.log = logger.child({ part: 'bot' });
@@ -59,8 +62,13 @@ export class Bot {
      */
     onIncoming(sessionKey, transport, { jid, id, text = '', hasImage = false, hasAudio = false, attachment = null, quoted = null, selfTest = false }) {
         if (this.store.hasReceived?.(sessionKey, jid, id)) return;
+        const eligible = (selfTest || this.isActive()) && (selfTest || !config.recap.to.includes(this.store.phoneOf(jid)));
+        const reset = selfTest && /^\s*#?reset\s*$/i.test(text);
         // A picture, location or file without words is logged by what it is, so CS sees it in Percakapan.
-        this.store.logMessage({ sessionKey, jid, direction: 'in', waMessageId: id, text: text || attachment?.note || '' });
+        db.transaction(() => {
+            this.store.logMessage({ sessionKey, jid, direction: 'in', waMessageId: id, text: text || attachment?.note || '' });
+            if (eligible && !reset) enqueueIncoming(sessionKey, jid, id, { text, hasImage, hasAudio, attachment, quoted, selfTest });
+        })();
 
         // The self-chat test answers at any hour, so the team can try the bot by day.
         if (!selfTest && !this.isActive()) {
@@ -81,7 +89,11 @@ export class Bot {
         }
 
         const key = `${sessionKey}|${jid}`;
-        const buffer = this.buffers.get(key) ?? { texts: [], hasImage: false, hasAudio: false, attachments: [], quoted: null, timer: null, selfTest };
+        const buffer = this.buffers.get(key) ?? { texts: [], hasImage: false, hasAudio: false, attachments: [], quoted: null, timer: null, selfTest, ids: [] };
+        if (id) {
+            buffer.ids.push(id);
+            this.claimedIncoming.add(`${sessionKey}|${id}`);
+        }
 
         if (text) buffer.texts.push(text);
         buffer.hasImage ||= hasImage;
@@ -89,7 +101,7 @@ export class Bot {
         if (attachment) buffer.attachments.push(attachment);
         if (quoted) buffer.quoted = quoted;
 
-        buffer.run = () => this.handle(sessionKey, transport, jid, buffer);
+        buffer.run = () => this.#runBatch(sessionKey, transport, jid, buffer);
 
         clearTimeout(buffer.timer);
         buffer.timer = setTimeout(() => {
@@ -100,10 +112,91 @@ export class Bot {
         this.buffers.set(key, buffer);
     }
 
-    /**
-     * A message from our own number. If the bot did not send it, CS replied
-     * from the phone: hand the customer over so the two do not talk at once.
-     */
+    /** Rebuild the original message batch without logging the input twice. */
+    #inputOf(rows) {
+        return {
+            ids: rows.map((r) => r.message_id),
+            texts: rows.map((r) => r.payload.text).filter(Boolean),
+            hasImage: rows.some((r) => r.payload.hasImage),
+            hasAudio: rows.some((r) => r.payload.hasAudio),
+            attachments: rows.map((r) => r.payload.attachment).filter(Boolean),
+            quoted: [...rows].reverse().find((r) => r.payload.quoted)?.payload.quoted ?? null,
+            selfTest: rows.every((r) => r.payload.selfTest),
+        };
+    }
+
+    /** Late catch-up is recorded for CS instead of silently disappearing. */
+    onMissedIncoming(sessionKey, { jid, id, text }) {
+        if (this.store.hasReceived?.(sessionKey, jid, id)) return;
+        db.transaction(() => {
+            this.store.logMessage({ sessionKey, jid, direction: 'in', waMessageId: id, text, intent: 'tertunda_saat_offline' });
+            if (this.store.loadConversation(sessionKey, jid).step !== 'handed_over') {
+                this.store.markHandover(sessionKey, jid, 'pesan masuk saat offline; terlalu lama untuk dibalas otomatis');
+            }
+        })();
+    }
+
+    async #runBatch(sessionKey, transport, jid, input) {
+        let batch = input;
+        try {
+            if (input.ids?.length) {
+                const rows = incomingRows(sessionKey).filter((row) => row.jid === jid &&
+                    (input.ids.includes(row.message_id) || !this.claimedIncoming.has(`${sessionKey}|${row.message_id}`)));
+                if (!rows.length) return; // CS/reset cancelled this queued turn.
+                if (rows.some((r) => inboxExpired(r) || r.corrupt)) {
+                    this.#abandonIncoming(sessionKey, jid, 'pesan belum berhasil diproses setelah percobaan ulang');
+                    return;
+                }
+                batch = this.#inputOf(rows);
+                for (const id of batch.ids) this.claimedIncoming.add(`${sessionKey}|${id}`);
+                db.transaction(() => beginIncoming(sessionKey, batch.ids))();
+            }
+            await this.handle(sessionKey, transport, jid, batch);
+        } catch (error) {
+            // If output has already been committed, the inbox is gone and the
+            // durable outbox resumes sending. Otherwise retry the original input.
+            deferIncoming(sessionKey, batch.ids ?? [], error.message);
+            throw error;
+        } finally {
+            for (const id of [...(input.ids ?? []), ...(batch.ids ?? [])]) this.claimedIncoming.delete(`${sessionKey}|${id}`);
+        }
+    }
+
+    #abandonIncoming(sessionKey, jid, reason) {
+        const rows = incomingRows(sessionKey).filter((row) => row.jid === jid);
+        if (!rows.length) return;
+        db.transaction(() => {
+            cancelIncoming(sessionKey, jid);
+            cancelDeliveries(sessionKey, jid);
+            if (this.store.loadConversation(sessionKey, jid).step !== 'handed_over') this.store.markHandover(sessionKey, jid, reason);
+        })();
+        this.log.warn({ jid, reason, messages: rows.length, lastError: rows.find((r) => r.last_error)?.last_error }, 'pesan tertunda perlu ditindaklanjuti CS');
+    }
+
+    /** Resume original input after restart/AI outage. Same per-chat queue as live input. */
+    async recoverIncoming(sessionKey, transport) {
+        const groups = new Map();
+        for (const row of incomingRows(sessionKey)) {
+            const rows = groups.get(row.jid) ?? [];
+            rows.push(row);
+            groups.set(row.jid, rows);
+        }
+        const jobs = [];
+        for (const [jid, rows] of groups) {
+            if (rows.some((r) => this.claimedIncoming.has(`${sessionKey}|${r.message_id}`))) continue;
+            if (rows.some((r) => inboxExpired(r) || r.corrupt)) {
+                this.#abandonIncoming(sessionKey, jid, 'pesan belum berhasil diproses setelah percobaan ulang');
+                continue;
+            }
+            if (Date.parse(rows[0].next_attempt_at.replace(' ', 'T') + 'Z') > Date.now()) continue;
+            const input = this.#inputOf(rows);
+            for (const id of input.ids) this.claimedIncoming.add(`${sessionKey}|${id}`);
+            jobs.push(this.#enqueue(`${sessionKey}|${jid}`, () => this.#runBatch(sessionKey, transport, jid, input)));
+            if (jobs.length >= 3) break;
+        }
+        await Promise.all(jobs);
+    }
+
     isBotMessage(id) {
         return Boolean(id) && this.store.isBotMessage(id);
     }
@@ -152,6 +245,7 @@ export class Bot {
         cancelDeliveries(sessionKey, jid);
 
         const key = `${sessionKey}|${jid}`;
+        for (const id of this.buffers.get(key)?.ids ?? []) this.claimedIncoming.delete(`${sessionKey}|${id}`);
         clearTimeout(this.buffers.get(key)?.timer);
         this.buffers.delete(key);
     }
@@ -160,7 +254,10 @@ export class Bot {
         const previous = this.queues.get(key) ?? Promise.resolve();
         const next = previous
             .then(task)
-            .catch((error) => this.log.error({ err: error.message, key }, 'gagal memproses pesan'))
+            .catch((error) => {
+                const quiet = error.code === 'RECOVERY_PENDING' || /connection closed|timed? ?out|econnreset|enotfound|sedang tidak tersambung/i.test(error.message);
+                this.log.error({ quiet, err: error.message, key }, 'gagal memproses pesan');
+            })
             .finally(() => {
                 if (this.queues.get(key) === next) this.queues.delete(key);
             });
@@ -170,9 +267,12 @@ export class Bot {
         return next;
     }
 
-    async handle(sessionKey, transport, jid, { texts, hasImage, hasAudio = false, attachments = [], quoted = null, selfTest = false }) {
+    async handle(sessionKey, transport, jid, { texts, hasImage, hasAudio = false, attachments = [], quoted = null, selfTest = false, ids = [] }) {
         // The night may have ended while we were waiting.
-        if (!selfTest && !this.isActive()) return;
+        if (!selfTest && !this.isActive()) {
+            if (ids.length) this.#abandonIncoming(sessionKey, jid, 'jam aktif berakhir sebelum pesan selesai diproses');
+            return;
+        }
 
         // Finish the previous turn before generating another reply.
         await this.flushPending(sessionKey, transport, jid).catch((error) => {
@@ -183,9 +283,14 @@ export class Bot {
 
         const conversation = this.store.loadConversation(sessionKey, jid);
 
-        if (conversation.step === 'handed_over') return;
+        if (conversation.step === 'handed_over') { completeIncoming(sessionKey, ids); return; }
 
-        const text = texts.join('\n');
+        const joined = texts.join('\n');
+        if (joined.length > 6000 && ids.length) {
+            this.#abandonIncoming(sessionKey, jid, 'pesan terlalu panjang untuk diproses otomatis; perlu CS');
+            return;
+        }
+        const text = joined.slice(0, 6000);
 
         // The WhatsApp Business Salam answered this new customer a moment ago (10 minutes at most).
         const key = `${sessionKey}|${jid}`;
@@ -197,15 +302,19 @@ export class Bot {
         // AI chat mode (Pengaturan > Mode bot): the AI writes from the shop's data (chat.js).
         if (config.bot.mode === 'ai') {
             // A new (or started-over) conversation: the lines of the old one are not its context.
-            const history = conversation.step === 'new' ? [] : this.store.recentHistory?.(sessionKey, jid, texts.length, 12) ?? [];
-            const turn = await this.chat(conversation, { text, hasImage, hasAudio, attachments, history, who: key, autoGreeted: salamRecent }, { media: this.media });
+            const history = conversation.step === 'new' ? [] : this.store.recentHistory?.(sessionKey, jid, ids.length ? ids : texts.length, 12) ?? [];
+            const turn = await withDeadline(
+                () => this.chat(conversation, { text, hasImage, hasAudio, attachments, quoted, history, who: key, autoGreeted: salamRecent }, { media: this.media }),
+                2 * config.ollama.timeoutMs + 15000, 'AI conversation turn',
+            );
             const classified = { intent: turn.silent ? 'ai_diam' : 'ai', source: 'ai', selfTest };
 
             this.store.tagIncoming(sessionKey, jid, classified.intent);
             // CS may have replied while the AI was writing.
-            if (this.store.loadConversation(sessionKey, jid).step === 'handed_over') return;
+            if (this.store.loadConversation(sessionKey, jid).step === 'handed_over') { completeIncoming(sessionKey, ids); return; }
+            if (ids.length && !incomingRows(sessionKey).some((row) => ids.includes(row.message_id))) return;
 
-            return this.#deliver(sessionKey, transport, jid, conversation, text, classified, turn);
+            return this.#deliver(sessionKey, transport, jid, conversation, text, classified, { ...turn, inboxIds: ids });
         }
 
         const classified = await this.classify({
@@ -219,7 +328,7 @@ export class Bot {
             step: conversation.step,
             knownProduct: conversation.product,
             // The last few lines before this message, so the AI gets "yang tadi", "itu".
-            history: this.store.recentHistory?.(sessionKey, jid, texts.length) ?? [],
+            history: this.store.recentHistory?.(sessionKey, jid, ids.length ? ids : texts.length) ?? [],
         });
         classified.selfTest = selfTest;
 
@@ -227,15 +336,19 @@ export class Bot {
         this.store.tagIncoming(sessionKey, jid, classified.intent === 'custom' ? `pola: ${classified.pattern.name}` : classified.intent);
 
         // CS may have replied while the classifier was thinking.
-        if (this.store.loadConversation(sessionKey, jid).step === 'handed_over') return;
+        if (this.store.loadConversation(sessionKey, jid).step === 'handed_over') { completeIncoming(sessionKey, ids); return; }
+        if (ids.length && !incomingRows(sessionKey).some((row) => ids.includes(row.message_id))) return;
 
         const turn = decide(autoGreeted ? { ...conversation, autoGreeted: true } : conversation, classified, this.media);
 
-        return this.#deliver(sessionKey, transport, jid, conversation, text, classified, turn);
+        return this.#deliver(sessionKey, transport, jid, conversation, text, classified, { ...turn, inboxIds: ids });
     }
 
     /** Sends a turn ({ actions, patch }, from the script or the AI) and stores where the conversation went. */
-    async #deliver(sessionKey, transport, jid, conversation, text, classified, { actions, patch }) {
+    async #deliver(sessionKey, transport, jid, conversation, text, classified, { actions, patch, inboxIds = [], retryable = false, retryAfterMs = 0, silent = '' }) {
+        if (silent && !retryable && !actions.some((a) => a.type === 'handover')) {
+            actions = [...actions, { type: 'handover', reason: 'AI tidak dapat menjawab: ' + String(silent).slice(0, 160) }];
+        }
         this.log.info(
             { jid, step: conversation.step, intent: classified.intent, product: classified.product, via: classified.source, next: patch.step ?? conversation.step },
             'pesan dikenali',
@@ -250,7 +363,11 @@ export class Bot {
             detail: `"${text.slice(0, 120)}" · ${conversation.step} → ${patch.step ?? conversation.step}`,
         });
 
-        db.transaction(() => this.#queueTurn(sessionKey, transport, jid, conversation, classified, actions, patch, who))();
+        db.transaction(() => {
+            this.#queueTurn(sessionKey, transport, jid, conversation, classified, actions, patch, who);
+            if (retryable) deferIncoming(sessionKey, inboxIds, silent, retryAfterMs);
+            else completeIncoming(sessionKey, inboxIds);
+        })();
         await this.flushPending(sessionKey, transport, jid);
     }
 

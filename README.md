@@ -76,6 +76,59 @@ ditampilkan di dashboard. Sapaan dan pengiriman size chart tetap dapat berjalan.
 
 ## Tugas harian dan pemulihan
 
+### Saat bot ditinggal
+
+- Pesan masuk disimpan sebelum debounce atau pemanggilan AI. Restart di tengah
+  proses tidak menghilangkan permintaan pelanggan. Antrean dilanjutkan saat
+  WhatsApp tersambung kembali.
+- Timeout, gangguan jaringan, server AI 5xx, dan batas kuota dicoba ulang
+  dengan jeda bertahap. Maksimal lima percobaan atau 15 menit; setelah itu
+  kebutuhan pelanggan ditandai untuk CS. Balasan yang ditolak pemeriksaan
+  keamanan tidak dikirim dan langsung ditandai untuk CS.
+- Status percakapan, antrean keluar, dan penyelesaian antrean masuk disimpan
+  dalam satu transaksi. Pengiriman yang terputus dilanjutkan dengan ID lama.
+  Reset dan pengambilalihan CS membatalkan pekerjaan yang sudah tidak berlaku.
+- Batas waktu terpisah menjaga proses AI, kirim WhatsApp, dan handshake agar
+  tidak menggantung selamanya. Pekerjaan lama yang selesai terlambat tidak
+  boleh menimpa hasil pemulihan yang baru.
+- Antrean dihitung sebagai percobaan sebelum pekerjaan dimulai. Pesan yang
+  memicu crash berulang akhirnya dipisahkan untuk CS, bukan membuat restart
+  tanpa akhir. Pesan terlalu panjang tetap tersimpan di riwayat untuk CS.
+- Sinkronisasi setelah offline yang terlalu lama dicatat sebagai kebutuhan
+  CS; bot tidak mengirim sapaan terlambat untuk pesan lama.
+- SQLite memakai WAL dan synchronous FULL untuk memperkuat penyimpanan
+  transaksi dan kunci autentikasi ketika proses berhenti mendadak.
+
+Pada auto-start Windows, launcher menjalankan pengawas HTTP terpisah dari
+Node. Setelah masa awal 2 menit, empat pemeriksaan kesehatan yang gagal
+berturut-turut memicu restart proses bot milik launcher tersebut. Pengawas
+memeriksa hubungan proses induk dan lokasi aplikasi sebelum menghentikan Node;
+aplikasi Node lain tidak ikut dihentikan. Loop launcher menyalakan kembali
+bot setelah 10 detik.
+
+Pengawas eksternal ini berlaku ketika dijalankan lewat **Mulai ChatBot Prema**
+dan auto-start Windows. Menjalankan npm start secara manual tidak memasang
+pengawas proses Windows. PC tetap perlu menyala dan memiliki akses jaringan.
+
+### Pesan terenkripsi yang belum terbaca
+
+Bot mencoba sesi nomor telepon jika sesi LID gagal karena pre-key tidak tersedia.
+Untuk error enkripsi yang masih bertahan, bot memberi waktu pada retry WhatsApp,
+lalu mengunggah pre-key baru dan meminta HP mengirim ulang. Kunci lama tidak
+dikarang ulang atau dihapus. Sambung ulang dibatasi, dan pesan rusak tunggal
+tidak memutus percakapan lain yang masih berjalan.
+
+Dashboard menampilkan jumlah pesan yang sedang dipulihkan. Error mentah tetap
+ada di Log teknis; popup ditunda selama pemulihan otomatis. Jika belum berhasil
+setelah 5 menit, muncul peringatan, maksimal sekali per 10 menit. Antrean dan
+batas percobaan disimpan di SQLite agar restart tidak mengulang rentetan popup.
+
+Balasan ke pelanggan ditahan sementara ketika ada pesan dari HP sendiri yang
+belum terbaca, agar bot tidak menimpa kemungkinan balasan CS. Setelah pesan
+pulih, penanganan CS atau balasan bot dilanjutkan sesuai isi pesan tersebut.
+Pemulihan tidak menghapus tautan perangkat. Jika HP utama offline, kirim ulang
+bisa menunggu sampai HP kembali online; logout resmi tetap memerlukan QR baru.
+
 - Rekap pelanggan ke WhatsApp CS: 07.30 Senin–Sabtu secara bawaan.
 - Backup dan pembersihan chat: 03.00.
 - Backup disimpan 14 hari; isi chat disimpan 90 hari secara bawaan.

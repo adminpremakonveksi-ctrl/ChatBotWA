@@ -612,6 +612,23 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
             db.prepare(`INSERT OR REPLACE INTO settings ("key", value, updated_at) VALUES ('cfg:botMode', '"ai"', ?)`).run(stamp());
         },
     },
+    {
+        id: '023_durable_inbox',
+        up(db) {
+            db.exec(`CREATE TABLE incoming_queue (
+                session_key TEXT NOT NULL,
+                message_id TEXT NOT NULL,
+                jid TEXT NOT NULL,
+                payload TEXT NOT NULL,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                next_attempt_at TEXT NOT NULL,
+                last_error TEXT,
+                created_at TEXT NOT NULL,
+                PRIMARY KEY(session_key, message_id)
+            );
+            CREATE INDEX incoming_queue_due ON incoming_queue(session_key, next_attempt_at);`);
+        },
+    },
 ];
 
 /** Adds the away message to a list the team already saved, once; a fresh install gets it as the default. */

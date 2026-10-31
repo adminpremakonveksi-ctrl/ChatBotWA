@@ -94,6 +94,7 @@ function mergeConversations(lid, pn) {
 
     run('UPDATE message_log SET jid = ? WHERE jid = ?', [pnJid, lidJid]);
     run('UPDATE outgoing_queue SET jid = ? WHERE jid = ?', [pnJid, lidJid]);
+    run('UPDATE incoming_queue SET jid = ? WHERE jid = ?', [pnJid, lidJid]);
 }
 
 /** The phone number user of a LID, or null. Our own from memory: it must work before anything is stored. */
@@ -149,7 +150,7 @@ export function withLidFallback(repository, toPn = pnJidOf, cache = null) {
         } catch (error) {
             const pn = isLid(args?.jid) ? toPn(args.jid) : null;
 
-            if (!pn || !/no (matching )?sessions?|no session record/i.test(String(error?.message))) throw error;
+            if (!pn || !/no (matching )?sessions?|no session record|invalid prekey id|missing signedprekey/i.test(String(error?.message))) throw error;
 
             try {
                 return await decrypt({ ...args, jid: pn });

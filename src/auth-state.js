@@ -1,6 +1,6 @@
 import { BufferJSON, initAuthCreds, proto } from 'baileys';
 
-import { all, get, now, run } from './db.js';
+import { all, db, get, now, run } from './db.js';
 
 /**
  * A Baileys auth store backed by the bot's local SQLite database.
@@ -63,27 +63,30 @@ export async function useSqliteAuthState(sessionId) {
 
         async set(data) {
             const stamp = now();
+            // Persist the supplied key batch atomically. A partial batch can
+            // leave session/pre-key references inconsistent after a disk error.
+            db.transaction(() => {
+                for (const category of Object.keys(data)) {
+                    for (const id of Object.keys(data[category])) {
+                        const value = data[category][id];
 
-            for (const category of Object.keys(data)) {
-                for (const id of Object.keys(data[category])) {
-                    const value = data[category][id];
-
-                    if (value) {
-                        run(
-                            `INSERT INTO wa_auth_keys (wa_session_id, category, key_id, value, created_at, updated_at)
-                             VALUES (?, ?, ?, ?, ?, ?)
-                             ON CONFLICT(wa_session_id, category, key_id)
-                             DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
-                            [sessionId, category, id, JSON.stringify(value, BufferJSON.replacer), stamp, stamp],
-                        );
-                    } else {
-                        run(
-                            'DELETE FROM wa_auth_keys WHERE wa_session_id = ? AND category = ? AND key_id = ?',
-                            [sessionId, category, id],
-                        );
+                        if (value) {
+                            run(
+                                `INSERT INTO wa_auth_keys (wa_session_id, category, key_id, value, created_at, updated_at)
+                                 VALUES (?, ?, ?, ?, ?, ?)
+                                 ON CONFLICT(wa_session_id, category, key_id)
+                                 DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`,
+                                [sessionId, category, id, JSON.stringify(value, BufferJSON.replacer), stamp, stamp],
+                            );
+                        } else {
+                            run(
+                                'DELETE FROM wa_auth_keys WHERE wa_session_id = ? AND category = ? AND key_id = ?',
+                                [sessionId, category, id],
+                            );
+                        }
                     }
                 }
-            }
+            })();
         },
     };
 

@@ -25,6 +25,8 @@ function plain(value, depth = 0) {
 // What a raw error means for the person at the PC, shown ABOVE the raw text (which
 // stays as logged, for the developer). First match wins; no match, no line.
 const MEANINGS = [
+    [/belum bisa dipulihkan setelah 5 menit|terlalu banyak pesan belum terbaca/i,
+        'Pemulihan otomatis belum berhasil. Pastikan HP utama tersambung internet dan buka WhatsApp Business di HP. Bot tetap mencoba; jika belum pulih, kirim detail Log ini ke developer.'],
     [/connection closed|connection lost|connection terminated|timed out.*(ws|websocket)|ECONNRESET|socket hang up/i,
         'Sambungan PC ke WhatsApp putus sebentar (internet putus atau lambat). Bot menyambung ulang sendiri; kalau di Ringkasan WhatsApp tetap "terputus" lebih dari 5 menit, cek internet PC ini.'],
     [/stream errored out|stream:error|code.*515|restart required/i,

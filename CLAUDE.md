@@ -2,6 +2,32 @@
 
 ## Current production decision (2026-10-31)
 
+Unattended reliability: incoming_queue (023) journals eligible input atomically
+with its message log, before debounce/AI. Claim attempts BEFORE executing so a
+poison input cannot cause an endless crash/restart cycle. Commit conversation,
+outbox and input completion together. Transient AI failures retry silently with
+backoff; five attempts or fifteen minutes -> internal CS handover, no invented
+customer reply. Non-retryable refused/unconfigured AI input also needs visible
+CS follow-up. Pending IDs, not log position, determine AI history on recovery.
+Do not allow a reset/CS takeover to be overwritten by an old AI result.
+
+Network deadlines and message-healing watchdogs release stuck work. The Windows
+service also starts health-watchdog.ps1 independently of Node: warmup 120 s,
+four health failures, and strict supervisor -> cmd -> node ancestry plus exact
+entry path before killing ONLY its own child. Never use broad node termination.
+SQLite uses synchronous FULL. Tests include real child-process SIGKILL recovery,
+five consecutive poison-input crashes, and a 100-message fault simulation.
+
+Self-healing request (2026-10-31): recoverable decrypt and handled network
+errors retain their raw warn/error technical log with quiet=true while the
+automatic repair is running. This explicitly supersedes the old blanket
+"every error pops up" rule below. MessageHealing persists pending IDs and
+cooldowns, refreshes prekeys through Baileys, requests phone resend, and alerts
+only after 5 minutes (at most once per 10 minutes). Never erase pairing keys,
+resurrect consumed prekeys, or trust changed identities automatically. Unknown
+crypto errors remain visible. Hold outgoing customer replies while an unreadable
+fromMe message may be CS typing. CIPHERTEXT stubs must not count as recovery.
+
 The user requested AI-only WhatsApp Business operation. This supersedes the
 older two-mode dashboard instructions below. Settings cannot enable naskah;
 the pattern/teaching UI and HTTP routes are removed. Active legacy pattern

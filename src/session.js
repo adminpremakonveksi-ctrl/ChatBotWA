@@ -12,6 +12,7 @@ import makeWASocket, {
     isJidNewsletter,
     makeCacheableSignalKeyStore,
     normalizeMessageContent,
+    proto,
 } from 'baileys';
 
 import { useSqliteAuthState } from './auth-state.js';
@@ -20,8 +21,11 @@ import { fixMexNotifications, makePlaceholderCache, sessionHandledLog } from './
 import { conversationJid, learnFromKey, setOwnIdentity, userOf, withLidFallback } from './lid.js';
 import { MIME } from './bot/media.js';
 import { config } from './config.js';
-import { now, run } from './db.js';
+import { getSetting, now, run, setSetting } from './db.js';
 import { logger } from './logger.js';
+import { MessageHealing } from './message-healing.js';
+import { incomingRows } from './inbox.js';
+import { withDeadline } from './deadline.js';
 import { pendingDeliveries, rememberRetryMessage, retryMessage } from './delivery.js';
 
 const MAX_BACKOFF_MS = 60000;
@@ -82,6 +86,17 @@ export class Session {
         this.retryCounterCache = makePlaceholderCache();
         this.decryptCache = makePlaceholderCache(15 * 60000);
         this.log = logger.child({ session: row.key });
+        this.healing = new MessageHealing({
+            socket: () => this.state === 'connected' ? this.socket : null,
+            reconnect: (socket) => {
+                if (socket === this.socket && !this.stopping) socket.end(new Error('Pemulihan enkripsi: menyambung ulang tanpa menghapus sesi'));
+            },
+            log: this.log,
+            read: () => {
+                try { return JSON.parse(getSetting('healing:' + this.key) || 'null'); } catch { return null; }
+            },
+            write: (state) => setSetting('healing:' + this.key, JSON.stringify(state)),
+        });
         // Baileys is chatty at info (pairing blobs, handshakes); keep its warnings only.
         // Its connection errors that this session handles go to the log file, not the pop-up (baileys-fixes.js).
         this.baileysLog = sessionHandledLog(logger.child({ session: row.key }, { level: 'warn' }), this.log);
@@ -95,8 +110,10 @@ export class Session {
         if (this.state === 'connected') {
             return;
         }
+        if (this.socket && ['connecting', 'qr'].includes(this.state)) return;
 
         this.stopping = false;
+        this.healing.start();
         clearTimeout(this.reconnectTimer);
         const generation = ++this.generation;
         const starting = this.#connect(generation).catch(async (error) => {
@@ -131,6 +148,14 @@ export class Session {
                 // A ping query can fail without Baileys closing its websocket.
                 // Closing explicitly drives the same reconnect path as a drop.
                 socket.end(new Error('Koneksi WhatsApp tidak merespons; menyambung ulang'));
+            }
+            return true; // A stale socket has already been replaced or stopped.
+        }, (detail) => {
+            if (this.stopping || generation !== this.generation || this.socket !== socket) return true;
+            try { return this.healing.failed(detail); }
+            catch (error) {
+                this.log.error({ err: error.message }, 'gagal menyimpan status pemulihan pesan');
+                return false;
             }
         });
         const socket = this.makeSocket({
@@ -171,6 +196,14 @@ export class Session {
         });
 
         this.socket = socket;
+        clearTimeout(this.connectionTimer);
+        this.connectionTimer = setTimeout(() => {
+            if (!this.stopping && this.socket === socket && generation === this.generation && this.state === 'connecting') {
+                this.log.info('sambungan WhatsApp terlalu lama menunggu; mencoba koneksi baru');
+                socket.end(new Error('Timed Out: WhatsApp handshake'));
+            }
+        }, 120000);
+        this.connectionTimer.unref?.();
 
         // Our phone sends by LID while its encryption session was made under the
         // number: read those messages with that session (see lid.js). Without it
@@ -206,6 +239,7 @@ export class Session {
 
     async #onConnectionUpdate({ connection, lastDisconnect, qr }, socket) {
         if (qr) {
+            clearTimeout(this.connectionTimer);
             this.qr = await QRCode.toDataURL(qr, { margin: 1, width: 360 });
             // WhatsApp rotates the pairing code roughly every 20 seconds.
             this.qrExpiresAt = Date.now() + 20000;
@@ -218,6 +252,7 @@ export class Session {
         }
 
         if (connection === 'open') {
+            clearTimeout(this.connectionTimer);
             this.qr = null;
             this.qrExpiresAt = null;
             this.attempts = 0;
@@ -234,14 +269,25 @@ export class Session {
             if (this.stopping || this.socket !== socket) return;
 
             this.log.info({ number: this.phoneNumber }, 'tersambung');
+            this.healing.tick();
             clearTimeout(this.reconnectTimer);
             clearInterval(this.deliveryTimer);
-            const flush = () => this.bot.flushPending?.(this.key, this)?.catch((error) => {
-                this.log.warn({ err: error.message, pending: pendingDeliveries(this.key).length }, 'balasan tertunda, akan dikirim ulang otomatis');
-            });
+            const flush = () => Promise.resolve().then(() => this.bot.flushPending?.(this.key, this)).catch((error) => {
+                const quiet = error.code === 'RECOVERY_PENDING' || /connection closed|timed? ?out|econnreset|enotfound|sedang tidak tersambung/i.test(error.message);
+                this.log.warn({ quiet, err: error.message, pending: pendingDeliveries(this.key).length }, 'balasan tertunda, akan dikirim ulang otomatis');
+            }).then(() => {
+                if (this.state === 'connected' && this.socket === socket) return this.bot.recoverIncoming?.(this.key, this);
+            }).catch((error) => this.log.error({ err: error.message }, 'gagal melanjutkan pesan masuk tertunda'));
             flush();
             this.deliveryTimer = setInterval(flush, 30000);
             this.deliveryTimer.unref?.();
+            clearInterval(this.inboxTimer);
+            this.inboxTimer = setInterval(() => {
+                if (this.state === 'connected' && this.socket === socket) {
+                    this.bot.recoverIncoming?.(this.key, this)?.catch((error) => this.log.error({ err: error.message }, 'gagal melanjutkan pesan masuk tertunda'));
+                }
+            }, 5000);
+            this.inboxTimer.unref?.();
             this.#learnOwnLid(this.socket?.user);
 
             // Read the WhatsApp Business catalog once the connection has settled
@@ -254,10 +300,12 @@ export class Session {
         }
 
         if (connection === 'close') {
+            clearTimeout(this.connectionTimer);
             // A catalog read waiting for its retry belongs to this connection; the next one schedules its own.
             clearTimeout(this.catalogRetry);
             clearInterval(this.catalogTimer);
             clearInterval(this.deliveryTimer);
+            clearInterval(this.inboxTimer);
 
             const statusCode = lastDisconnect?.error?.output?.statusCode ?? null;
             const loggedOut = statusCode === DisconnectReason.loggedOut;
@@ -267,9 +315,11 @@ export class Session {
             this.lastError = lastDisconnect?.error?.message ?? null;
 
             if (loggedOut) {
+                this.healing.stop();
                 // The stored credentials are dead; drop them so the next
                 // connect produces a fresh QR instead of failing forever.
                 await this.clearCredentials?.();
+                this.healing.reset();
                 await this.#setState('logged_out', { last_error: 'Perangkat dilepas dari HP. Scan QR lagi.' });
                 this.log.warn('sesi dilepas dari HP, kredensial dibersihkan');
 
@@ -282,6 +332,7 @@ export class Session {
             // two would fight forever, wrecking the encryption sessions ("Bad MAC").
             // Stop here and say so; the team chooses in the console.
             if (statusCode === DisconnectReason.connectionReplaced) {
+                this.healing.stop();
                 await this.#setState('replaced', { last_error: this.lastError });
                 this.log.error(
                     { statusCode, error: this.lastError },
@@ -324,6 +375,8 @@ export class Session {
 
     async #onMessages({ messages, type }) {
         for (const message of messages) {
+            if (message.messageStubType === proto.WebMessageInfo.StubType.CIPHERTEXT) continue;
+            if (message.message) this.healing.received(message.key);
             if (message.key?.fromMe && this.bot.isBotMessage(message.key.id)) rememberRetryMessage(this.key, message);
             // Which LID is which number (WhatsApp sends both); then one customer
             // is one conversation, whether a message came by number or by LID.
@@ -365,6 +418,10 @@ export class Session {
                 // history. These were dropped without a trace (2026-10-27: no chat
                 // reached the bot for a week while the line kept timing out).
                 if (!isRecentCatchUp(message)) {
+                    const timestamp = Number(message.messageTimestamp ?? 0) * 1000;
+                    if (timestamp >= Date.now() - 24 * 3600000 && isBotActive(new Date(timestamp))) {
+                        this.bot.onMissedIncoming?.(this.key, { jid, id: message.key.id, text: text || Session.attachmentOf(contentType, content)?.note || '[pesan tertunda]' });
+                    }
                     this.log.info({ from: jid, type, id: message.key.id }, 'pesan lama dari sinkronisasi dilewati');
                     continue;
                 }
@@ -406,22 +463,25 @@ export class Session {
 
     /** Sends one bot bubble, showing "typing..." first so replies do not land in a burst. */
     async send(jid, action, messageId) {
+        if (this.healing.waitingForOwn(jid, conversationJid, (id) => this.bot.isBotMessage(id))) {
+            throw Object.assign(new Error('Menunggu pemulihan pesan dari HP agar bot tidak menimpa balasan CS'), { code: 'RECOVERY_PENDING' });
+        }
         if (this.state !== 'connected' || !this.socket) {
             throw new Error(`Nomor "${this.label}" sedang tidak tersambung`);
         }
 
         const socket = this.socket;
         try {
-            await socket.sendPresenceUpdate('composing', jid);
+            await withDeadline(() => socket.sendPresenceUpdate('composing', jid), 2500, 'typing presence');
             await sleep(config.bot.typingMs);
-            await socket.sendPresenceUpdate('paused', jid);
+            await withDeadline(() => socket.sendPresenceUpdate('paused', jid), 2500, 'paused presence');
         } catch {
             /* presence is cosmetic */
         }
 
         if (this.socket !== socket || this.state !== 'connected') throw new Error('Connection Closed');
         try {
-            const result = await socket.sendMessage(jid, Session.content(action), { messageId });
+            const result = await withDeadline(() => socket.sendMessage(jid, Session.content(action), { messageId }), 120000, 'WhatsApp send');
             rememberRetryMessage(this.key, result);
         } catch (error) {
             if (this.socket === socket && /connection closed|timed? ?out|econnreset|enotfound/i.test(error.message)) socket.end(error);
@@ -554,6 +614,9 @@ export class Session {
     }
 
     async stop() {
+        clearInterval(this.inboxTimer);
+        this.healing.stop();
+        clearTimeout(this.connectionTimer);
         ++this.generation;
         this.starting = null;
         clearInterval(this.deliveryTimer);
@@ -575,6 +638,9 @@ export class Session {
 
     /** Unlinks the device on the phone and clears the stored pairing. */
     async logout() {
+        clearInterval(this.inboxTimer);
+        this.healing.stop();
+        clearTimeout(this.connectionTimer);
         ++this.generation;
         this.starting = null;
         clearInterval(this.deliveryTimer);
@@ -591,6 +657,7 @@ export class Session {
 
         const { clear } = await useSqliteAuthState(this.id);
         await clear();
+        this.healing.reset();
 
         this.socket = null;
         this.qr = null;
@@ -611,6 +678,8 @@ export class Session {
             hasQr: Boolean(this.qr),
             lastError: this.lastError,
             pendingMessages: pendingDeliveries(this.key).length,
+            pendingIncoming: incomingRows(this.key).length,
+            healing: this.healing.status(),
         };
     }
 

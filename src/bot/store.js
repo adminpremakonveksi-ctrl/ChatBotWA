@@ -4,6 +4,7 @@ import { utcOffsetMinutes } from './schedule.js';
 import { normalise } from '../text.js';
 import { wordSet } from './words.js';
 import { cancelDeliveries } from '../delivery.js';
+import { cancelIncoming } from '../inbox.js';
 
 const local = () => `${utcOffsetMinutes() >= 0 ? '+' : ''}${utcOffsetMinutes()} minutes`;
 
@@ -63,6 +64,7 @@ export function saveConversation(sessionKey, jid, values) {
 /** Back to the greeting, e.g. after CS is done or after a test. Keeps the name. */
 export function resetConversation(sessionKey, jid) {
     cancelDeliveries(sessionKey, jid);
+    cancelIncoming(sessionKey, jid);
     run(
         `UPDATE conversations SET step = 'new', product = NULL, return_step = NULL, handed_over_at = NULL, handover_reason = NULL,
          quantity = NULL, details = NULL, detail_index = NULL, misses = 0, notes = NULL, offered_cs = 0, order_info = NULL
@@ -73,6 +75,7 @@ export function resetConversation(sessionKey, jid) {
 
 export function markHandover(sessionKey, jid, reason) {
     if (reason === 'CS membalas' || reason === 'diambil alih dari konsol') cancelDeliveries(sessionKey, jid);
+    if (reason === 'CS membalas' || reason === 'diambil alih dari konsol') cancelIncoming(sessionKey, jid);
     saveConversation(sessionKey, jid, { step: 'handed_over', handed_over_at: now(), handover_reason: reason });
     logMessage({ sessionKey, jid, direction: 'handover', text: reason });
 }
@@ -304,6 +307,16 @@ export function dismissText(text, undo = false) {
  * latest incoming lines are the message itself (already logged).
  */
 export function recentHistory(sessionKey, jid, skip = 1, limit = 6) {
+    if (Array.isArray(skip)) {
+        // Recovery may revisit an older input while newer messages are queued.
+        // Exclude pending inputs by identity, not by their position in the log.
+        return all(`SELECT m.direction, m.text FROM message_log m
+            WHERE m.session_key = ? AND m.jid = ? AND m.direction IN ('in', 'out', 'cs')
+            AND TRIM(COALESCE(m.text, '')) <> ''
+            AND NOT EXISTS (SELECT 1 FROM incoming_queue q WHERE q.session_key = m.session_key AND q.message_id = m.wa_message_id AND m.direction = 'in')
+            ORDER BY m.id DESC LIMIT ?`, [sessionKey, jid, limit]).reverse()
+            .map((row) => ({ who: row.direction === 'in' ? 'pelanggan' : row.direction === 'cs' ? 'cs' : 'bot', text: String(row.text).slice(0, 300) }));
+    }
     const rows = all(
         `SELECT direction, text FROM message_log
          WHERE session_key = ? AND jid = ? AND direction IN ('in', 'out', 'cs') AND TRIM(COALESCE(text, '')) <> ''
