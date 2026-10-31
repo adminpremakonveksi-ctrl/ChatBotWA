@@ -1,5 +1,21 @@
 # CLAUDE.md
 
+## Current production decision (2026-10-31)
+
+The user requested AI-only WhatsApp Business operation. This supersedes the
+older two-mode dashboard instructions below. Settings cannot enable naskah;
+the pattern/teaching UI and HTTP routes are removed. Active legacy pattern
+text is migrated once (022) into FAQ or scheduled promotions, and the AI
+does not read patterns or use their triggers. Historical scripted code and
+tests remain only for regression coverage. Never reintroduce pattern menus.
+
+Sidebar editing: Produk, Pengetahuan, Sapaan & pesan, Promo, Gaya bicara AI.
+Promotions have product scope, enable/disable, and dates in the shop timezone.
+Only current promotions reach the AI. Approved discount wording may be used;
+invented discounts and product prices remain refused. Test API routes via
+the exported Express app; importing index.js must not connect WhatsApp or
+install process-wide crash/signal handlers.
+
 **ChatBot Prema**: the WhatsApp bot of Prema Konveksi ("Proyek 2"). Node 20+, ESM,
 Baileys 6.7.24 (pinned: `latest` is a 7.0 RC), better-sqlite3. Runs on a physical
 PC that stays on.

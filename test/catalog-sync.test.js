@@ -86,7 +86,8 @@ test('the bot answers with its text, then the matching catalog products', async 
 
     const sent = [];
     const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: m, isActive: () => true, debounceMs: 5 });
-    const wa = { newMessageId: () => `C${sent.length}`, send: async (jid, action) => sent.push(action) };
+    let messageId = 0;
+    const wa = { newMessageId: () => `C${++messageId}`, send: async (jid, action) => sent.push(action) };
 
     run('DELETE FROM conversations');
     bot.onIncoming('utama', wa, { jid: '6289999@s.whatsapp.net', id: 'c1', text: 'malam kak saya Rina dari Magelang, mau bikin seragam osis' });

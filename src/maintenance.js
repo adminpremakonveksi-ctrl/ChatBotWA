@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 
 import { pruneActivity } from './activity.js';
 import { localClock } from './bot/schedule.js';
@@ -8,6 +9,7 @@ import { productName } from './bot/products.js';
 import { config } from './config.js';
 import { db, getSetting, now, setSetting } from './db.js';
 import { logger } from './logger.js';
+import { pruneRetryMessages } from './delivery.js';
 
 /**
  * Daily jobs, run inside the bot process so there is nothing extra to install:
@@ -136,13 +138,16 @@ export async function sendTestRecap({ manager, bot }) {
     return config.recap.to.length;
 }
 
-async function recap({ manager, bot }) {
+export async function recap({ manager, bot }) {
     if (!config.recap.to.length) return 'dilewati (nomor rekap kosong)';
 
     // Everything since the previous recap; the first one covers the last 24 hours.
     const since = getSetting('recap:last_sent') ?? new Date(Date.now() - 86400000).toISOString().slice(0, 19).replace('T', ' ');
-    const text = buildRecap(since);
-    const sentAt = now();
+    // Keep the exact snapshot until EVERY recipient has been served. A retry
+    // after reconnect/restart uses the same message ID per recipient.
+    let pending = JSON.parse(getSetting('recap:pending') || 'null');
+    const text = pending?.text ?? buildRecap(since);
+    const sentAt = pending?.sentAt ?? now();
 
     if (!text) {
         setSetting('recap:last_sent', sentAt);
@@ -150,9 +155,18 @@ async function recap({ manager, bot }) {
         return 'tidak ada pelanggan semalam';
     }
 
-    await sendToRecap({ manager, bot }, text);
+    if (!pending) {
+        pending = { text, sentAt, recipients: [...config.recap.to] };
+        setSetting('recap:pending', JSON.stringify(pending));
+    }
+    const session = await manager.defaultSession();
+    for (const number of pending.recipients) {
+        const id = '3EB0' + createHash('sha256').update(`${session.key}|${sentAt}|${number}|${text}`).digest('hex').slice(0, 28).toUpperCase();
+        await bot.sendNotice(session.key, session, `${number}@s.whatsapp.net`, text, id);
+    }
 
     setSetting('recap:last_sent', sentAt);
+    setSetting('recap:pending', '');
 
     return `terkirim ke ${config.recap.to.length} nomor`;
 }
@@ -163,7 +177,7 @@ export function startMaintenance({ manager, bot }) {
     const jobs = [
         // Times are read on every tick, so a change in the console applies at once.
         { name: 'backup', at: () => config.maintenance.backupAt, run: () => backup().then((r) => `${r.file} (${r.removed} lama dihapus)`) },
-        { name: 'prune', at: () => config.maintenance.backupAt, run: async () => JSON.stringify({ ...prune(config.maintenance.logKeepDays), aktivitas: pruneActivity(config.maintenance.logKeepDays) }) },
+        { name: 'prune', at: () => config.maintenance.backupAt, run: async () => { pruneRetryMessages(); return JSON.stringify({ ...prune(config.maintenance.logKeepDays), aktivitas: pruneActivity(config.maintenance.logKeepDays) }); } },
         // Sunday is a 24-hour bot day, so Monday's recap covers Saturday night and Sunday.
         { name: 'recap', at: () => config.recap.at, skipSunday: true, run: () => recap({ manager, bot }) },
     ];

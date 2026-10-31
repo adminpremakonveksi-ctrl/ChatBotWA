@@ -124,7 +124,7 @@ test('handover: the AI reply, then the fixed [7] (and [8] when the order is comp
 
 test('files the AI asks to send go out only when they exist', async () => {
     const ask = async () => answer({ reply: 'Ini size chart dan katalognya kak', send: [{ jenis: 'size_chart', produk: 'kaos' }, { jenis: 'katalog', produk: 'kaos' }, { jenis: 'katalog', produk: 'jersey' }, { jenis: 'size_chart', produk: 'tidak-ada' }] });
-    const r = await withAi(() => chatTurn({ step: 'chat' }, { text: 'minta size chart', who: 't5' }, { media, ask }));
+    const r = await withAi(() => chatTurn({ step: 'chat' }, { text: 'boleh lihat contohnya?', who: 't5' }, { media, ask }));
 
     assert.deepEqual(r.actions.filter((a) => a.type === 'media').map((a) => `${a.kind}:${a.product}`), ['size-chart:kaos', 'katalog:jersey']);
 });
@@ -247,7 +247,7 @@ test('code holds the order: answers kept per item, next item in the team\'s orde
 
     // Another product named: its own order starts.
     const other = await step({ step: 'chat', order_info: JSON.stringify({ produk: 'jas-almamater', jawaban: { jumlah: '40 pcs' } }) }, 'eh kalau kaos bisa?', { reply: 'Bisa kak' });
-    assert.deepEqual(readOrder(other.conv), { produk: 'kaos', jawaban: {}, ditanya: 'jumlah', lain: { 'jas-almamater': { jumlah: '40 pcs' } } }, 'kaos asks its own list; the almamater answers are kept (audit 2026-10-24)');
+    assert.deepEqual(readOrder(other.conv), { produk: 'kaos', jawaban: {}, ditanya: 'jumlah', lain: { 'jas-almamater': { jumlah: '40 pcs' } }, media_sent: {} }, 'kaos asks its own list; the almamater answers are kept (audit 2026-10-24)');
 
     updateProduct('jas-almamater', { info: {} });
 });

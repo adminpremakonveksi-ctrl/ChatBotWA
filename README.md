@@ -1,148 +1,101 @@
 # ChatBot Prema
 
-Chatbot WhatsApp Prema Konveksi. Bot memperkenalkan diri sebagai **Mawar** dan
-menjaga chat **di luar jam kerja** sembari menunggu CS online.
+Asisten AI **Mawar** untuk nomor **WhatsApp Business** Prema Konveksi.
+Nomor ditautkan melalui QR di dashboard; aplikasi memakai Baileys dan berjalan
+di PC yang terus menyala. Proyek ini terpisah dari PREMA OS.
 
-- Aktif Senin–Sabtu 17.30–07.30 dan Minggu 24 jam. Di luar itu bot diam total.
-- Balasan selalu naskah tetap: bawaannya dari spesifikasi klien, bisa diubah tim di dashboard (Template balasan). AI tidak pernah mengarang kalimat.
-- Bot tidak pernah menyebut harga. Bot hanya mengirim file katalog.
-- Kalau pertanyaan tidak dikenali, atau CS membalas sendiri dari HP, bot berhenti
-  di nomor itu dan CS yang melanjutkan.
+AI menyusun jawaban dari informasi yang diisi toko. Pola jawaban dan pelatihan
+kata kunci tidak lagi tersedia di dashboard atau API. Ketika memperbarui
+instalasi lama, teks pola yang aktif dipindahkan ke Tanya-jawab, atau ke Promo
+bila memiliki masa berlaku. Data lama tetap tersimpan di database.
 
-Proyek ini berdiri sendiri: tidak ada koneksi apa pun ke PREMA OS.
+Bot aktif Senin–Sabtu 17.30–07.30 dan Minggu sepanjang hari secara bawaan.
+Jam aktif dapat diubah. Ketika CS membalas dari HP atau mengambil alih melalui
+dashboard, bot berhenti membalas pelanggan tersebut.
 
-## Untuk klien: dua tombol saja
+## Mengubah bot dari sidebar
 
-| File | Gunanya |
+Dashboard: **http://127.0.0.1:3001/** di PC bot.
+
+| Menu | Yang dapat diubah |
 | --- | --- |
-| **`Mulai ChatBot Prema.bat`** | Klik pertama: memasang semuanya, lalu membuka dashboard. Klik berikutnya: langsung membuka dashboard. |
-| **`Update ChatBot Prema.bat`** | Mengambil versi terbaru dari GitHub dan menyalakan ulang bot. Tautan WhatsApp, riwayat chat, dan gambar yang sudah diunggah tetap aman. |
+| Produk | Tambah barang, nama/sebutan produk, bahan, model, ukuran, minimal order, dan rincian yang perlu ditanyakan AI |
+| Pengetahuan | Informasi toko dan tanya-jawab yang menjadi sumber jawaban AI |
+| Sapaan & pesan | Kata pembuka, sapaan, pemberitahuan CS, serta petunjuk katalog dan size chart |
+| Promo | Tambah atau ubah promo resmi, pilih produk, aktif/nonaktif, tanggal mulai dan selesai |
+| Gaya bicara AI | Instruksi, gaya bahasa, contoh percakapan, model, koneksi Ollama, dan batas panggilan |
+| Media | Unggah katalog, size chart, serta sinkronkan katalog WhatsApp Business |
+| Pengaturan | Nama bot/CS, jam aktif/libur, masa pengambilalihan CS, rekap pagi, pesan otomatis WA Business, dan backup |
 
-Pemasangan pertama:
+Ringkasan menampilkan kesiapan dan koneksi. Percakapan menampilkan riwayat dan
+ringkasan kebutuhan pelanggan. Coba bot menguji percakapan dan skenario tanpa
+mengirim ke WhatsApp. Statistik dan Log membantu memantau aktivitas.
 
-1. Ekstrak folder ini ke PC yang menyala terus, mis. `C:\ChatBot Prema`
-   (jangan dijalankan dari dalam ZIP).
-2. Klik dua kali **`Mulai ChatBot Prema.bat`**, setujui permintaan Administrator.
-3. Dashboard terbuka. Scan QR sekali dari HP bot
-   (WhatsApp > Perangkat tertaut > Tautkan perangkat).
-4. Di dashboard: unggah katalog & size chart (**Media**), isi nomor rekap dan
-   folder backup (**Pengaturan**).
+Perubahan berlaku setelah **Simpan**, tanpa restart. Template sapaan tetap
+dipakai; jawaban percakapan ditulis AI. AI hanya memakai pengetahuan toko,
+rincian produk, dan promo yang aktif serta sesuai produknya. Harga produk,
+penawaran final, negosiasi, dan keputusan khusus ditangani CS.
 
-Tidak ada file yang perlu diedit. Node.js, dependensi, dan database SQLite
-dipasang/dibuat otomatis saat klik pertama (butuh internet). Windows mungkin
-menampilkan "Windows protected your PC" untuk file hasil unduhan: klik
-**More info > Run anyway**.
+Promo nonaktif, belum mulai, atau kedaluwarsa tidak diberikan kepada AI.
+Tanggal mengikuti zona waktu toko. AI boleh menjelaskan diskon yang tertulis
+pada promo aktif; dilarang membuat diskon atau menghitung harga sendiri.
 
-Setelah itu bot menyala sendiri setiap PC hidup, juga setelah mati listrik,
-tanpa perlu login. Kalau crash, hidup lagi dalam 10 detik. Bot hanya
-**membalas** di jam aktif. Nomor tidak perlu scan ulang setelah restart.
+Size chart dikirim sebagai gambar bila toko mengunggah gambar, disertai
+petunjuk pengukuran, sebelum meminta rincian ukuran. Jika produknya belum
+diketahui, bot menanyakannya dahulu. Jika file belum tersedia, CS membantu.
 
-## Untuk developer: merilis fitur baru
+## Menjalankan di Windows
 
-1. Isi `scripts/repo.txt` sekali dengan alamat repo GitHub publik
-   (sekarang: `https://github.com/adminpremakonveksi-ctrl/ChatBotWA main`).
-2. Kerjakan fiturnya, `npm test`, lalu push ke branch itu.
-3. Minta klien klik **`Update ChatBot Prema.bat`**.
+1. Ekstrak folder proyek, jangan dijalankan dari dalam ZIP.
+2. Klik **Mulai ChatBot Prema.bat**. Instalasi pertama memasang Node.js dan
+   dependensi, lalu membuka dashboard.
+3. Tautkan nomor WhatsApp Business melalui **Perangkat tertaut → Tautkan perangkat**,
+   lalu scan QR dari dashboard.
+4. Isi Pengetahuan dan Produk, atur koneksi di Gaya bicara AI, unggah Media,
+   lalu coba percakapan lewat Coba bot.
+5. Isi nomor penerima rekap dan folder backup di Pengaturan.
 
-Update membaca versi terbaru lewat GitHub API. Kalau sama dengan yang terpasang
-(`data/versi.txt`), tidak ada yang diubah. Kalau beda, kode diunduh sebagai ZIP
-(PC klien tidak perlu git), disalin ke folder bot kecuali `data/`, `media/`,
-`logs/` dan `.env`, dependensi dipasang ulang kalau `package-lock.json` berubah,
-lalu bot dinyalakan ulang dan dashboard terbuka. Di folder yang berupa git
-checkout, update memakai `git pull --ff-only`.
+**Update ChatBot Prema.bat** mengambil pembaruan lalu menghentikan bot.
+Setelah selesai, klik **Mulai ChatBot Prema.bat**. Pembaruan menjaga
+data/, media/, logs/, dan .env. Satu database hanya boleh digunakan satu proses bot.
 
-Menu admin (hentikan, status, log, copot auto-start): klik kanan
-`scripts\launcher.ps1` > Run with PowerShell.
+Ollama Cloud memakai OLLAMA_API_KEY; Ollama lokal memakai OLLAMA_HOST.
+Keduanya dapat diatur melalui Gaya bicara AI, tanpa mengedit berkas.
+AI yang gagal atau belum diatur tidak mengarang balasan pengganti; kendala
+ditampilkan di dashboard. Sapaan dan pengiriman size chart tetap dapat berjalan.
 
-Hanya boleh **satu proses bot per database**; launcher menolak menyalakan bot kedua.
+## Pemulihan koneksi dan pengiriman
 
-## Konsol admin
+- Internet putus: bot terus mencoba menyambung ulang dengan jeda 2 detik sampai maksimal 1 menit. Permintaan versi dibatasi 10 detik; keep-alive yang gagal memicu koneksi baru. Sesi tidak dihapus karena gangguan internet.
+- Balasan dan perubahan alur disimpan bersama ke SQLite sebelum dikirim. Balasan yang gagal dicoba lagi saat tersambung dan setiap 30 detik dengan ID yang sama, termasuk setelah aplikasi restart. Dashboard menunjukkan jumlah pesan yang masih menunggu dikirim.
+- Balasan pelanggan tetap mengikuti jam aktif. Jika tertunda lebih dari 15 menit, balasan dibatalkan dan percakapan ditandai perlu CS; pesan lama tidak tiba-tiba dikirim pada malam berikutnya. Pengambilalihan CS membatalkan antrean pelanggan itu.
+- Pesan asli untuk permintaan kirim ulang WhatsApp disimpan 7 hari, termasuk data enkripsi media. Ini memungkinkan pemulihan pesan yang tampil sebagai "Waiting for this message". Teks lama yang masih ada di riwayat juga dapat dipakai untuk kirim ulang.
+- Sinkronisasi katalog yang timeout mempertahankan katalog terakhir dan mencoba lagi. File yang diunggah tetap dapat dikirim. Katalog produk otomatis dikirim saat produk mulai dibahas, tanpa bergantung pada isian lampiran dari AI.
+- Permintaan size chart mengirim file yang diunggah, lalu petunjuk pengukuran. Size chart juga dikirim sebelum pertanyaan rincian ukuran. Jika produknya belum diketahui, bot menanyakannya; jika filenya belum ada, bot memberi tahu bahwa CS akan membantu.
+- Rekap pagi menyimpan isi dan ID per penerima sampai semua penerima berhasil dikirimi. Gangguan pada satu penerima tidak membuat penerima sebelumnya dikirimi rekap baru berulang kali.
 
-Buka **http://127.0.0.1:3001/** di PC bot (menu "Buka halaman QR"). Ada mode terang/gelap dan tampilan HP.
+## Tugas harian dan pemulihan
 
-| Halaman | Isinya |
-| --- | --- |
-| Ringkasan | status bot + hitung mundur jam aktif, timeline hari ini, angka utama, QR/nomor, pelanggan yang perlu CS, daftar kesiapan |
-| Percakapan | daftar chat (cari, filter "perlu CS"), isi chat ala WhatsApp, posisi di alur, tombol "CS ambil alih" / "Kembalikan ke bot" |
-| Template balasan | semua kalimat bot (bawaan = naskah klien), bisa diubah dengan pratinjau WhatsApp, isian `{nama}` `{produk}` `{cs}`, dan tombol kembalikan ke naskah asli |
-| Coba bot | simulator berbentuk HP: ketik seperti pelanggan, lihat balasan dan maksud yang dikenali. Tidak ada yang terkirim |
-| Pola jawaban | pola buatan tim (mis. "Ukuran"): kata kunci + jawaban bergelembung (teks dengan variasi `---`, foto, produk katalog WA, link), jadwal berlaku, lanjut atau serahkan ke CS |
-| Latih bot | pesan pelanggan yang tidak dimengerti bot, dengan tombol **Ajarkan** (ke jawaban bawaan atau ke pola); kata kunci dari tim langsung berlaku |
-| Statistik | pesan per hari, jam ramai, pertanyaan terbanyak, corong percakapan, pola terpakai, alasan diserahkan ke CS |
-| Media | katalog WhatsApp Business (sinkron otomatis, pemetaan item ke produk), link katalog, **unggah** gambar katalog/size chart/review/pamflet promo |
-| Pengaturan | nama bot/CS, jam aktif, **mode libur** (tanggal bot berjaga 24 jam), nomor rekap + tombol "Kirim rekap uji", folder backup (Google Drive/OneDrive terdeteksi otomatis) + "Backup sekarang" |
+- Rekap pelanggan ke WhatsApp CS: 07.30 Senin–Sabtu secara bawaan.
+- Backup dan pembersihan chat: 03.00.
+- Backup disimpan 14 hari; isi chat disimpan 90 hari secara bawaan.
+- Tugas yang terlewat ketika PC mati dicoba saat aplikasi kembali berjalan.
 
-## Seberapa pintar bot ini
+Pilih folder backup di Google Drive, OneDrive, NAS, atau perangkat lain.
+Untuk memulihkan: hentikan bot, salin backup chatbot-YYYY-MM-DD.sqlite ke
+data/chatbot.sqlite, hapus berkas pendamping chatbot.sqlite-wal dan
+chatbot.sqlite-shm, lalu nyalakan kembali.
 
-Balasan **selalu** naskah tetap dari spesifikasi; yang pintar hanya bagian mengenali maksud:
+## Pengembangan
 
-- **Beberapa pertanyaan sekaligus**: "mau bikin jersey, minimal berapa? lokasinya di mana?"
-  dijawab semuanya, dan pertanyaan lanjutan bot ("mau bikin berapa?") selalu di akhir.
-- **Tahan typo**: "hoddie", "lanyrd", "lokais", "portopolio" tetap dikenali (kata pendek tetap harus tepat).
-- **Paham singkatan chat**: brp, gmn, dmn, bs, gk, blm, pesen, klo, sz, dst.
-- **Bisa diajari tim** lewat halaman Latih bot, dan **pola jawaban** buatan tim dipakai sebelum jawaban bawaan.
-- **Katalog WhatsApp Business**: produk yang cocok dikirim sebagai link produk (maks. 3, promo didahulukan).
-- **Anti-ulang**: kalimat yang sama paling banyak 2x per pelanggan dalam 10 menit; lebih dari itu diserahkan ke CS.
-- **AI opsional: Ollama** (Ollama Cloud dengan `OLLAMA_API_KEY`, atau Ollama lokal dengan `OLLAMA_HOST`), hanya untuk pesan yang tidak tertangkap kata kunci; kalau AI gagal, kembali ke kata kunci.
-- **Tidak gampang menyerah**: pesan yang tidak dipahami dibalas "Maaf kak, belum paham…" dulu; baru diserahkan ke CS setelah 3x berturut-turut (atur di Pengaturan), atau kalau pelanggan minta bicara dengan admin/CS.
-- **Bahasa Jawa dan Sunda** dimengerti: "pinten regane", "lokasine ten pundi", "kulo Slamet saking Kutoarjo".
-- **Pertanyaan lanjutan per produk** ("kemeja jenis apa? ukurannya apa saja?"), jawabannya muncul di Percakapan dan rekap pagi.
-- **Salam otomatis WhatsApp Business** dikenali, tidak dikira CS yang membalas.
-- **Setiap error tampil** sebagai kotak merah berisi detail mentahnya, untuk difoto dan dikirim ke developer.
-- **Pertanyaan yang hanya bisa dijawab CS** (DP, cara bayar, lama pengerjaan, status pesanan, komplain) dicatat untuk CS (❓ di Percakapan dan rekap pagi); percakapan tetap berjalan.
-- **Gambar dan pesan suara**: gambar diterima dan dicatat untuk CS; pesan suara diminta diketik.
-- **"Kamu bot ya?"** dijawab jujur; pelanggan yang marah atau minta ditelepon langsung ke CS; produk yang tidak dijual dijawab "dicek CS" beserta daftar produk.
-- **AI memahami konteks**: beberapa pesan sebelumnya ikut dikirim, jadi "yang tadi", "itu" dimengerti.
+Node.js 20+ dengan JavaScript ESM, Express, SQLite, Baileys, dan Ollama.
 
-## Tugas harian otomatis
+- npm install
+- Salin .env.example menjadi .env
+- npm start
+- npm run dev untuk restart otomatis saat kode berubah
+- npm test; pada PowerShell yang memblokir skrip, gunakan npm.cmd test
 
-| Tugas | Kapan | Pengaturan |
-| --- | --- | --- |
-| Rekap pelanggan semalam ke WhatsApp CS | 07.30, Senin–Sabtu | nomor di Pengaturan (kosong = mati) |
-| Backup database | 03.00 | folder di Pengaturan, simpan 14 hari |
-| Hapus isi chat lama | 03.00 | lebih dari 90 hari |
-
-Kalau PC mati pada jamnya, tugas tetap jalan begitu PC menyala lagi.
-**Pilih folder backup yang keluar dari PC ini** (folder Google
-Drive/OneDrive, NAS, atau flashdisk). Kalau database hilang, nomor harus
-di-scan ulang dan riwayat percakapan ikut hilang.
-
-Memulihkan backup: hentikan bot, salin `chatbot-YYYY-MM-DD.sqlite` ke
-`data/chatbot.sqlite` (hapus `chatbot.sqlite-wal` dan `-shm`), lalu nyalakan lagi.
-
-## Menjalankan manual (pengembangan)
-
-```bash
-npm install
-cp .env.example .env
-npm start                 # halaman QR: http://127.0.0.1:3001/
-```
-
-Untuk mencoba di siang hari, isi `BOT_FORCE=always` di `.env`.
-
-## Mengenali maksud pelanggan
-
-Bot selalu mengenali maksud dari kata kunci dulu (`src/bot/classify-rules.js`):
-gratis, offline, instan, dan diuji untuk lima gaya chat (singkat/typo, santai,
-standar, Jawa/Sunda, formal) di `test/levels.test.js`.
-
-Kalau Ollama diatur (`OLLAMA_API_KEY` untuk Ollama Cloud, atau `OLLAMA_HOST`
-untuk Ollama lokal; model di `OLLAMA_MODEL`, bawaan `gemma4:31b`), pesan yang
-**tidak** dikenali kata kunci ditanyakan ke AI. AI hanya memberi label, tidak
-pernah menulis balasan; label di luar daftar ditolak. Kalau AI gagal (internet
-putus, limit, dsb.), bot tetap memakai hasil kata kunci.
-
-## Isi media
-
-Lihat [media/README.md](media/README.md). Katalog, size chart, dan katalog
-review harus berupa file di folder itu, bukan link.
-
-## Perintah
-
-```bash
-npm test                         # seluruh tes
-npm run dev                      # jalan ulang otomatis saat kode berubah
-curl http://127.0.0.1:3001/stats # jumlah pesan per hari
-```
-
-# ChatBotWA
+Pengujian menggunakan SQLite sementara dan transport WhatsApp simulasi.
+Mesin alur naskah dan pengujian historisnya masih disimpan untuk regresi;
+pengaturan produksi mengunci mode AI, tanpa endpoint pengelolaan pola.

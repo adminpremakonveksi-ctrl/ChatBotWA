@@ -1,5 +1,5 @@
 import { all, get, now, run } from '../db.js';
-import { activePatterns } from './patterns.js';
+import { promotionKnowledge } from './promotions.js';
 import { INFO_PAIRS, listProducts } from './products.js';
 
 /**
@@ -11,7 +11,7 @@ import { INFO_PAIRS, listProducts } from './products.js';
  *    for one product,
  *  - per product (halaman Produk): names, models, bahan, teknik done and NOT
  *    done, colours, sizes, minimum order, what to ask, notes (products.js),
- *  - the active answer patterns (Pola jawaban), as more facts.
+ *  - current promotions, managed from the Promo page.
  *
  * The AI answers only from this. A topic left empty is "not told yet".
  */
@@ -130,7 +130,7 @@ const productLine = (p) => `- ${p.name} [kode: ${p.key}]${p.info.sebutan.length 
  * own Q&A; the others one line each, so the AI does not mix products up (a
  * long list buries what matters). No focus: every product in full.
  */
-export function knowledgeBlock(media, { focus = null } = {}) {
+export function knowledgeBlock(media, { focus = null, at = new Date() } = {}) {
     const products = listProducts();
     const full = (p) => !focus || focus.includes(p.key);
     const sendable = (key) => [
@@ -156,20 +156,13 @@ export function knowledgeBlock(media, { focus = null } = {}) {
         .filter(Boolean)
         .join('\n');
 
-    const patterns = activePatterns()
-        .map((p) => {
-            const said = p.bubbles.filter((b) => b.type === 'text').map((b) => String(b.text).split(/\n---\n/)[0]).join(' ');
-
-            return said ? `- ${p.name}: ${said}` : null;
-        })
-        .filter(Boolean)
-        .join('\n');
+    const promotions = promotionKnowledge({ focus, at });
 
     return [
         `INFO TOKO:\n${topics || '(belum ada)'}`,
         `PRODUK (hanya ini yang dibuat toko):\n${productText || '(belum ada)'}`,
         faq && `TANYA-JAWAB DARI TOKO:\n${faq}`,
-        patterns && `JAWABAN RESMI LAIN:\n${patterns}`,
+        `PROMO RESMI AKTIF:\n${promotions || '(tidak ada promo aktif untuk produk ini; jangan menawarkan promo)'}`,
         media?.has?.('katalog', null) && 'Katalog seluruh toko bisa dikirim (jenis "katalog", produk kosong).',
     ]
         .filter(Boolean)

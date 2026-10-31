@@ -120,7 +120,8 @@ test('the real bot sends a pattern answer and labels it in the stats', async () 
     const m = createMedia(fs.mkdtempSync(path.join(os.tmpdir(), 'chatbot-pola-')));
     const sent = [];
     const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: m, isActive: () => true, debounceMs: 5 });
-    const wa = { newMessageId: () => `P${sent.length}`, send: async (jid, action) => sent.push(action) };
+    let messageId = 0;
+    const wa = { newMessageId: () => `P${++messageId}`, send: async (jid, action) => sent.push(action) };
 
     run('DELETE FROM conversations');
     run('DELETE FROM message_log');

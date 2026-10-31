@@ -283,7 +283,7 @@ function quantityText(normalised, bare) {
     return found ? found[1].trim() : null;
 }
 
-export function classifyWithRules({ text, hasImage = false, hasAudio = false, attachments = [], step = 'new' }) {
+export function classifyWithRules({ text, hasImage = false, hasAudio = false, attachments = [], step = 'new', usePatterns = true }) {
     const normalised = normalise(text);
     const product = findProduct(normalised);
     const sizeVariant = SIZE_VARIANT(normalised);
@@ -294,11 +294,12 @@ export function classifyWithRules({ text, hasImage = false, hasAudio = false, at
     const at = (f) => Math.min(...f.hits.map((hit) => normalised.indexOf(` ${hit}`)).filter((i) => i >= 0), Infinity);
     // A pattern matched only by a typo guess never beats a product named exactly
     // ("seragam batik kantor" is kemeja, not "kantore" -> Lokasi).
-    const found = findPatterns(normalised)
+    const matched = usePatterns ? findPatterns(normalised) : [];
+    const found = matched
         .filter((f) => f.exact || !product)
         .sort((a, b) => at(a) - at(b));
     // Whether every match here was exact; a guess is checked by the AI when it is on.
-    const guessed = findPatterns(normalised).some((f) => !f.exact);
+    const guessed = matched.some((f) => !f.exact);
     const patternHits = found.flatMap((f) => f.hits);
     const patterns = found.map(({ pattern: p }) => ({ id: p.id, name: p.name, bubbles: p.bubbles, after: p.after, builtin: p.builtin }));
 

@@ -70,7 +70,7 @@ export function catalogOwner(socket = null) {
     return own ? { phone: own, source: 'nomor bot' } : null;
 }
 
-export async function syncCatalog(socket) {
+export async function syncCatalog(socket, { isCurrent = () => true } = {}) {
     if (!socket?.user?.id) throw new Error('WhatsApp belum tersambung');
 
     const owner = catalogOwner(socket);
@@ -96,6 +96,7 @@ export async function syncCatalog(socket) {
     }
 
     const stamp = now();
+    if (!isCurrent()) return 0;
     const save = db.transaction(() => {
         run('DELETE FROM catalog_items');
         items.forEach((p, position) =>

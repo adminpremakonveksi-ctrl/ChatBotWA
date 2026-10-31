@@ -3,6 +3,7 @@ import { all, get, now, run } from '../db.js';
 import { utcOffsetMinutes } from './schedule.js';
 import { normalise } from '../text.js';
 import { wordSet } from './words.js';
+import { cancelDeliveries } from '../delivery.js';
 
 const local = () => `${utcOffsetMinutes() >= 0 ? '+' : ''}${utcOffsetMinutes()} minutes`;
 
@@ -61,6 +62,7 @@ export function saveConversation(sessionKey, jid, values) {
 
 /** Back to the greeting, e.g. after CS is done or after a test. Keeps the name. */
 export function resetConversation(sessionKey, jid) {
+    cancelDeliveries(sessionKey, jid);
     run(
         `UPDATE conversations SET step = 'new', product = NULL, return_step = NULL, handed_over_at = NULL, handover_reason = NULL,
          quantity = NULL, details = NULL, detail_index = NULL, misses = 0, notes = NULL, offered_cs = 0, order_info = NULL
@@ -70,6 +72,7 @@ export function resetConversation(sessionKey, jid) {
 }
 
 export function markHandover(sessionKey, jid, reason) {
+    if (reason === 'CS membalas' || reason === 'diambil alih dari konsol') cancelDeliveries(sessionKey, jid);
     saveConversation(sessionKey, jid, { step: 'handed_over', handed_over_at: now(), handover_reason: reason });
     logMessage({ sessionKey, jid, direction: 'handover', text: reason });
 }
@@ -81,6 +84,11 @@ export function logMessage({ sessionKey, jid, direction, waMessageId = null, tex
         [sessionKey, jid, direction, waMessageId, text, intent, now()],
     );
 }
+
+export const hasReceived = (sessionKey, jid, id) => Boolean(id && get(
+    `SELECT 1 FROM message_log WHERE session_key = ? AND jid = ? AND wa_message_id = ? AND direction IN ('in', 'cs', 'auto') LIMIT 1`,
+    [sessionKey, jid, id],
+));
 
 /** How often the bot sent exactly this bubble to this customer in the last `minutes`. */
 export function recentlySent(sessionKey, jid, text, minutes) {

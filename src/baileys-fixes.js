@@ -66,6 +66,7 @@ export function makePlaceholderCache(ttlMs = 60 * 60 * 1000, clock = () => Date.
             entries.set(String(key), { value, until: clock() + ttlMs });
             // Old entries go when the map grows, so it never keeps more than an hour's worth.
             if (entries.size > 1000) for (const [k, e] of entries) if (e.until <= clock()) entries.delete(k);
+            while (entries.size > 1000) entries.delete(entries.keys().next().value);
 
             return true;
         },
@@ -88,9 +89,11 @@ export function makePlaceholderCache(ttlMs = 60 * 60 * 1000, clock = () => Date.
  */
 export const HANDLED_BY_SESSION = /^(stream errored out|error in validating connection|dropping spoofed self-only protocolMessage)/;
 
-export function sessionHandledLog(log, infoLog = log) {
+export function sessionHandledLog(log, infoLog = log, recover = () => {}) {
     const pass = (level) => (first, second, ...rest) => {
         const message = typeof first === 'string' ? first : second;
+        const detail = first?.err?.message ?? first?.err ?? first?.trace ?? '';
+        if (message === 'error in sending keep alive' || (/unexpected error in 'processing message'/.test(String(message)) && /connection closed|timed? ?out/i.test(String(detail)))) recover();
         if (HANDLED_BY_SESSION.test(String(message ?? ''))) return infoLog.info(first, second, ...rest);
 
         return log[level](first, second, ...rest);
@@ -105,6 +108,6 @@ export function sessionHandledLog(log, infoLog = log) {
         warn: pass('warn'),
         error: pass('error'),
         fatal: (...args) => log.fatal(...args),
-        child: (bindings, options) => sessionHandledLog(log.child(bindings, options), infoLog.child(bindings)),
+        child: (bindings, options) => sessionHandledLog(log.child(bindings, options), infoLog.child(bindings), recover),
     };
 }

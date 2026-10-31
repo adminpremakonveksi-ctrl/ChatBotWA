@@ -8,15 +8,12 @@ import express from 'express';
 import { Bot } from './bot/bot.js';
 import { aiProvider } from './bot/classify.js';
 import { catalogStatus, setItemProduct } from './bot/catalog.js';
-import { addPatternKeyword, createPattern, deletePattern, getPattern, listPatterns, missingBuiltins, resetPattern, restoreBuiltin, updatePattern } from './bot/patterns.js';
-import { classifyWithRules, findPattern, normalise } from './bot/classify-rules.js';
-import { TEACHABLE, addKeyword, customKeywords, removeKeyword, updateKeyword } from './bot/keywords.js';
 import { media } from './bot/media.js';
 import { createProduct, deleteProduct, listProducts, productKeywords, productName, updateProduct } from './bot/products.js';
-import { listTemplates, render, resetTemplate, templateText, updateTemplate } from './bot/replies.js';
+import { listTemplates, render, resetTemplate, updateTemplate } from './bot/replies.js';
 import { describeHours, holidayOn, isBotActive, localClock, nextChange } from './bot/schedule.js';
 import { resetSimulation, simulate } from './bot/simulator.js';
-import { analytics, dismissKey, dismissText, dismissedTexts, listConversations, loadConversation, markHandover, messagesOf, resetConversation, stats, suggestPhrase, unrecognised } from './bot/store.js';
+import { analytics, listConversations, loadConversation, markHandover, messagesOf, resetConversation, stats } from './bot/store.js';
 import { config, root } from './config.js';
 import { db, describeDatabase, getSetting, now, run } from './db.js';
 import { logger } from './logger.js';
@@ -34,6 +31,7 @@ import { releaseAutoHandovers } from './bot/auto-messages.js';
 import { deleteFaq, deleteTopic, listFaq, listTopics, moveTopic, saveFaq, saveTopic } from './bot/knowledge.js';
 import { deleteScenario, listScenarios, runScenario, saveScenario } from './bot/ai-scenarios.js';
 import { clearAi, listAi } from './bot/ai-log.js';
+import { deletePromotion, listPromotions, promotionActive, savePromotion } from './bot/promotions.js';
 
 const loopback = ['127.0.0.1', 'localhost', '::1'].includes(config.host);
 
@@ -42,7 +40,7 @@ if (!loopback && !config.apiKey) {
     throw new Error('HOST bukan localhost, jadi API_KEY wajib diisi');
 }
 
-const app = express();
+export const app = express();
 app.use(express.json({ limit: '2mb' }));
 
 const requireApiKey = (req, res, next) => {
@@ -60,9 +58,9 @@ const wrap = (handler) => (req, res, next) => Promise.resolve(handler(req, res))
 /** What the console shows: keywords always first, the AI only for what they miss. */
 const aiLabel = () => {
     const provider = aiProvider();
-    if (provider === 'ollama') return `kata kunci + Ollama (${config.ollama.model}) untuk pesan yang tidak dikenali`;
+    if (provider === 'ollama') return `AI Ollama (${config.ollama.model}), dari pengetahuan toko`;
 
-    return 'kata kunci saja';
+    return 'AI belum terhubung';
 };
 
 app.get('/health', (req, res) => res.json({ ok: true, botActive: isBotActive(), ai: aiProvider() }));
@@ -171,8 +169,7 @@ app.get('/info', wrap(async (req, res) => {
 
             return { topics: topics.length, filled: topics.filter((t) => t.content.trim()).length, faq: listFaq().length };
         })(),
-        jerseyPromo: Boolean(templateText('jerseyPromo')),
-        promoPamphlet: media.has('promo', 'jersey'),
+        activePromotions: listPromotions().filter((p) => promotionActive(p)).length,
         handoverHours: config.bot.handoverHours,
         recapTo: config.recap.to,
         recapAt: config.recap.at,
@@ -349,56 +346,6 @@ app.post('/media/:slot', express.raw({ type: () => true, limit: '16mb' }), wrap(
     res.status(201).json({ slots: media.slots() });
 }));
 
-/* -------------------------------------------------------- answer patterns --- */
-
-const patternView = (p) => ({ ...p, photos: media.files('pola', String(p.id)).map((file) => path.relative(config.mediaDir, file).replace(/\\/g, '/')) });
-
-app.get('/patterns', wrap(async (req, res) => {
-    res.json({ patterns: listPatterns().map(patternView), missingBuiltins: missingBuiltins() });
-}));
-
-/** "Kembalikan ke bawaan": a seeded pattern back to its original answer and keywords. */
-app.post('/patterns/:id/reset', wrap(async (req, res) => {
-    res.json({ pattern: patternView(resetPattern(req.params.id)) });
-}));
-
-/** Brings back a seeded pattern (Lokasi, ...) the team deleted. */
-app.post('/patterns/restore/:builtin', wrap(async (req, res) => {
-    const pattern = restoreBuiltin(req.params.builtin);
-
-    res.status(201).json({ pattern: pattern ? patternView(pattern) : null });
-}));
-
-app.post('/patterns', wrap(async (req, res) => {
-    res.status(201).json({ pattern: patternView(createPattern(req.body?.name)) });
-}));
-
-app.put('/patterns/:id', wrap(async (req, res) => {
-    const pattern = updatePattern(req.params.id, req.body ?? {});
-
-    logger.info({ pattern: pattern.name }, 'pola jawaban diubah dari konsol');
-    res.json({ pattern: patternView(pattern) });
-}));
-
-app.delete('/patterns/:id', wrap(async (req, res) => {
-    deletePattern(req.params.id);
-
-    res.json({ ok: true });
-}));
-
-app.post('/patterns/:id/photos', express.raw({ type: () => true, limit: '16mb' }), wrap(async (req, res) => {
-    const pattern = getPattern(req.params.id);
-    media.savePattern(pattern.id, req.body);
-
-    res.status(201).json({ pattern: patternView(pattern) });
-}));
-
-/** "Coba kalimat": which pattern (if any) a sentence triggers. */
-app.post('/patterns/test', wrap(async (req, res) => {
-    const hit = findPattern(normalise(String(req.body?.text ?? '').slice(0, 500)));
-
-    res.json({ pattern: hit ? { id: hit.id, name: hit.name } : null });
-}));
 
 /* -------------------------------------------- WhatsApp Business catalog --- */
 
@@ -509,64 +456,6 @@ app.get('/analytics', wrap(async (req, res) => {
     res.json(analytics(Math.min(90, Math.max(7, Number(req.query.days ?? 30)))));
 }));
 
-/** Messages the bot did not understand, and whether today's keywords would catch them. */
-app.get('/unrecognised', wrap(async (req, res) => {
-    const hidden = new Set(dismissedTexts());
-    const rows = unrecognised(Number(req.query.days ?? 30)).map((row) => {
-        const now = classifyWithRules({ text: row.text, step: 'awaiting_product' });
-
-        return {
-            ...row,
-            nowIntent: now.intent,
-            nowProduct: now.product,
-            nowPattern: now.pattern?.name ?? null,
-            suggest: suggestPhrase(row.text),
-            dismissed: hidden.has(dismissKey(row.text)),
-        };
-    });
-
-    res.json({ messages: rows });
-}));
-
-// "Abaikan" in Latih bot: a message that is CS's job (DP, a complaint) leaves the list; "Pulihkan" brings it back.
-app.post('/unrecognised/dismiss', wrap(async (req, res) => {
-    dismissText(req.body?.text, req.body?.undo === true);
-
-    res.json({ ok: true });
-}));
-
-app.get('/keywords', wrap(async (req, res) => {
-    res.json({
-        keywords: customKeywords(),
-        intents: TEACHABLE,
-        patterns: listPatterns().map((p) => ({ id: p.id, name: p.name })),
-        products: listProducts().map((p) => ({ key: p.key, name: p.name })),
-    });
-}));
-
-app.post('/keywords', wrap(async (req, res) => {
-    const target = String(req.body?.intent ?? '');
-
-    if (target.startsWith('pola:')) {
-        const pattern = addPatternKeyword(target.slice(5), req.body?.phrase);
-
-        return res.status(201).json({ ok: true, phrase: pattern.keywords.at(-1), pattern: pattern.name });
-    }
-
-    const phrase = addKeyword(req.body ?? {});
-
-    res.status(201).json({ ok: true, phrase });
-}));
-
-app.put('/keywords/:id', wrap(async (req, res) => {
-    res.json({ ok: true, phrase: updateKeyword(req.params.id, req.body ?? {}) });
-}));
-
-app.delete('/keywords/:id', wrap(async (req, res) => {
-    removeKeyword(req.params.id);
-
-    res.json({ ok: true });
-}));
 
 /* --------------------------------------------------------------- Kamus --- */
 
@@ -657,6 +546,20 @@ app.delete('/ai/log', wrap(async (req, res) => {
 }));
 
 // What the AI chat knows (Pengetahuan): shop topics and Q&A; product details live on /products.
+app.get('/promotions', wrap(async (req, res) => {
+    res.json({ promotions: listPromotions().map((p) => ({ ...p, active: promotionActive(p) })) });
+}));
+app.post('/promotions', wrap(async (req, res) => {
+    res.status(201).json({ promotion: savePromotion({ ...(req.body ?? {}), id: null }) });
+}));
+app.put('/promotions/:id', wrap(async (req, res) => {
+    res.json({ promotion: savePromotion({ ...(req.body ?? {}), id: Number(req.params.id) }) });
+}));
+app.delete('/promotions/:id', wrap(async (req, res) => {
+    deletePromotion(Number(req.params.id));
+    res.json({ ok: true });
+}));
+
 app.get('/knowledge', wrap(async (req, res) => {
     res.json({ topics: listTopics(), faq: listFaq() });
 }));
@@ -767,20 +670,20 @@ const crash = (label) => (reason) => {
     logger.error({ err: reason?.message ?? String(reason), stack: reason?.stack }, label);
     setTimeout(() => process.exit(1), 500).unref();
 };
-process.on('unhandledRejection', crash('error tak tertangani (promise), bot dinyalakan ulang'));
-process.on('uncaughtException', crash('error tak tertangani, bot dinyalakan ulang'));
-
-for (const signal of ['SIGINT', 'SIGTERM']) {
-    process.on(signal, async () => {
-        logger.info('menutup bot');
-        await bot.drain().catch(() => {});
-        await manager.shutdown();
-        db.close();
-        process.exit(0);
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+    process.on('unhandledRejection', crash('error tak tertangani (promise), bot dinyalakan ulang'));
+    process.on('uncaughtException', crash('error tak tertangani, bot dinyalakan ulang'));
+    for (const signal of ['SIGINT', 'SIGTERM']) {
+        process.on(signal, async () => {
+            logger.info('menutup bot');
+            await bot.drain().catch(() => {});
+            await manager.shutdown();
+            db.close();
+            process.exit(0);
+        });
+    }
+    main().catch((error) => {
+        logger.error(error, 'bot gagal start');
+        process.exit(1);
     });
 }
-
-main().catch((error) => {
-    logger.error(error, 'bot gagal start');
-    process.exit(1);
-});

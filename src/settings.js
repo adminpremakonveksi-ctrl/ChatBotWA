@@ -124,11 +124,11 @@ const FIELDS = {
     },
     botMode: {
         validate: (v) => {
-            if (!['ai', 'naskah'].includes(v)) fail('Mode bot: pilih "ai" atau "naskah"');
+            if (v !== 'ai') fail('Bot menggunakan AI; mode pola/naskah sudah tidak tersedia');
             return v;
         },
         get: () => config.bot.mode,
-        set: (v) => (config.bot.mode = v),
+        set: () => (config.bot.mode = 'ai'),
     },
     detailWaitDays: {
         validate: (v) => {

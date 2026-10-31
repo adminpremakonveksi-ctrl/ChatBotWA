@@ -544,6 +544,74 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
             db.prepare(`INSERT INTO settings ("key", value, updated_at) VALUES ('ai:timeout_s', '60', ?) ON CONFLICT("key") DO NOTHING`).run(stamp());
         },
     },
+    {
+        id: '021_reliable_delivery',
+        up(db) {
+            db.exec(`
+                CREATE TABLE outgoing_queue (
+                    id TEXT PRIMARY KEY,
+                    session_key TEXT NOT NULL,
+                    jid TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    intent TEXT,
+                    staff INTEGER NOT NULL DEFAULT 0,
+                    created_at TEXT NOT NULL
+                );
+                CREATE INDEX outgoing_queue_session ON outgoing_queue(session_key, created_at);
+                CREATE TABLE wa_retry_messages (
+                    session_key TEXT NOT NULL,
+                    message_id TEXT NOT NULL,
+                    jid TEXT NOT NULL,
+                    message TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    PRIMARY KEY(session_key, message_id)
+                );
+            `);
+        },
+    },
+    {
+        id: '022_ai_only_and_promotions',
+        up(db) {
+            db.exec(`CREATE TABLE promotions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL,
+                product TEXT REFERENCES products("key") ON DELETE CASCADE,
+                enabled INTEGER NOT NULL DEFAULT 1,
+                starts_on TEXT,
+                ends_on TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )`);
+            // Preserve approved text as ordinary knowledge. Pattern triggers,
+            // bubble delivery and handover instructions no longer drive AI.
+            let position = (db.prepare('SELECT MAX(position) AS n FROM faq').get()?.n ?? -1) + 1;
+            for (const p of db.prepare('SELECT * FROM patterns WHERE enabled = 1 ORDER BY id').all()) {
+                if (!JSON.parse(p.keywords || '[]').length) continue;
+                const bubbles = JSON.parse(p.bubbles || '[]');
+                const content = bubbles.filter((b) => b.type === 'text').map((b) => String(b.text).split(/\n---\n/)[0]).join('\n').trim();
+                if (!content) continue;
+                if (p.starts_on || p.ends_on || /promo/i.test(p.name)) {
+                    db.prepare(`INSERT INTO promotions (title, content, enabled, starts_on, ends_on, created_at, updated_at) VALUES (?, ?, 1, ?, ?, ?, ?)`).run(p.name, content, p.starts_on, p.ends_on, stamp(), stamp());
+                } else if (!db.prepare('SELECT 1 FROM faq WHERE question = ? AND answer = ?').get(p.name, content)) {
+                    const question = db.prepare('SELECT 1 FROM faq WHERE question = ?').get(p.name) ? `${p.name} (referensi sebelumnya)` : p.name;
+                    db.prepare('INSERT INTO faq (question, answer, position, created_at, updated_at) VALUES (?, ?, ?, ?, ?)').run(question, content, position++, stamp(), stamp());
+                }
+            }
+            const editedPromo = db.prepare(`SELECT value FROM settings WHERE "key" = 'reply:jerseyPromo'`).get();
+            let promo = editedPromo?.value;
+            if (!editedPromo) {
+                const oldPromo = db.prepare(`SELECT value FROM settings WHERE "key" = 'cfg:jerseyPromo'`).get();
+                try { promo = oldPromo ? JSON.parse(oldPromo.value) : process.env.JERSEY_PROMO_TEXT; } catch { /* invalid legacy value */ }
+            }
+            if (typeof promo === 'string' && promo.trim() && db.prepare('SELECT 1 FROM products WHERE "key" = ?').get('jersey')) {
+                db.prepare(`INSERT INTO promotions (title, content, product, enabled, created_at, updated_at) VALUES ('Promo Jersey', ?, 'jersey', 1, ?, ?)`).run(promo.trim(), stamp(), stamp());
+            }
+            const oldPolicy = PREMA_TOPICS.find((t) => t.title === 'Promo');
+            db.prepare('UPDATE store_info SET content = ?, updated_at = ? WHERE title = ? AND content = ?').run('Promo resmi diatur melalui halaman Promo. Hanya sampaikan promo yang aktif dan sesuai produk. Jangan menawarkan promo lain atau memberi pengecualian sendiri; negosiasi dan penawaran final tetap ditangani CS.', stamp(), 'Promo', oldPolicy.content);
+            db.prepare(`INSERT OR REPLACE INTO settings ("key", value, updated_at) VALUES ('cfg:botMode', '"ai"', ?)`).run(stamp());
+        },
+    },
 ];
 
 /** Adds the away message to a list the team already saved, once; a fresh install gets it as the default. */

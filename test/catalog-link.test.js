@@ -70,7 +70,8 @@ test('the bot says its text first, then sends the catalog link instead of pictur
 
     const sent = [];
     const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: m, isActive: () => true, debounceMs: 5 });
-    const wa = { newMessageId: () => `L${sent.length}`, send: async (jid, action) => sent.push(action) };
+    let messageId = 0;
+    const wa = { newMessageId: () => `L${++messageId}`, send: async (jid, action) => sent.push(action) };
 
     run('DELETE FROM conversations');
     bot.onIncoming('utama', wa, { jid: '6281234@s.whatsapp.net', id: 'x1', text: 'halo kak saya Budi dari Jogja mau bikin jersey' });
@@ -115,7 +116,8 @@ test('a size chart with a link and a picture: the link first, then the picture',
 
     const sent = [];
     const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: m, isActive: () => true, debounceMs: 5 });
-    const wa = { newMessageId: () => `Z${sent.length}`, send: async (jid, action) => sent.push(action) };
+    let messageId = 0;
+    const wa = { newMessageId: () => `Z${++messageId}`, send: async (jid, action) => sent.push(action) };
 
     run('DELETE FROM conversations');
     bot.onIncoming('utama', wa, { jid: '6289999@s.whatsapp.net', id: 'z1', text: 'halo kak saya Budi dari Jogja, size chart kaos dong' });

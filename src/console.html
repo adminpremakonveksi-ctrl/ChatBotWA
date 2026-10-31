@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="id">
+<html lang="id" data-bot-mode="ai">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -237,6 +237,9 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 .form label small { display:block; font-weight:400; color:var(--ink-3); font-size:12px; margin-top:2px }
 .form .f { width:100% }
 .form textarea.f { min-height:90px; resize:vertical; font-family:inherit }
+.promo-form > .lb { display:block; font-weight:600; margin:14px 0 6px }
+.promo-form > .f { display:block; width:100%; font-family:inherit }
+.promo-form textarea.f { min-height:130px; resize:vertical }
 .inline { display:flex; gap:8px; align-items:center; flex-wrap:wrap }
 .inline .f { width:auto }
 @media (max-width: 760px) { .form { grid-template-columns:1fr } .form label { padding-top:0 } }
@@ -321,15 +324,15 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
     <button class="nav" data-page="percakapan"><svg class="i" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/></svg>Percakapan<span class="count hidden" id="navFollow"></span></button>
     <button class="nav" data-page="coba"><svg class="i" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/></svg>Coba bot</button>
     <button class="nav" data-page="template"><svg class="i" viewBox="0 0 24 24"><path d="M4 5h16M4 10h16M4 15h10M4 20h7"/></svg>Template balasan<span class="count hidden" id="navTpl"></span></button>
-    <button class="nav" data-page="pola"><svg class="i" viewBox="0 0 24 24"><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6"/><circle cx="12" cy="12" r="3"/></svg>Pola jawaban<span class="count hidden" id="navPola"></span></button>
     <button class="nav" data-page="produk"><svg class="i" viewBox="0 0 24 24"><path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>Produk</button>
     <button class="nav" data-page="pengetahuan"><svg class="i" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5v14zM20 17v4H6.5A2.5 2.5 0 0 1 4 18.5"/></svg>Pengetahuan<span class="count hidden" id="navKnow"></span></button>
-    <button class="nav" data-page="latih"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.6 7.1 18.2 8 12.7 4 8.8l5.5-.8z"/></svg>Latih bot<span class="count hidden" id="navTeach"></span></button>
     <button class="nav" data-page="statistik"><svg class="i" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Statistik</button>
     <button class="nav" data-page="media"><svg class="i" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16l5-5 4 4 3-3 6 6"/></svg>Media<span class="count hidden" id="navMedia"></span></button>
     <button class="nav" data-page="pengaturan"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Pengaturan</button>
     <button class="nav" data-page="log"><svg class="i" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Log</button>
-    <div class="aside-foot" id="footInfo">Hanya bisa dibuka dari PC ini.</div>
+    <button class="nav" data-page="promo"><svg class="i" viewBox="0 0 24 24"><path d="M3 11V4h7l11 11-7 7L3 11z"/><circle cx="7" cy="8" r="1"/></svg>Promo</button>
+    <button class="nav" data-page="ai"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"/></svg>Gaya bicara AI</button>
+    <div class="aside-foot" id="footInfo">WhatsApp Business · perangkat tertaut</div>
   </aside>
 
   <div class="main">
@@ -448,28 +451,19 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
       <!-- TEMPLATE BALASAN -->
       <section data-page="template" class="hidden stack">
         <div class="card">
-          <div class="row"><h3 style="flex:1">Template balasan</h3><input class="f" id="tplSearch" placeholder="Cari kalimat…" style="width:240px"></div>
-          <p class="hint">Semua kalimat yang dikirim bot. Isi bawaan diambil dari naskah klien. Ubah seperlunya lalu <b>Simpan</b>; langsung berlaku tanpa restart. Isian seperti <code>{nama}</code> diganti otomatis. Format WhatsApp: <code>*tebal*</code>, <code>_miring_</code>, <code>~coret~</code>.</p>
+          <div class="row"><h3 style="flex:1" id="tplHeading">Pesan otomatis</h3><input class="f" id="tplSearch" placeholder="Cari kalimat…" style="width:240px"></div>
+          <p class="hint" id="tplHint">Sapaan, pengalihan ke CS, dan petunjuk media yang dikirim otomatis. Jawaban percakapan AI diatur melalui Pengetahuan, Produk, dan instruksi AI di Pengaturan. Perubahan langsung berlaku setelah Simpan.</p>
           <div class="tpl-tabs" id="tplGroups"></div>
         </div>
         <div class="stack" id="tplList"></div>
       </section>
 
-      <!-- POLA JAWABAN -->
-      <section data-page="pola" class="hidden stack">
-        <div class="card">
-          <div class="pola-head"><h3 style="flex:1">Pola jawaban</h3><button class="btn primary" id="polaNew">+ Pola baru</button></div>
-          <p class="hint">Buat jawaban sendiri untuk pertanyaan yang sering muncul, mis. <b>Ukuran</b>, <b>Cara bayar</b>, <b>Lama pengerjaan</b>. Isi kata kunci yang biasa diketik pelanggan, lalu susun jawabannya: teks, foto, produk katalog WhatsApp, atau link. Kalau kata kuncinya cocok, pola ini dipakai <b>sebelum</b> jawaban bawaan.</p>
-          <div class="row"><input class="f" id="polaTest" placeholder="Coba kalimat pelanggan, mis. ukurannya ada apa aja kak" style="flex:1"><button class="btn" id="polaTestBtn">Coba</button><span class="small" id="polaTestOut"></span></div>
-        </div>
-        <div class="stack" id="polaList"></div>
-      </section>
 
       <!-- PRODUK -->
       <section data-page="produk" class="hidden stack">
         <div class="card">
           <div class="pola-head"><h3 style="flex:1">Produk</h3><input class="f" id="prodSearch" placeholder="Cari produk…" style="width:200px"><button class="btn primary" id="prodNew">+ Produk baru</button></div>
-          <p class="hint">Daftar produk yang dikenali bot. <b>Punya price list</b>: bot mengirim katalognya. <b>Harga tergantung desain</b>: bot menanyakan referensi desain. Semua bisa diubah atau dihapus; perubahan langsung berlaku.</p>
+          <p class="hint">Daftar produk, bahan, model, dan informasi yang boleh disampaikan bot. Isi <b>Yang perlu ditanyakan</b> untuk menentukan rincian pesanan yang dikumpulkan AI. Unggah katalog dan size chart di Media.</p>
         </div>
         <div class="stack" id="prodList"></div>
       </section>
@@ -478,7 +472,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
       <section data-page="pengetahuan" class="hidden stack">
         <div class="card">
           <h3>Pengetahuan Mawar</h3>
-          <p class="hint">Di mode AI, Mawar menjawab pelanggan <b>hanya</b> dari isi halaman ini, detail tiap produk di halaman <a href="#produk" data-goto="produk">Produk</a>, dan <a href="#pola" data-goto="pola">Pola jawaban</a>. Yang dikosongkan tidak ditebak: Mawar bilang akan ditanyakan ke CS. Jangan tulis harga: Mawar tidak pernah menyebut harga. Perubahan langsung berlaku.</p>
+          <p class="hint">Informasi untuk jawaban AI: info toko, tanya-jawab, referensi tambahan di bawah, dan detail pada halaman <a href="#produk" data-goto="produk">Produk</a>. Tulis informasi yang benar dan disetujui toko; yang kosong akan ditanyakan ke CS. Harga produk dan penawaran tetap ditangani CS. Perubahan langsung berlaku.</p>
         </div>
         <div class="card stack">
           <div class="row"><h3 style="flex:1">Info toko</h3><span class="small muted" id="topicCount"></span><button class="btn primary" id="topicNew">+ Topik baru</button></div>
@@ -492,40 +486,6 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         </div>
       </section>
 
-      <!-- LATIH BOT -->
-      <section data-page="latih" class="hidden">
-        <div class="grid g-main">
-          <div class="card">
-            <h3>Pesan yang belum dikenali</h3>
-            <p class="hint">Pesan pelanggan 30 hari terakhir yang tidak dimengerti bot, sehingga langsung diserahkan ke CS. Ajarkan kata kuncinya, lalu bot mengenali pesan serupa berikutnya. Balasannya tetap naskah dari spesifikasi.</p>
-            <div id="teachList"></div>
-          </div>
-          <div class="stack">
-            <div class="card">
-              <h3>Tambah kata kunci</h3>
-              <p class="hint">Contoh: <i>mockup</i> → contoh desain, <i>rekber</i> → Pola: Ragu / takut ditipu.</p>
-              <form id="kwForm" class="stack" style="gap:8px">
-                <input class="f" name="phrase" placeholder="kata atau frasa" required>
-                <select class="f" name="intent" id="kwIntent"></select>
-                <select class="f hidden" name="product" id="kwProduct"></select>
-                <button class="btn primary">Simpan kata kunci</button>
-              </form>
-            </div>
-            <div class="card"><div class="row"><h3 style="flex:1">Semua kata kunci</h3><input class="f" id="kwSearch" placeholder="Cari…" style="width:140px" oninput="renderKwList()"></div><p class="hint">Bawaan dan buatan tim, semuanya bisa diubah (✎) atau dihapus (✕). Langsung berlaku, tanpa restart.</p><div id="kwList"></div></div>
-          </div>
-        </div>
-        <div class="card" id="kamusCard" style="margin-top:16px">
-          <div class="row" style="gap:8px;flex-wrap:wrap"><h3 style="flex:1">Kamus</h3><select class="f" id="kamusList" style="max-width:260px"></select><input class="f" id="kamusSearch" placeholder="Cari…" style="width:140px"></div>
-          <p class="hint">Semua kosakata yang dibaca bot: singkatan, bahasa Jawa/Sunda, nama kota, kata yang bukan nama, satuan jumlah, dan lainnya. Semuanya bisa ditambah, diubah (✎) dan dihapus (✕); langsung berlaku. Mengubah singkatan atau bahasa daerah juga menyesuaikan semua kata kunci.</p>
-          <p class="small" id="kamusHelp" style="margin:0 0 10px"></p>
-          <form id="kamusForm" class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px">
-            <input class="f" name="word" placeholder="kata" required style="flex:1;min-width:140px">
-            <input class="f hidden" name="value" placeholder="dibaca sebagai…" style="flex:1;min-width:140px">
-            <button class="btn primary">Tambah</button>
-          </form>
-          <div id="kamusRows" class="kwrows" style="max-height:420px;overflow:auto"></div>
-        </div>
-      </section>
 
       <!-- STATISTIK -->
       <section data-page="statistik" class="hidden stack">
@@ -539,7 +499,6 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         </div>
         <div class="grid g2">
           <div class="card"><h3>Corong percakapan</h3><p class="hint">Berapa pelanggan sampai ke tiap tahap alur. Persen dihitung dari yang menghubungi.</p><div id="chFunnel"></div></div>
-          <div class="card"><h3>Pola jawaban terpakai</h3><p class="hint">Berapa kali tiap pola buatan tim menjawab pelanggan.</p><div id="chPatterns"></div></div>
         </div>
         <div class="card"><h3>Kenapa diserahkan ke CS</h3><p class="hint">Alasan bot berhenti membalas.</p><div id="chHandover"></div></div>
       </section>
@@ -553,48 +512,10 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         <div id="mediaGroups" class="stack"></div>
       </section>
 
-      <!-- PENGATURAN -->
-      <section data-page="pengaturan" class="hidden stack">
-        <form class="card" id="settingsForm">
-          <div class="row"><h3 style="flex:1">Pengaturan</h3><button class="btn primary" id="saveSettings">Simpan</button></div>
-          <p class="hint">Langsung berlaku setelah disimpan. Tidak perlu restart.</p>
-          <div class="form">
-            <label>Nama bot<small>Muncul di sapaan: "izinkan saya … selaku AI Agent"</small></label><input class="f" name="botName" required>
-            <label>Nama CS<small>"sembari menunggu CS … online"</small></label><input class="f" name="csName" required>
-            <label>Mode bot<small>AI: setelah sapaan, Mawar mengobrol sendiri dari isi halaman <a href="#pengetahuan" data-goto="pengetahuan">Pengetahuan</a> dan Produk. Kalau AI mati, bot diam. Naskah: alur tetap dari spesifikasi.</small></label>
-            <select class="f" name="botMode"><option value="ai">AI: mengobrol dari data toko</option><option value="naskah">Naskah: alur tetap</option></select>
-            <label>Jam bot menjawab<small>Senin–Sabtu. Minggu (dan Mode libur) selalu 24 jam. Di luar jam ini bot diam dan CS yang membalas.</small></label>
-            <div class="stack" style="gap:6px">
-              <div class="inline"><span>mulai</span><input class="f" type="time" name="activeFrom" required><span>sampai</span><input class="f" type="time" name="activeUntil" required></div>
-              <div class="small" id="hoursSentence"></div>
-              <div class="small muted" id="hoursNow"></div>
-            </div>
-            <label>Bot diam setelah diserahkan ke CS<small>Setelah itu pelanggan disapa bot lagi.</small></label>
-            <div class="inline"><input class="f" type="number" name="handoverHours" min="1" max="168" style="width:90px" required><span>jam</span></div>
-            <label>Bot menyerah setelah<small>Pesan yang tidak dipahami bot dibalas "Maaf kak, belum paham…" dulu. Setelah sekian kali berturut-turut, baru diserahkan ke CS.</small></label>
-            <div class="inline"><input class="f" type="number" name="maxMisses" min="1" max="10" style="width:90px" required><span>pesan tidak dipahami berturut-turut</span></div>
-            <label>Lama menunggu jawaban lanjutan<small>Mis. list ukuran yang baru dikirim beberapa hari setelah size chart. Selama ini chat tidak ditutup; lewat dari ini pelanggan disapa dari awal lagi.</small></label>
-            <div class="inline"><input class="f" type="number" name="detailWaitDays" min="1" max="60" style="width:90px" required><span>hari</span></div>
-            <label>Mode libur<small>Tanggal bot berjaga 24 jam (mis. Lebaran, cuti bersama). Satu baris per libur.</small></label>
-            <div><textarea class="f" name="holidays" rows="3" placeholder="2027-03-08 - 2027-03-14 Lebaran&#10;2026-12-25 Natal"></textarea><div class="small muted" id="holidayHint" style="margin-top:4px">Format: tanggal-mulai - tanggal-selesai keterangan. Satu hari cukup satu tanggal.</div></div>
-            <label>Kalimat balasan bot<small>Termasuk teks promo jersey [9].</small></label>
-            <div style="padding-top:8px">Diatur di halaman <a href="#template" data-goto="template">Template balasan</a>.</div>
-          </div>
-        </form>
-
-        <form class="card" id="recapForm">
-          <div class="row"><h3 style="flex:1">Rekap pagi untuk CS</h3><button type="button" class="btn" id="testRecap">Kirim rekap uji</button><button class="btn primary">Simpan</button></div>
-          <p class="hint">Setiap Senin–Sabtu, bot mengirim daftar pelanggan semalam ke WhatsApp CS. Senin mencakup Sabtu malam dan Minggu.</p>
-          <div class="form">
-            <label>Nomor WhatsApp penerima<small>Bisa lebih dari satu, pisahkan dengan koma. Kosongkan untuk mematikan rekap.</small></label><input class="f" name="recapTo" placeholder="0812xxxxxxxx">
-            <label>Jam kirim<small>Kosong = saat bot selesai berjaga.</small></label><div class="inline"><input class="f" type="time" name="recapAt"><span class="muted small" id="recapAtHint"></span></div>
-          </div>
-          <div class="chatwall" style="border-radius:10px;max-height:340px;margin-top:14px"><div class="bub me" id="recapPreview">…</div></div>
-        </form>
-
+      <section data-page="ai" class="hidden stack">
         <form class="card" id="aiForm" autocomplete="off">
           <div class="row"><h3 style="flex:1">AI (Ollama)</h3><span id="aiState"></span></div>
-          <p class="hint">Opsional. Bot selalu memakai kata kunci dulu; AI hanya ditanya untuk pesan yang tidak dikenali, supaya lebih sedikit yang dilempar ke CS. AI hanya memberi label, balasannya tetap naskah. Kunci API dari <b>ollama.com → Settings → Keys</b>.</p>
+          <p class="hint" id="aiModeHint">Dalam mode AI, Ollama menyusun balasan dari Pengetahuan dan Produk. Atur gaya bicara dan contoh percakapan di bawah. Kunci API dari <b>ollama.com → Settings → Keys</b>.</p>
           <div class="form">
             <label>Kunci API Ollama<small id="aiKeyHint">Kosongkan kalau tidak diubah.</small></label>
             <div class="row" style="gap:6px;flex-wrap:nowrap"><input class="f" type="password" name="aiKey" placeholder="tempel kunci API di sini" style="flex:1;min-width:0"><button type="button" class="btn sm" id="aiKeyRemove">Hapus kunci</button></div>
@@ -609,10 +530,6 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
               <textarea class="f" name="aiChatPrompt" rows="6"></textarea>
               <label>Contoh percakapan yang bagus<small>Mode AI. Beberapa contoh chat seperti yang diinginkan owner ("Pelanggan: …" lalu "{bot}: …"). AI meniru cara bicaranya; faktanya tetap dari Pengetahuan. Kosongkan untuk kembali ke contoh bawaan.</small></label>
               <textarea class="f" name="aiChatExamples" rows="8"></textarea>
-              <label>Instruksi kalimat pembuka<small>Mode naskah. Gaya kalimat pendek sebelum balasan. Larangan (angka, harga, janji, link) selalu ditambahkan otomatis.</small></label>
-              <textarea class="f" name="aiOpeningPrompt" rows="4"></textarea>
-              <label>Instruksi menjawab pertanyaan<small>Gaya jawaban. AI tetap hanya menjawab dari Pengetahuan toko, produk dan Pola jawaban.</small></label>
-              <textarea class="f" name="aiAnswerPrompt" rows="4"></textarea>
               <label>Batas per pelanggan<small>Panggilan AI per pelanggan per 10 menit.</small></label>
               <input class="f" type="number" name="aiPerCustomer" min="1" max="500" style="width:110px">
               <label>Batas total<small>Panggilan AI seluruh bot per menit (melindungi kuota dari spam).</small></label>
@@ -625,6 +542,51 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
           <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px"><button type="button" class="btn" id="aiTest">Tes koneksi</button><button class="btn primary">Simpan</button></div>
           <div class="small" id="aiTestOut" style="margin-top:10px"></div>
         </form>
+      </section>
+
+      <section data-page="promo" class="hidden stack">
+        <div class="card">
+          <div class="row"><h3 style="flex:1">Promo</h3><button class="btn primary" id="promoNew">+ Tambah promo</button></div>
+          <p class="hint">Tulis promo resmi yang boleh dijelaskan AI kepada pelanggan WhatsApp Business. Pilih produknya, atur masa berlaku, dan aktifkan setelah siap. Promo nonaktif atau kedaluwarsa tidak digunakan. Penawaran final dan negosiasi tetap ditangani CS.</p>
+        </div>
+        <div class="stack" id="promoList"></div>
+      </section>
+
+      <!-- PENGATURAN -->
+      <section data-page="pengaturan" class="hidden stack">
+        <form class="card" id="settingsForm">
+          <div class="row"><h3 style="flex:1">Pengaturan</h3><button class="btn primary" id="saveSettings">Simpan</button></div>
+          <p class="hint">Langsung berlaku setelah disimpan. Tidak perlu restart.</p>
+          <div class="form">
+            <label>Nama bot<small>Muncul di sapaan: "izinkan saya … selaku AI Agent"</small></label><input class="f" name="botName" required>
+            <label>Nama CS<small>"sembari menunggu CS … online"</small></label><input class="f" name="csName" required>
+            <label>Jam bot menjawab<small>Senin–Sabtu. Minggu (dan Mode libur) selalu 24 jam. Di luar jam ini bot diam dan CS yang membalas.</small></label>
+            <div class="stack" style="gap:6px">
+              <div class="inline"><span>mulai</span><input class="f" type="time" name="activeFrom" required><span>sampai</span><input class="f" type="time" name="activeUntil" required></div>
+              <div class="small" id="hoursSentence"></div>
+              <div class="small muted" id="hoursNow"></div>
+            </div>
+            <label>Bot diam setelah diserahkan ke CS<small>Setelah itu pelanggan disapa bot lagi.</small></label>
+            <div class="inline"><input class="f" type="number" name="handoverHours" min="1" max="168" style="width:90px" required><span>jam</span></div>
+            <label>Lama menunggu jawaban lanjutan<small>Mis. list ukuran yang baru dikirim beberapa hari setelah size chart. Selama ini chat tidak ditutup; lewat dari ini pelanggan disapa dari awal lagi.</small></label>
+            <div class="inline"><input class="f" type="number" name="detailWaitDays" min="1" max="60" style="width:90px" required><span>hari</span></div>
+            <label>Mode libur<small>Tanggal bot berjaga 24 jam (mis. Lebaran, cuti bersama). Satu baris per libur.</small></label>
+            <div><textarea class="f" name="holidays" rows="3" placeholder="2027-03-08 - 2027-03-14 Lebaran&#10;2026-12-25 Natal"></textarea><div class="small muted" id="holidayHint" style="margin-top:4px">Format: tanggal-mulai - tanggal-selesai keterangan. Satu hari cukup satu tanggal.</div></div>
+            <label>Pesan otomatis<small>Sapaan, pemberitahuan CS, dan petunjuk size chart.</small></label>
+            <div style="padding-top:8px">Diatur di halaman <a href="#template" data-goto="template">Pesan otomatis</a>.</div>
+          </div>
+        </form>
+
+        <form class="card" id="recapForm">
+          <div class="row"><h3 style="flex:1">Rekap pagi untuk CS</h3><button type="button" class="btn" id="testRecap">Kirim rekap uji</button><button class="btn primary">Simpan</button></div>
+          <p class="hint">Setiap Senin–Sabtu, bot mengirim daftar pelanggan semalam ke WhatsApp CS. Senin mencakup Sabtu malam dan Minggu.</p>
+          <div class="form">
+            <label>Nomor WhatsApp penerima<small>Bisa lebih dari satu, pisahkan dengan koma. Kosongkan untuk mematikan rekap.</small></label><input class="f" name="recapTo" placeholder="0812xxxxxxxx">
+            <label>Jam kirim<small>Kosong = saat bot selesai berjaga.</small></label><div class="inline"><input class="f" type="time" name="recapAt"><span class="muted small" id="recapAtHint"></span></div>
+          </div>
+          <div class="chatwall" style="border-radius:10px;max-height:340px;margin-top:14px"><div class="bub me" id="recapPreview">…</div></div>
+        </form>
+
 
         <form class="card" id="autoForm">
           <div class="row"><h3 style="flex:1">Pesan otomatis WhatsApp Business</h3><button class="btn primary">Simpan</button></div>
@@ -788,76 +750,18 @@ function hideTip() { tip.classList.add('hidden'); }
 /* --------------------------------------------------------------- bantuan --- */
 // How to use each page, behind the "?" balloon at the bottom right.
 const HELP = {
-  ringkasan: `<p>Gambaran bot hari ini.</p><ol>
-    <li><b>Nomor WhatsApp</b>: hijau = tersambung. Kalau minta scan, buka WhatsApp di HP → Perangkat tertaut → Tautkan perangkat → scan QR di sini.</li>
-    <li><b>Status bot</b>: aktif Senin–Sabtu sesuai jam di Pengaturan, Minggu seharian. Di luar jam itu bot diam dan CS yang membalas.</li>
-    <li><b>Daftar periksa</b>: yang masih kuning perlu dilengkapi; klik tautannya untuk langsung ke halaman yang tepat.</li></ol>
-    <div class="tip">Ada error? Muncul kotak merah berisi detailnya. Foto layar itu dan kirim ke developer.</div>`,
-  percakapan: `<p>Semua chat pelanggan dan siapa yang sedang menangani.</p><ul>
-    <li><b>🤖 Ditangani bot</b> (garis hijau): bot masih bertanya-tanya. CS tidak perlu membalas dulu.</li>
-    <li><b>🙋 Menunggu CS</b> (garis kuning): bot sudah selesai/mengoper. <b>CS perlu membalas</b>.</li>
-    <li><b>💬 Ditangani CS</b> (garis abu): CS sudah membalas dari HP; bot diam di nomor ini.</li></ul>
-    <ol><li>Klik percakapan untuk membaca isinya. Di atas chat ada <b>ringkasan pesanan</b>: produk, jumlah, dan jawaban pertanyaan lanjutan.</li>
-    <li><b>CS ambil alih</b>: bot berhenti membalas pelanggan itu.</li>
-    <li><b>Kembalikan ke bot</b>: bot menyapa dan menangani pelanggan itu lagi.</li></ol>`,
-  coba: `<p>Mencoba bot tanpa mengirim apa pun ke WhatsApp.</p><ol>
-    <li>Ketik pesan seperti pelanggan, atau klik contoh kalimat.</li>
-    <li>Bot membalas persis seperti di WhatsApp, termasuk katalog dan size chart.</li>
-    <li>Tombol <b>↻</b> (Mulai ulang) di atas chat untuk mencoba dari awal.</li></ol>
-    <div class="tip">Bisa juga dari HP: buka chat "Message yourself" di nomor bot dan ketik seperti pelanggan. Ketik <b>reset</b> untuk mengulang.</div>`,
-  template: `<p>Semua kalimat yang dikirim bot. Bot tidak pernah mengarang kalimat sendiri.</p><ol>
-    <li>Klik template, ubah teksnya, <b>Simpan</b>. Langsung berlaku.</li>
-    <li>Pakai <b>{nama}</b>, <b>{bot}</b>, <b>{cs}</b>, <b>{produk}</b> sesuai yang tertera di template itu.</li>
-    <li><b>Kembalikan ke naskah asli</b> kalau ingin membatalkan perubahan.</li>
-    <li>Template bertanda opsional boleh dikosongkan: bagian itu tidak dikirim.</li></ol>`,
-  pola: `<p>Pertanyaan + jawabannya, buatan tim. Contoh: "cara bayar" → teks rekening.</p><ol>
-    <li><b>+ Pola baru</b> → beri nama.</li>
-    <li>Isi <b>kata kunci</b> (satu per baris). Cukup inti katanya; typo, singkatan, dan bahasa Jawa ikut dikenali.</li>
-    <li>Susun <b>gelembung jawaban</b>: teks, foto, link, item katalog WA, atau file dari Media. Pisahkan versi teks dengan <b>---</b> supaya bergantian.</li>
-    <li>Pilih setelah menjawab: tetap di alur, atau serahkan ke CS.</li>
-    <li>Coba di kotak "Coba kalimat".</li></ol>
-    <div class="tip">Pola bawaan (Lokasi, Pengiriman, Ragu, Minimal order) bisa diubah, dihapus, dan dipulihkan.</div>`,
-  pengetahuan: `<p>Semua yang diketahui Mawar di <b>mode AI</b>. Mawar menjawab pelanggan dengan kalimatnya sendiri, tapi isinya hanya dari sini, dari detail produk, dan dari Pola jawaban.</p><ol>
-    <li><b>Info toko</b>: satu topik satu hal (lokasi, jam kerja, cara pesan, DP, pengiriman, garansi...). Isi jawabannya lalu <b>Simpan</b>. Topik yang kosong ditandai "belum diisi": Mawar bilang hal itu ditanyakan ke CS.</li>
-    <li><b>+ Topik baru</b> untuk hal lain. ↑ ↓ untuk mengurutkan, <b>Hapus topik</b> kalau tidak perlu.</li>
-    <li><b>Tanya-jawab</b>: pertanyaan yang sering masuk dan jawaban toko, untuk semua produk atau satu produk.</li></ol>
-    <div class="tip">Jangan tulis harga. Mawar tidak pernah menyebut harga, diskon, atau janji tanggal jadi, dan balasan yang melanggar tidak dikirim.</div>`,
-  produk: `<p>Produk yang dikenali bot.</p><ol>
-    <li><b>+ Produk baru</b>, atau klik produk untuk mengubah.</li>
-    <li><b>Jenis</b>: punya price list (bot mengirim katalog) atau harga tergantung desain (bot menanyakan desain).</li>
-    <li><b>Kata kunci</b>: cara pelanggan menyebut produk ini.</li>
-    <li><b>Detail untuk Mawar</b> (mode AI): nama lain, model, bahan, cara cetak yang dilayani dan yang <b>tidak</b>, warna, ukuran, minimal order, dan apa yang perlu ditanyakan. Satu hal per baris; bahan ditulis "nama: seperti apa", yang tidak dilayani "teknik: gantinya". Mawar tidak akan menawarkan yang tidak tertulis.</li>
-    <li><b>Pertanyaan lanjutan</b> (mode naskah): satu per baris, mis. "Kemejanya jenis apa?" lalu "Ukurannya apa saja?". Bot menanyakannya satu per satu dan jawabannya muncul di Percakapan.</li>
-    <li><b>Hapus produk</b>: bot tidak lagi mengenalinya.</li></ol>`,
-  latih: `<p>Mengajari bot kalimat yang belum dimengerti.</p><ol>
-    <li>Di kiri ada pesan pelanggan yang <b>belum dikenali</b> (bot menyerahkannya ke CS).</li>
-    <li>Kotak kata kunci sudah diisi intinya; rapikan kalau perlu.</li>
-    <li>Pilih maksudnya (atau pola jawaban), lalu <b>Ajarkan</b>. Pesan serupa berikutnya langsung dikenali.</li>
-    <li><b>Abaikan</b> untuk pesan yang memang urusan CS (DP, komplain). Bisa dipulihkan di bagian "Diabaikan".</li></ol>
-    <div class="tip">Di kanan: semua kata kunci. ✎ untuk mengubah, ✕ untuk menghapus.</div>
-    <p style="margin-top:10px"><b>Kamus</b> (bawah): semua kosakata yang dibaca bot. Pilih daftarnya (mis. "Singkatan chat", "Bahasa Jawa / Sunda", "Nama kota"), lalu tambah, ubah (✎) atau hapus (✕). Contoh: tambah singkatan <b>kpn → kapan</b>, atau kota baru supaya "budi sukamaju" dibaca nama Budi dari Sukamaju.</p>`,
-  statistik: `<p>Angka percakapan: berapa pesan masuk, berapa yang dikenali bot, jam paling ramai, dan sampai langkah mana pelanggan biasanya berhenti.</p>
-    <ul><li>Pilih rentang hari di kanan atas.</li><li>Arahkan kursor ke grafik untuk melihat angkanya.</li></ul>`,
-  media: `<p>File dan link yang dikirim bot.</p><ol>
-    <li><b>Katalog</b>: unggah gambar/PDF, atau tempel link katalog WhatsApp Business. Link menggantikan gambar.</li>
-    <li><b>Size chart</b>: unggah gambar dan/atau isi link. Kalau ada link, link dikirim dulu, lalu gambarnya.</li>
-    <li>Klik kotak atau seret file ke kotak. Klik × untuk menghapus file.</li>
-    <li><b>Katalog WhatsApp Business</b>: sinkronkan supaya bot bisa mengirim produk satu per satu.</li></ol>
-    <div class="tip">"belum ada" = pertanyaan itu diserahkan ke CS sampai filenya diisi.</div>`,
-  log: `<p>Catatan semua yang terjadi, untuk dikirim ke developer.</p><ol>
-    <li>Mau minta fitur baru atau ada yang aneh? Buka halaman ini, lalu <b>foto layarnya</b> dan kirim ke developer.</li>
-    <li><b>Info untuk developer</b> di atas: versi, nomor WhatsApp, AI, dan PC ini.</li>
-    <li><b>Aktivitas</b>: halaman yang dibuka dan perubahan yang dilakukan di dashboard (🖥️), dan apa yang dilakukan bot pada setiap pesan (🤖). Yang terbaru di atas. Saring dengan tombol Dashboard/Bot atau kolom Cari.</li>
-    <li><b>Log teknis</b>: error dan catatan mesin bot apa adanya, untuk developer.</li></ol>
-    <div class="tip">Yang dicatat hanya <i>apa</i> yang diubah, bukan isinya: kunci API dan teks tidak masuk log.</div>`,
-  pengaturan: `<p>Pengaturan bot. Semua langsung berlaku setelah Simpan.</p><ul>
-    <li><b>Nama bot & CS</b>, <b>jam aktif</b>, berapa lama bot diam setelah CS membalas, <b>mode libur</b>.</li>
-    <li><b>Bot menyerah setelah</b>: berapa kali bot boleh bilang "belum paham" sebelum menyerahkan ke CS.</li>
-    <li><b>Rekap pagi</b>: daftar pelanggan semalam dikirim ke WhatsApp CS.</li>
-    <li><b>Pengetahuan toko</b>: catatan yang boleh dipakai AI untuk menjawab pertanyaan di luar naskah (bahan, cara bayar, dll). Jangan tulis harga.</li>
-    <li><b>AI (Ollama)</b>: tempel kunci API dari ollama.com → Settings → Keys, pilih model, Simpan, lalu <b>Tes koneksi</b>. AI hanya dipakai untuk pesan yang tidak dikenali kata kunci.</li>
-    <li><b>Pesan otomatis WhatsApp Business</b>: tempel teks Salam / Pesan tidak di tempat dari aplikasi WA Business, supaya bot tahu itu bukan CS yang membalas.</li>
-    <li><b>Backup harian</b>: pilih folder Google Drive/OneDrive supaya data aman.</li></ul>`,
+  ringkasan: '<p>Status WhatsApp Business, jam aktif bot, dan pelanggan yang menunggu CS. Lengkapi daftar kesiapan sebelum meninggalkan bot menyala.</p>',
+  percakapan: '<p>Baca percakapan dan ringkasan kebutuhan pelanggan. CS ambil alih menghentikan bot untuk pelanggan tersebut. Kembalikan ke bot memulai percakapan kembali.</p>',
+  coba: '<p>Coba pertanyaan pelanggan dan uji skenario AI tanpa mengirim pesan ke WhatsApp. Gunakan Mulai ulang untuk mencoba percakapan baru.</p>',
+  produk: '<p>Tambah atau ubah barang, bahan, model, ukuran, dan daftar Yang perlu ditanyakan. AI memakai informasi ini untuk menjawab dan mengumpulkan rincian pesanan. File katalog dan size chart diunggah di Media.</p>',
+  pengetahuan: '<p>Isi Info toko dan Tanya-jawab dengan informasi yang boleh disampaikan AI. Informasi lama yang masih berguna sudah dipindahkan ke sini. Perubahan langsung berlaku setelah Simpan.</p>',
+  template: '<p>Ubah kata pembuka, sapaan pelanggan, pesan menunggu CS, dan petunjuk katalog atau size chart. Isian seperti {nama}, {bot}, dan {cs} diganti otomatis. Jawaban obrolan AI diatur melalui Pengetahuan dan Produk.</p>',
+  promo: '<p>Tambah promo resmi, pilih produknya, isi ketentuan, dan tentukan masa berlaku. Centang Aktif lalu Simpan. Promo nonaktif atau kedaluwarsa tidak dipakai AI. Negosiasi tetap ditangani CS.</p>',
+  ai: '<p>Atur gaya bicara, instruksi, dan contoh percakapan yang baik. Gunakan Tes koneksi untuk memeriksa Ollama. Fakta toko tetap diisi di Pengetahuan, Produk, dan Promo.</p>',
+  media: '<p>Unggah katalog dan size chart sesuai produk. Gambar size chart dikirim sebelum AI meminta rincian ukuran. Sinkronkan katalog WhatsApp Business atau isi link katalog toko bila diperlukan.</p>',
+  statistik: '<p>Lihat jumlah pesan, jam ramai, tahapan percakapan, dan alasan pengalihan ke CS. Pilih rentang hari untuk membandingkan aktivitas.</p>',
+  pengaturan: '<p>Atur nama bot dan CS, jam aktif, masa pengambilalihan CS, rekap pagi, dan backup. Salin Salam serta Pesan tidak di tempat dari WhatsApp Business agar bot mengenalinya.</p>',
+  log: '<p>Catatan aktivitas dan error. Gunakan informasi ini untuk memeriksa kendala atau mengirim laporan kepada developer.</p>',
 };
 function renderHelp() {
   $('#helpTitle').textContent = 'Cara memakai: ' + (TITLES[page] || '');
@@ -867,9 +771,30 @@ $('#helpBtn').onclick = () => { renderHelp(); $('#helpPanel').classList.toggle('
 $('#helpClose').onclick = () => $('#helpPanel').classList.add('hidden');
 
 /* ------------------------------------------------------------ routing --- */
-const TITLES ={ ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Template balasan', pola:'Pola jawaban', produk:'Produk', latih:'Latih bot', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan', log:'Log' };
+const TITLES ={ ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Sapaan & pesan', produk:'Produk', pengetahuan:'Pengetahuan', promo:'Promo', ai:'Gaya bicara AI', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan', log:'Log' };
+const AI_TEMPLATE_KEYS = new Set(['greetKnown', 'welcome', 'greetUnknown', 'waitForCs', 'socials', 'handoverNotice', 'voiceNote', 'catalogLink', 'sizeChartWhich', 'sizeChartMissing', 'sizeChartLink', 'sizeChartNote']);
+const pageForMode = (p) => ['pola', 'latih'].includes(p) ? 'pengetahuan' : p;
+const visibleTemplates = (items) => items.filter((t) => AI_TEMPLATE_KEYS.has(t.key));
+let uiMode = null;
+function setupNavigation() {
+  if (uiMode) return;
+  uiMode = 'ai';
+  document.documentElement.dataset.botMode = 'ai';
+  const labels = { template: 'Sapaan & pesan', ai: 'Gaya bicara AI', promo: 'Promo' };
+  const order = ['ringkasan', 'percakapan', 'coba', 'produk', 'pengetahuan', 'template', 'promo', 'ai', 'media', 'statistik', 'pengaturan', 'log'];
+  for (const p of order) {
+    const button = $(`.nav[data-page="${p}"]`);
+    const label = [...button.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
+    if (labels[p] && label) label.textContent = labels[p];
+    button.parentNode.insertBefore(button, $('#footInfo'));
+  }
+  $('#tplHeading').textContent = 'Sapaan & pesan otomatis';
+  $('#tplHint').textContent = 'Ubah kata pembuka, pesan menunggu CS, dan petunjuk media di sini. Jawaban pelanggan diatur di Pengetahuan dan Produk; gaya bicara di Gaya bicara AI.';
+  $('#aiModeHint').textContent = 'Atur cara AI berbicara kepada pelanggan, contoh percakapan, serta koneksi Ollama. Isi informasi toko di Pengetahuan, rincian barang di Produk, dan penawaran yang sedang berlaku di Promo.';
+}
 let page = 'ringkasan';
 function go(p) {
+  p = pageForMode(p);
   page = TITLES[p] ? p : 'ringkasan';
   $$('.nav').forEach((b) => b.classList.toggle('on', b.dataset.page === page));
   $$('section[data-page]').forEach((s) => s.classList.toggle('hidden', s.dataset.page !== page));
@@ -894,10 +819,11 @@ function countdown(iso) {
 }
 async function loadStatus() {
   [info, { sessions }] = await Promise.all([api('/info'), api('/sessions')]);
+  setupNavigation();
   const main = sessions[0];
   const wa = $('#waPill');
   if (!main) { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Belum ada nomor'; }
-  else if (main.connected) { wa.className = 'pill good'; wa.innerHTML = `<span class="dot"></span>WhatsApp tersambung`; }
+  else if (main.connected) { wa.className = main.pendingMessages ? 'pill warn' : 'pill good'; wa.innerHTML = `<span class="dot"></span>WhatsApp tersambung${main.pendingMessages ? ` · ${num(main.pendingMessages)} pesan menunggu dikirim` : ''}`; }
   else if (main.state === 'qr') { wa.className = 'pill warn pulse'; wa.innerHTML = '<span class="dot"></span>Perlu scan QR'; }
   else if (main.state === 'replaced') { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Nomor dipakai program lain'; }
   else { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>WhatsApp terputus'; }
@@ -973,6 +899,7 @@ async function loadRingkasan() {
   if (!main) wc.innerHTML = '<h3>Nomor WhatsApp</h3><p class="hint">Belum ada nomor terdaftar.</p>';
   else if (main.connected) wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp</h3><span class="pill good"><span class="dot"></span>tersambung</span></div>
       <p style="margin:6px 0 2px;font-size:18px;font-weight:650">+${esc(main.phoneNumber)}</p><p class="hint">${esc(main.pushName || main.label)} · tidak perlu scan ulang setelah PC restart.</p>
+      ${main.pendingMessages ? `<p class="hint">${num(main.pendingMessages)} pesan menunggu dikirim. Bot mencoba lagi otomatis.</p>` : ''}
       <button class="btn sm" onclick="rescan('${esc(main.key)}')">Ganti nomor</button>`;
   else if (main.state === 'replaced') wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp dipakai program lain</h3><span class="pill bad"><span class="dot"></span>berhenti</span></div>
       <p class="small" style="margin:8px 0">WhatsApp memutus bot ini karena ada program lain yang tersambung dengan <b>kunci WhatsApp yang sama</b>, biasanya folder <code>data</code> yang disalin ke PC lain, atau bot kedua di nomor ini. Bot berhenti supaya keduanya tidak saling rebut (itu yang merusak enkripsi: "Bad MAC", "failed to decrypt").</p>
@@ -1002,14 +929,12 @@ async function loadRingkasan() {
   const k = info.knowledge || { topics: 0, filled: 0, faq: 0 };
   const checks = [
     [main?.connected, 'Nomor WhatsApp tersambung', main?.connected ? '+' + esc(main.phoneNumber) : 'Scan QR di kartu sebelah'],
-    ...(info.botMode === 'ai' ? [
-      [info.aiReady, 'AI tersambung (mode AI)', info.aiReady ? esc(info.ai) : 'mode AI tanpa kunci: setelah sapaan bot diam · <a href="#pengaturan" data-goto="pengaturan">isi kunci AI</a>'],
+      [info.aiReady, 'Koneksi AI diatur', info.aiReady ? esc(info.ai) : 'jawaban AI belum tersedia · <a href="#ai" data-goto="ai">atur dan tes koneksi AI</a>'],
       [k.filled > 0, 'Pengetahuan toko diisi', `${k.filled} dari ${k.topics} topik terisi, ${k.faq} tanya-jawab · <a href="#pengetahuan" data-goto="pengetahuan">isi</a>`],
-    ] : []),
     [!info.mediaMissing, 'File katalog & size chart lengkap', info.mediaMissing ? `${info.mediaMissing} file belum ada · <a href="#media" data-goto="media">lihat</a>` : 'semua ada'],
     [info.recapTo.length > 0, 'Rekap pagi ke CS', info.recapTo.length ? `jam ${esc(info.recapAt)} ke ${info.recapTo.map(esc).join(', ')}` : 'isi nomor penerima · <a href="#pengaturan" data-goto="pengaturan">atur</a>'],
     [info.backupOutside, 'Backup keluar dari PC ini', info.backupOutside ? esc(info.backupDir) : 'pilih folder Google Drive/OneDrive · <a href="#pengaturan" data-goto="pengaturan">atur</a>'],
-    [info.jerseyPromo || info.promoPamphlet, 'Promo jersey [9]', info.jerseyPromo || info.promoPamphlet ? [info.promoPamphlet && 'pamflet', info.jerseyPromo && 'teks'].filter(Boolean).join(' + ') + ' terpasang' : 'opsional · pamflet di <a href="#media" data-goto="media">Media</a>, teks di <a href="#template" data-goto="template">Template</a>'],
+    [true, 'Promo', `${info.activePromotions || 0} promo berlaku sekarang · <a href="#promo" data-goto="promo">kelola promo</a>`],
   ];
   const done = checks.filter((c) => c[0]).length;
   $('#readyText').textContent = `${done} dari ${checks.length} siap`;
@@ -1286,22 +1211,23 @@ async function loadTemplates() {
   renderTemplates();
 }
 function renderTemplates() {
-  const groups = [...new Set(templates.map((t) => t.group))];
-  tplGroup ??= groups[0];
-  const changed = templates.filter((t) => t.changed).length;
-  const nt = $('#navTpl'); nt.textContent = changed ? changed + ' diubah' : ''; nt.classList.toggle('hidden', !changed);
+  const visible = visibleTemplates(templates);
+  const groups = [...new Set(visible.map((t) => t.group))];
+  if (!groups.includes(tplGroup)) tplGroup = groups[0];
+  const changed = visible.filter((t) => t.changed).length;
+  const nt = $('#navTpl'); nt.textContent = changed || ''; nt.title = changed + ' pesan diubah'; nt.classList.toggle('hidden', !changed);
   $('#tplGroups').innerHTML = groups.map((g) => {
-    const n = templates.filter((t) => t.group === g).length, c = templates.filter((t) => t.group === g && t.changed).length;
+    const n = visible.filter((t) => t.group === g).length, c = visible.filter((t) => t.group === g && t.changed).length;
     return `<button class="chip ${g === tplGroup ? 'on' : ''}" data-g="${esc(g)}">${esc(g)} · ${n}${c ? ` <b>(${c} diubah)</b>` : ''}</button>`;
   }).join('');
   $$('#tplGroups .chip').forEach((b) => b.onclick = () => { tplGroup = b.dataset.g; $('#tplSearch').value = ''; renderTemplates(); });
 
   const q = $('#tplSearch').value.trim().toLowerCase();
-  const list = templates.filter((t) => q ? (t.text + ' ' + t.label).toLowerCase().includes(q) : t.group === tplGroup);
+  const list = visible.filter((t) => q ? (t.text + ' ' + t.label).toLowerCase().includes(q) : t.group === tplGroup);
   $('#tplList').innerHTML = list.length ? list.map((t) => `
     <div class="card" data-key="${esc(t.key)}">
       <div class="row" style="margin-bottom:4px"><h3 style="flex:1">${esc(t.label)}</h3>
-        ${t.changed ? '<span class="pill warn"><span class="dot"></span>diubah</span>' : '<span class="pill quiet">naskah asli</span>'}${t.optional ? '<span class="pill quiet">opsional</span>' : ''}</div>
+        ${t.changed ? '<span class="pill warn"><span class="dot"></span>diubah</span>' : '<span class="pill quiet">bawaan</span>'}${t.optional ? '<span class="pill quiet">opsional</span>' : ''}</div>
       <p class="hint">${esc(t.when)}</p>
       <div class="tpl">
         <div>
@@ -1309,7 +1235,7 @@ function renderTemplates() {
           <div class="vars"><span class="small muted" style="align-self:center">Sisipkan:</span>${t.vars.map((v) => `<button type="button" data-var="${v}" title="${esc({ bot:'nama bot', cs:'nama CS', nama:'nama pelanggan', produk:'nama produk' }[v] || v)}">{${v}}</button>`).join('')}</div>
           <div class="warnline hidden"></div>
           <div class="row" style="margin-top:8px"><button class="btn primary sm" data-save>Simpan</button>
-            ${t.changed ? '<button class="btn sm" data-reset>Kembalikan ke naskah asli</button>' : ''}<span class="small muted" data-count style="margin-left:auto"></span></div>
+            ${t.changed ? '<button class="btn sm" data-reset>Kembalikan ke bawaan</button>' : ''}<span class="small muted" data-count style="margin-left:auto"></span></div>
         </div>
         <div class="preview"><div class="small muted" style="margin-bottom:8px">Pratinjau (contoh: Kak Budi, Jersey)</div><div class="bub me" data-prev></div></div>
       </div>
@@ -1342,8 +1268,8 @@ function renderTemplates() {
     };
     const reset = $('[data-reset]', card);
     if (reset) reset.onclick = async () => {
-      if (!confirm('Kembalikan kalimat ini ke naskah asli dari klien?')) return;
-      ({ templates } = await api('/templates/' + key, { method:'DELETE' })); toast('Dikembalikan ke naskah asli'); renderTemplates(); loadStatus();
+      if (!confirm('Kembalikan kalimat ini ke teks bawaan?')) return;
+      ({ templates } = await api('/templates/' + key, { method:'DELETE' })); toast('Dikembalikan ke bawaan'); renderTemplates(); loadStatus();
     };
   });
 }
@@ -1387,30 +1313,27 @@ function renderProduk() {
     const open = prodOpen === p.key;
     return `<div class="card pola-card" data-prod="${esc(p.key)}">
       <div class="pola-sum" data-toggle><b style="flex:1">${esc(p.name)}</b>
-        <span class="pill ${p.catalog ? 'good' : 'quiet'}">${p.catalog ? 'punya price list' : 'harga tergantung desain'}</span>
+        <span class="pill ${p.catalog ? 'good' : 'quiet'}">${p.catalog ? 'punya katalog' : 'tanpa katalog khusus'}</span>
         ${p.sizeChart ? '<span class="pill quiet">size chart</span>' : ''}
         ${INFO_FIELDS.some(([k]) => infoText(p.info, k)) ? `<span class="pill good">detail ${INFO_FIELDS.filter(([k]) => infoText(p.info, k)).length}/${INFO_FIELDS.length}</span>` : '<span class="pill warn">detail belum diisi</span>'}
-        ${(p.questions || []).length ? `<span class="pill quiet">${p.questions.length} pertanyaan</span>` : ''}
-        <span class="small muted">${p.keywords.length} kata kunci</span>${p.builtin ? '<span class="pill quiet">bawaan</span>' : ''}
+        <span class="small muted">${p.keywords.length} sebutan</span>${p.builtin ? '<span class="pill quiet">bawaan</span>' : ''}
         <span class="muted">${open ? '▴' : '▾'}</span></div>
       ${open ? `<div class="pola-body">
         <div>
           <label class="lb">Nama produk</label><input class="f" data-name value="${esc(p.name)}" maxlength="40">
-          <label class="lb">Jenis</label>
-          <select class="f" data-kind><option value="catalog" ${p.catalog ? 'selected' : ''}>Punya price list (bot mengirim katalog)</option><option value="design" ${!p.catalog ? 'selected' : ''}>Harga tergantung desain (bot menanyakan referensi desain)</option></select>
+          <label class="lb">Katalog produk<small class="ai-only">Menentukan tempat unggah katalog pada halaman Media. Rincian yang dikumpulkan AI diatur di bawah.</small></label>
+          <select class="f" data-kind><option value="catalog" ${p.catalog ? 'selected' : ''}>Punya katalog produk</option><option value="design" ${!p.catalog ? 'selected' : ''}>Tanpa katalog khusus</option></select>
           <label class="row lb" style="gap:6px"><input type="checkbox" data-size ${p.sizeChart ? 'checked' : ''}> Punya size chart (muncul di halaman Media)</label>
-          <label class="lb">Kata kunci <span class="small muted" style="font-weight:400">· satu per baris atau pisahkan dengan koma; tahan typo</span></label>
+          <label class="lb">Sebutan pelanggan <span class="small muted" style="font-weight:400">· nama atau singkatan produk yang biasa diketik pelanggan, satu per baris</span></label>
           <textarea class="f" data-kw rows="6">${esc(p.keywords.join('\n'))}</textarea>
           <h4 style="margin:18px 0 2px">Detail untuk Mawar <span class="small muted" style="font-weight:400">· mode AI. Mawar hanya menyebut yang tertulis di sini; yang kosong ditanyakan ke CS.</span></h4>
           ${INFO_FIELDS.map(([k, label, hint, rows]) => `<label class="lb">${label} <span class="small muted" style="font-weight:400">· ${hint}</span></label>
           <textarea class="f" data-i="${k}" rows="${rows}" placeholder="${esc(INFO_PLACEHOLDER[k] || '')}">${esc(infoText(p.info, k))}</textarea>`).join('')}
-          <label class="lb">Pertanyaan lanjutan <span class="small muted" style="font-weight:400">· mode naskah. Satu pertanyaan per baris, maks. 6. Ditanyakan satu per satu setelah produk dikenali${p.catalog ? ' (setelah katalog)' : ''}; jawabannya disimpan untuk CS. Kosongkan kalau tidak perlu.</span></label>
-          <textarea class="f" data-q rows="4" placeholder="Kemejanya mau jenis apa kak?&#10;Untuk ukurannya apa saja kak?">${esc((p.questions || []).join('\n'))}</textarea>
           <div class="row" style="margin-top:14px"><button class="btn primary" data-save>Simpan</button><button class="btn danger" data-delete>Hapus produk</button></div>
         </div>
         <div class="small muted">
           <p><b>Yang terjadi kalau dihapus:</b> bot tidak lagi mengenali produk ini; kata kuncinya ikut terhapus; tempat katalog/size chart-nya hilang dari halaman Media (file yang sudah diunggah tetap tersimpan); item katalog WA yang dipetakan ke produk ini kembali ke pemetaan otomatis.</p>
-          <p>Pelanggan yang menyebut kata kunci produk ini akan diproses sebagai pertanyaan yang tidak dikenali (diserahkan ke CS), kecuali ada pola jawaban yang cocok.</p>
+          <p>Jika produk dihapus, AI tidak lagi menawarkannya. Kebutuhan di luar daftar produk akan dikonfirmasi oleh CS.</p>
         </div>
       </div>` : ''}
     </div>`;
@@ -1423,7 +1346,7 @@ function renderProduk() {
     $('[data-save]', card).onclick = async () => {
       try {
         const info = Object.fromEntries($$('[data-i]', card).map((el) => [el.dataset.i, el.value]));
-        const r = await api('/products/' + encodeURIComponent(key), { method:'PUT', body: JSON.stringify({ name: $('[data-name]', card).value, catalog: $('[data-kind]', card).value === 'catalog', sizeChart: $('[data-size]', card).checked, keywords: $('[data-kw]', card).value, questions: $('[data-q]', card).value, info }) });
+        const r = await api('/products/' + encodeURIComponent(key), { method:'PUT', body: JSON.stringify({ name: $('[data-name]', card).value, catalog: $('[data-kind]', card).value === 'catalog', sizeChart: $('[data-size]', card).checked, keywords: $('[data-kw]', card).value, info }) });
         Object.assign(p, r.product);
         toast(r.taken.length ? `Tersimpan. Dilewati: ${r.taken.join(', ')}` : 'Tersimpan. Bot langsung memakainya.');
         kwMeta = null; renderProduk(); loadStatus();
@@ -1441,7 +1364,7 @@ $('#prodNew').onclick = async () => {
   const name = prompt('Nama produk baru (mis. Kaos Polo Anak):'); if (!name) return;
   try {
     const r = await api('/products', { method:'POST', body: JSON.stringify({ name, catalog: false, sizeChart: false, keywords: name }) });
-    prodOpen = r.product.key; kwMeta = null; toast('Produk ditambahkan. Lengkapi kata kuncinya lalu Simpan.'); loadProduk();
+    prodOpen = r.product.key; kwMeta = null; toast('Produk ditambahkan. Lengkapi bahan, ukuran, dan informasi produk lalu Simpan.'); loadProduk();
   } catch (err) { toast('Gagal: ' + err.message); }
 };
 
@@ -1524,307 +1447,52 @@ function renderFaq() {
 }
 $('#faqNew').onclick = () => { faqDraft = true; renderFaq(); $('#faqList [data-faq="0"] [data-q]')?.focus(); };
 
-/* -------------------------------------------------------------- pola --- */
-let polas = [], polaLoaded = false, polaOpen = Number(new URLSearchParams(location.search).get('pola')) || null, polaCatalog = [];
-const drafts = {};
-const BUBBLE = { text: '💬 Teks', photos: '🖼️ Foto', catalog: '🛍️ Produk katalog WA', link: '🔗 Link', slot: '📎 File dari Media' };
-const slotLabel = (id) => { const s = polaSlots.find((x) => x.id === id); return s ? `${s.group}: ${s.label}` : id; };
-// The console runs on the bot PC, so its local date is the shop's date.
-const today = () => new Date().toLocaleDateString('en-CA');
 
-let polaSlots = [], polaMissing = [];
-async function loadPola() {
-  const [{ patterns, missingBuiltins }, cat, med] = await Promise.all([api('/patterns'), api('/catalog').catch(() => ({ items: [] })), api('/media').catch(() => ({ slots: [] }))]);
-  polas = patterns; polaCatalog = cat.items || []; polaSlots = med.slots || []; polaMissing = missingBuiltins || []; polaLoaded = true;
-  for (const p of polas) drafts[p.id] ??= JSON.parse(JSON.stringify({ name: p.name, keywords: p.keywords.join('\n'), bubbles: p.bubbles, after: p.after, enabled: p.enabled, startsOn: p.startsOn, endsOn: p.endsOn }));
-  const nb = $('#navPola'); nb.textContent = polas.length; nb.classList.toggle('hidden', !polas.length);
-  renderPola();
+/* --------------------------------------------------------- statistik --- */
+let promotions = [], promotionDraft = false;
+async function loadPromotions() {
+  const [data, catalog] = await Promise.all([api('/promotions'), api('/products')]);
+  promotions = data.promotions;
+  products = catalog.products;
+  renderPromotions();
 }
-function polaPreview(p, d) {
-  const out = [];
-  for (const b of d.bubbles) {
-    if (b.type === 'text') {
-      const versions = (b.text || '').split(/\n\s*-{3,}\s*\n/).map((v) => v.trim()).filter(Boolean);
-      out.push(`<div class="bub them">${waFormat(fill(versions[0] || ''))}${versions.length > 1 ? `<div><span class="tag">+${versions.length - 1} versi lain, dipilih acak</span></div>` : ''}</div>`);
-    }
-    if (b.type === 'link') out.push(`<div class="bub them" style="color:#027eb5;text-decoration:underline">${esc(b.url || 'https://…')}</div>`);
-    if (b.type === 'slot') {
-      const s = polaSlots.find((x) => x.id === b.slot);
-      out.push(s && s.files.length ? `<div class="bub them file">📎 ${esc(slotLabel(b.slot))} · ${s.files.length} file</div>` : `<div class="sys">📎 ${esc(b.slot ? slotLabel(b.slot) : 'pilih file')}: belum ada file di Media, dilewati</div>`);
-    }
-    if (b.type === 'photos') out.push(p.photos.length ? p.photos.map((ph) => `<div class="bub them" style="padding:4px"><img src="${withKey('/media/file?path=' + encodeURIComponent(ph))}" style="display:block;max-width:200px;max-height:220px;border-radius:7px"></div>`).join('') : '<div class="sys">(belum ada foto)</div>');
-    if (b.type === 'catalog') out.push((b.items || []).map((id) => { const it = polaCatalog.find((x) => x.id === id); return `<div class="bub them">🛍️ ${esc(it ? it.name : 'produk tidak ada lagi di katalog')}<br><span class="small" style="color:#027eb5">${esc(it?.link || '')}</span></div>`; }).join('') || '<div class="sys">(pilih produk katalog)</div>');
-  }
-  if (d.after === 'handover') out.push('<div class="sys">🤝 lalu diserahkan ke CS, bot diam di nomor ini</div>');
-  return out.join('') || '<div class="sys">Belum ada jawaban.</div>';
-}
-function bubbleEditor(p, b, i) {
-  const ctl = `<button class="mini" data-up="${i}" title="Naik">↑</button><button class="mini" data-down="${i}" title="Turun">↓</button><button class="mini" data-rm="${i}" title="Hapus">✕</button>`;
-  let body = '';
-  if (b.type === 'text') body = `<textarea class="f" data-text="${i}" rows="3" placeholder="Tulis jawabannya…&#10;---&#10;(opsional) versi lain, bot memilih salah satu">${esc(b.text || '')}</textarea>
-    <div class="small muted" style="margin-top:4px">Tip: tulis beberapa versi dipisah baris <code>---</code> supaya jawabannya tidak selalu sama.</div>
-    <div class="vars" style="margin-top:6px">${['nama', 'bot', 'cs'].map((v) => `<button class="mini" data-var="${v}" data-i="${i}">{${v}}</button>`).join(' ')}</div>`;
-  if (b.type === 'link') body = `<input class="f" data-url="${i}" value="${esc(b.url || '')}" placeholder="https://…">`;
-  if (b.type === 'slot') body = `<select class="f" data-slot="${i}"><option value="" ${!b.slot ? 'selected' : ''} disabled>pilih file dari halaman Media…</option>${polaSlots.map((s) => `<option value="${esc(s.id)}" ${s.id === b.slot ? 'selected' : ''}>${esc(s.group)}: ${esc(s.label)}${s.files.length ? ` (${s.files.length} file)` : ' (kosong)'}</option>`).join('')}</select>
-    <div class="small muted" style="margin-top:4px">Mengirim file yang diunggah di halaman Media, mis. katalog review atau size chart.</div>`;
-  if (b.type === 'photos') body = `<div class="thumbs">${p.photos.map((ph, n) => `<div class="thumb"><img src="${withKey('/media/file?path=' + encodeURIComponent(ph))}"><span class="n">${n + 1}</span><button class="x" data-delphoto="${esc(ph)}">×</button></div>`).join('')}</div>
-    <div class="drop" data-upload style="margin-top:8px">+ tambah foto (klik atau seret)</div><input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" multiple hidden data-file>`;
-  if (b.type === 'catalog') body = polaCatalog.length ? `<div class="catpick">${polaCatalog.map((it) => `<label><input type="checkbox" data-cat="${i}" value="${esc(it.id)}" ${(b.items || []).includes(it.id) ? 'checked' : ''}> ${esc(it.name)}</label>`).join('')}</div><div class="small muted" style="margin-top:4px">Maks. 5 produk, dikirim berurutan sesuai daftar.</div>`
-    : '<div class="small muted">Katalog belum disinkronkan. Tautkan nomor bot lalu klik Sinkronkan di halaman Media.</div>';
-  return `<div class="bubble-ed"><div class="bar"><b>${i + 1}. ${BUBBLE[b.type]}</b>${ctl}</div>${body}</div>`;
-}
-function renderPola() {
-  $('#polaList').innerHTML = polas.length ? polas.map((p) => {
-    const d = drafts[p.id], open = polaOpen === p.id;
-    const kws = d.keywords.split(/[\n,]/).map((k) => k.trim()).filter(Boolean);
-    return `<div class="card pola-card" data-pola="${p.id}">
-      <div class="pola-sum" data-toggle><b style="flex:1">${esc(d.name || 'Tanpa nama')}${p.builtin ? ' <span class="pill quiet" style="font-weight:500">bawaan</span>' : ''}</b>
-        <span class="small muted">${kws.length} kata kunci · ${d.bubbles.length} gelembung</span>
-        ${!(p.enabled && p.keywords.length && p.bubbles.length) ? '<span class="pill quiet">belum aktif</span>'
-          : (p.startsOn && today() < p.startsOn) ? `<span class="pill quiet">mulai ${esc(p.startsOn)}</span>`
-          : (p.endsOn && today() > p.endsOn) ? '<span class="pill quiet">sudah lewat</span>'
-          : '<span class="pill good"><span class="dot"></span>aktif</span>'}
-        <span class="muted">${open ? '▴' : '▾'}</span></div>
-      ${open ? `<div class="pola-body">
-        <div>
-          <label class="lb">Nama pola</label><input class="f" data-name value="${esc(d.name)}" maxlength="60">
-          <label class="lb">Kata kunci <span class="small muted" style="font-weight:400">· satu per baris atau pisahkan dengan koma; tahan typo</span></label>
-          <textarea class="f" data-kw rows="4" placeholder="ukuran\nsize\nukurannya apa aja\nlingkar dada">${esc(d.keywords)}</textarea>
-          <div class="kwchips">${kws.slice(0, 40).map((k) => `<span>${esc(k)}</span>`).join('')}</div>
-          <label class="lb">Jawaban <span class="small muted" style="font-weight:400">· dikirim berurutan</span></label>
-          ${d.bubbles.map((b, i) => bubbleEditor(p, b, i)).join('') || '<div class="small muted" style="margin-bottom:8px">Belum ada. Tambah gelembung di bawah.</div>'}
-          <div class="row">${Object.entries(BUBBLE).map(([t, l]) => `<button class="btn sm" data-add="${t}" ${t === 'photos' && d.bubbles.some((b) => b.type === 'photos') ? 'disabled title="Satu gelembung foto sudah memuat semua foto pola ini"' : ''}>+ ${l.slice(2).trim()}</button>`).join('')}</div>
-          <label class="lb">Berlaku <span class="small muted" style="font-weight:400">· opsional, mis. untuk promo; kosong = selalu</span></label>
-          <div class="inline"><span>dari</span><input class="f" type="date" data-start value="${esc(d.startsOn || '')}" style="width:auto"><span>sampai</span><input class="f" type="date" data-end value="${esc(d.endsOn || '')}" style="width:auto"></div>
-          <label class="lb">Setelah menjawab</label>
-          <select class="f" data-after><option value="stay" ${d.after !== 'handover' ? 'selected' : ''}>Lanjutkan percakapan (bot tetap membalas)</option><option value="handover" ${d.after === 'handover' ? 'selected' : ''}>Serahkan ke CS (bot diam di nomor itu)</option></select>
-          <label class="row" style="margin-top:12px;gap:6px"><input type="checkbox" data-enabled ${d.enabled ? 'checked' : ''}> Aktif</label>
-          <div class="row" style="margin-top:14px"><button class="btn primary" data-save>Simpan</button>${p.builtin ? '<button class="btn" data-reset>Kembalikan ke bawaan</button>' : ''}<button class="btn danger" data-delete>Hapus pola</button></div>
-        </div>
-        <div><div class="small muted" style="margin-bottom:6px">Pratinjau (contoh: Kak Budi)</div><div class="chatwall" style="border-radius:12px;min-height:200px">${polaPreview(p, d)}</div></div>
-      </div>` : ''}
-    </div>`;
-  }).join('') : '<div class="card empty">Belum ada pola. Klik <b>+ Pola baru</b>, misalnya untuk pertanyaan "Ukuran".</div>';
-
-  // Seeded patterns the team deleted can be brought back.
-  if (polaMissing.length) {
-    $('#polaList').insertAdjacentHTML('beforeend', `<div class="card"><div class="small muted" style="margin-bottom:8px">Pola bawaan yang sudah dihapus (pertanyaan ini sekarang diserahkan ke CS):</div><div class="row">${polaMissing.map((m) => `<button class="btn sm" data-restore="${esc(m.builtin)}">↺ Pulihkan ${esc(m.name)}</button>`).join('')}</div></div>`);
-    $$('[data-restore]').forEach((b) => b.onclick = async () => {
-      await api('/patterns/restore/' + encodeURIComponent(b.dataset.restore), { method:'POST' });
-      toast('Pola dipulihkan'); kwMeta = null; polaLoaded = false; loadPola();
-    });
-  }
-
-  $$('#polaList [data-pola]').forEach((card) => {
-    const id = Number(card.dataset.pola), p = polas.find((x) => x.id === id), d = drafts[id];
-    $('[data-toggle]', card).onclick = () => { polaOpen = polaOpen === id ? null : id; renderPola(); };
-    if (polaOpen !== id) return;
-    const rerender = () => { const y = scrollY; renderPola(); scrollTo(0, y); };
-    const preview = () => { $('.chatwall', card).innerHTML = polaPreview(p, d); };
-    $('[data-name]', card).oninput = (e) => { d.name = e.target.value; };
-    $('[data-kw]', card).oninput = (e) => { d.keywords = e.target.value; };
-    $('[data-kw]', card).onchange = rerender;
-    $('[data-after]', card).onchange = (e) => { d.after = e.target.value; preview(); };
-    $('[data-enabled]', card).onchange = (e) => { d.enabled = e.target.checked; };
-    $('[data-start]', card).onchange = (e) => { d.startsOn = e.target.value; };
-    $('[data-end]', card).onchange = (e) => { d.endsOn = e.target.value; };
-    $$('[data-text]', card).forEach((ta) => ta.oninput = () => { d.bubbles[ta.dataset.text].text = ta.value; preview(); });
-    $$('[data-url]', card).forEach((inp) => inp.oninput = () => { d.bubbles[inp.dataset.url].url = inp.value.trim(); preview(); });
-    $$('[data-slot]', card).forEach((sel) => sel.onchange = () => { d.bubbles[sel.dataset.slot].slot = sel.value; preview(); });
-    const reset = $('[data-reset]', card);
-    if (reset) reset.onclick = async () => {
-      if (!confirm(`Kembalikan "${d.name}" ke jawaban dan kata kunci bawaan? Perubahan tim pada pola ini hilang.`)) return;
+function renderPromotions() {
+  const rows = promotionDraft ? [{ id: 0, title: '', content: '', product: null, enabled: 0, starts_on: '', ends_on: '' }, ...promotions] : promotions;
+  $('#promoList').innerHTML = rows.map((p) => `<form class="card promo-form" data-promotion="${p.id}">
+    <div class="row" style="margin-bottom:12px"><h3 style="flex:1">${esc(p.title || 'Promo baru')}</h3><span class="pill ${p.active ? 'good' : 'quiet'}">${p.active ? 'berlaku sekarang' : p.enabled ? 'di luar masa berlaku' : 'nonaktif'}</span></div>
+    <label class="lb">Nama promo</label><input class="f" name="title" value="${esc(p.title)}" maxlength="120" placeholder="Mis. Promo jersey bulan ini" required>
+    <label class="lb">Berlaku untuk</label><select class="f" name="product">${faqProductOptions(p.product)}</select>
+    <label class="lb">Isi dan ketentuan promo</label><textarea class="f" name="content" rows="5" maxlength="4000" placeholder="Tulis informasi resmi yang boleh disampaikan AI, termasuk syarat dan batasannya." required>${esc(p.content)}</textarea>
+    <div class="row" style="margin-top:12px"><label>Mulai <input class="f" type="date" name="starts_on" value="${esc(p.starts_on || '')}"></label><label>Sampai <input class="f" type="date" name="ends_on" value="${esc(p.ends_on || '')}"></label></div>
+    <p class="hint">Tanggal boleh kosong. Tanpa tanggal selesai, promo berlaku selama diaktifkan.</p>
+    <label class="row" style="gap:8px"><input type="checkbox" name="enabled" ${p.enabled ? 'checked' : ''}> Aktif</label>
+    <div class="row" style="margin-top:14px"><button class="btn primary">Simpan promo</button><button type="button" class="btn danger" data-delete>${p.id ? 'Hapus' : 'Batal'}</button></div>
+  </form>`).join('') || '<div class="card empty">Belum ada promo. Klik Tambah promo untuk membuatnya.</div>';
+  $$('#promoList [data-promotion]').forEach((form) => {
+    const id = Number(form.dataset.promotion);
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+      const button = $('button.primary', form);
+      button.disabled = true;
+      const body = Object.fromEntries(['title', 'content', 'product', 'starts_on', 'ends_on'].map((key) => [key, form.elements.namedItem(key).value]));
+      body.enabled = form.elements.namedItem('enabled').checked;
       try {
-        const { pattern } = await api('/patterns/' + id + '/reset', { method:'POST' });
-        Object.assign(p, pattern);
-        drafts[id] = JSON.parse(JSON.stringify({ name: pattern.name, keywords: pattern.keywords.join('\n'), bubbles: pattern.bubbles, after: pattern.after, enabled: pattern.enabled, startsOn: pattern.startsOn, endsOn: pattern.endsOn }));
-        toast('Dikembalikan ke bawaan'); rerender();
-      } catch (err) { toast('Gagal: ' + err.message); }
+        await api('/promotions' + (id ? '/' + id : ''), { method: id ? 'PUT' : 'POST', body: JSON.stringify(body) });
+        promotionDraft = false;
+        await loadPromotions();
+        toast('Promo tersimpan dan langsung berlaku sesuai jadwal.');
+      } catch (error) { toast('Belum tersimpan: ' + error.message); button.disabled = false; }
     };
-    $$('[data-var]', card).forEach((b) => b.onclick = () => {
-      const ta = $(`[data-text="${b.dataset.i}"]`, card), s0 = ta.selectionStart, ins = '{' + b.dataset.var + '}';
-      ta.value = ta.value.slice(0, s0) + ins + ta.value.slice(ta.selectionEnd); d.bubbles[b.dataset.i].text = ta.value; ta.focus(); ta.selectionStart = ta.selectionEnd = s0 + ins.length; preview();
-    });
-    $$('[data-cat]', card).forEach((cb) => cb.onchange = () => {
-      const b = d.bubbles[cb.dataset.cat];
-      b.items = $$(`[data-cat="${cb.dataset.cat}"]`, card).filter((x) => x.checked).map((x) => x.value);
-      if (b.items.length > 5) { cb.checked = false; b.items = b.items.filter((x) => x !== cb.value); toast('Maksimal 5 produk'); }
-      preview();
-    });
-    $$('[data-add]', card).forEach((b) => b.onclick = () => { d.bubbles.push({ type: b.dataset.add, ...(b.dataset.add === 'catalog' ? { items: [] } : {}) }); rerender(); });
-    $$('[data-rm]', card).forEach((b) => b.onclick = () => { d.bubbles.splice(Number(b.dataset.rm), 1); rerender(); });
-    $$('[data-up]', card).forEach((b) => b.onclick = () => { const i = Number(b.dataset.up); if (i > 0) { [d.bubbles[i - 1], d.bubbles[i]] = [d.bubbles[i], d.bubbles[i - 1]]; rerender(); } });
-    $$('[data-down]', card).forEach((b) => b.onclick = () => { const i = Number(b.dataset.down); if (i < d.bubbles.length - 1) { [d.bubbles[i + 1], d.bubbles[i]] = [d.bubbles[i], d.bubbles[i + 1]]; rerender(); } });
-    const up = $('[data-upload]', card), file = $('[data-file]', card);
-    const send = async (files) => {
-      for (const f of files) {
-        if (f.size > 15 * 1048576) { toast(`${f.name}: lebih dari 15 MB`); continue; }
-        try {
-          const r = await fetch(`/patterns/${id}/photos`, { method:'POST', headers: { 'Content-Type':'application/octet-stream', ...(key ? { 'X-Api-Key': key } : {}) }, body: f });
-          const body = await r.json().catch(() => ({})); if (!r.ok) throw new Error(body.error || r.statusText);
-          p.photos = body.pattern.photos; toast(`${f.name} terunggah`);
-        } catch (err) { toast(`${f.name}: ${err.message}`); }
-      }
-      rerender();
-    };
-    if (up) { up.onclick = () => file.click(); file.onchange = () => send([...file.files]);
-      up.ondragover = (e) => { e.preventDefault(); up.style.borderColor = 'var(--accent)'; }; up.ondragleave = () => { up.style.borderColor = ''; };
-      up.ondrop = (e) => { e.preventDefault(); send([...e.dataTransfer.files]); }; }
-    $$('[data-delphoto]', card).forEach((b) => b.onclick = async () => {
-      if (!confirm('Hapus foto ini dari pola?')) return;
-      await api('/media/file?path=' + encodeURIComponent(b.dataset.delphoto), { method:'DELETE' });
-      p.photos = p.photos.filter((x) => x !== b.dataset.delphoto); rerender();
-    });
-    $('[data-save]', card).onclick = async () => {
-      try {
-        const { pattern } = await api('/patterns/' + id, { method:'PUT', body: JSON.stringify({ name: d.name, keywords: d.keywords, bubbles: d.bubbles, after: d.after, enabled: d.enabled, startsOn: d.startsOn || '', endsOn: d.endsOn || '' }) });
-        Object.assign(p, pattern); drafts[id] = JSON.parse(JSON.stringify({ name: pattern.name, keywords: pattern.keywords.join('\n'), bubbles: pattern.bubbles, after: pattern.after, enabled: pattern.enabled, startsOn: pattern.startsOn, endsOn: pattern.endsOn }));
-        kwMeta = null; toast(pattern.enabled && pattern.keywords.length && pattern.bubbles.length ? 'Tersimpan. Bot langsung memakai pola ini.' : 'Tersimpan. Pola aktif setelah punya kata kunci dan jawaban.');
-        rerender();
-      } catch (err) { toast('Belum tersimpan: ' + err.message); }
-    };
-    $('[data-delete]', card).onclick = async () => {
-      if (!confirm(`Hapus pola "${d.name}" beserta fotonya?`)) return;
-      await api('/patterns/' + id, { method:'DELETE' }); delete drafts[id]; polaOpen = null; kwMeta = null; toast('Pola dihapus'); loadPola();
+    $('[data-delete]', form).onclick = async () => {
+      if (!id) { promotionDraft = false; renderPromotions(); return; }
+      if (!confirm('Hapus promo ini? AI tidak akan memakainya lagi.')) return;
+      try { await api('/promotions/' + id, { method: 'DELETE' }); await loadPromotions(); toast('Promo dihapus'); }
+      catch (error) { toast('Belum dihapus: ' + error.message); }
     };
   });
 }
-$('#polaNew').onclick = async () => {
-  const name = prompt('Nama pola baru (mis. Ukuran):', 'Ukuran'); if (name === null) return;
-  const { pattern } = await api('/patterns', { method:'POST', body: JSON.stringify({ name }) });
-  polaOpen = pattern.id; kwMeta = null; await loadPola();
-};
-$('#polaTestBtn').onclick = async () => {
-  const text = $('#polaTest').value.trim(); if (!text) return;
-  const { pattern } = await api('/patterns/test', { method:'POST', body: JSON.stringify({ text }) });
-  $('#polaTestOut').innerHTML = pattern ? `<span class="pill good"><span class="dot"></span>cocok: ${esc(pattern.name)}</span>` : '<span class="pill quiet">tidak ada pola yang cocok; bot memakai jawaban bawaan</span>';
-};
-$('#polaTest').onkeydown = (e) => { if (e.key === 'Enter') $('#polaTestBtn').click(); };
+$('#promoNew').onclick = () => { promotionDraft = true; renderPromotions(); $('#promoList [data-promotion="0"] [name=title]')?.focus(); };
 
-/* ------------------------------------------------------------- latih --- */
-let kwMeta = null;
-const intentOptions = (sel) => (sel ? '' : '<option value="" selected disabled>pilih maksudnya…</option>')
-  + (kwMeta.patterns?.length ? `<optgroup label="Pola jawaban (Lokasi, Pengiriman, buatan tim, …)">${kwMeta.patterns.map((p) => `<option value="pola:${p.id}">Pola: ${esc(p.name)}</option>`).join('')}</optgroup><optgroup label="Maksud lain">` : '')
-  + kwMeta.intents.map((i) => `<option value="${i}" ${i === sel ? 'selected' : ''}>${esc(INTENT[i] || i)}</option>`).join('')
-  + (kwMeta.patterns?.length ? '</optgroup>' : '');
-const productOptions = (sel) => kwMeta.products.map((p) => `<option value="${p.key}" ${p.key === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
-async function loadLatih() {
-  const [{ messages }, meta] = await Promise.all([api('/unrecognised'), api('/keywords')]);
-  if (!kamusLists.length) loadKamus();
-  // Teaching into a pattern needs no product picker.
-  kwMeta = meta;
-  // Three piles: still unknown (teach these), known by now (taught, or the bot got smarter), set aside by the team.
-  const pending = messages.filter((m) => m.nowIntent === 'other' && !m.dismissed);
-  const learned = messages.filter((m) => m.nowIntent !== 'other' && !m.dismissed);
-  const dismissed = messages.filter((m) => m.dismissed);
-  const nt = $('#navTeach'); nt.textContent = pending.length; nt.classList.toggle('hidden', !pending.length);
-  $('#kwIntent').innerHTML = intentOptions('product'); $('#kwProduct').innerHTML = productOptions(); $('#kwProduct').classList.remove('hidden');
-  const nowLabel = (m) => m.nowPattern ? 'Pola: ' + m.nowPattern : (INTENT[m.nowIntent] || m.nowIntent) + (m.nowProduct ? ' · ' + (kwMeta.products.find((p) => p.key === m.nowProduct)?.name || m.nowProduct) : '');
-  $('#teachList').innerHTML = (pending.length ? pending.map((m) => `
-    <div class="teach-item" data-text="${esc(m.text)}">
-      <div class="row" style="margin-bottom:6px"><span class="small muted" style="flex:1">${m.times > 1 ? m.times + '× · ' : ''}terakhir ${fmtTime(m.last_at)}</span>
-        <span class="pill warn"><span class="dot"></span>belum dikenali</span><button class="btn sm" data-dismiss title="Urusan CS (DP, komplain, dll): tidak perlu diajarkan">Abaikan</button></div>
-      <div class="q">${esc(m.text)}</div>
-      <form class="teach-form"><input class="f" name="phrase" value="${esc(m.suggest || m.text.slice(0, 60))}" title="Inti katanya saja. Bot juga mengenali variasi, typo, dan bahasa Jawanya."><select class="f" name="intent" required>${intentOptions()}</select><select class="f" name="product">${productOptions()}</select><button class="btn primary">Ajarkan</button></form>
-      <div class="small muted" style="margin-top:4px">Sisakan inti katanya saja (sudah diisi otomatis), pilih maksudnya, lalu Ajarkan.</div>
-    </div>`).join('') : (learned.length || dismissed.length ? '<div class="empty" style="padding:14px 0">Semua pesan sudah dikenali bot atau diabaikan. 👍</div>' : ''))
-  + (learned.length ? `<details class="kwgroup" style="margin-top:12px"><summary><b>✅ Sudah dikenali sekarang</b> <span class="small muted">${learned.length} pesan · tidak perlu diajarkan lagi</span></summary>
-      <div class="kwrows">${learned.map((m) => `<div class="kwrow"><span class="kwp">${esc(m.text)}</span><span class="pill good" style="padding:0 7px">${esc(nowLabel(m))}</span></div>`).join('')}</div></details>` : '')
-  + (dismissed.length ? `<details class="kwgroup"><summary><b>🙈 Diabaikan</b> <span class="small muted">${dismissed.length} pesan · urusan CS</span></summary>
-      <div class="kwrows">${dismissed.map((m) => `<div class="kwrow" data-text="${esc(m.text)}"><span class="kwp">${esc(m.text)}</span><button class="mini" data-undismiss title="Pulihkan">↩</button></div>`).join('')}</div></details>` : '')
-  || `<div class="empty" style="padding:18px 0 8px">Belum ada pesan pelanggan yang gagal dikenali. 👍<br><span class="small">Begitu ada, muncul di sini seperti contoh di bawah.</span></div>
-      <div class="teach-item" style="opacity:.75">
-        <div class="row" style="margin-bottom:6px"><span class="pill quiet">contoh</span><span class="small muted" style="flex:1">3× · terakhir semalam</span><span class="pill warn"><span class="dot"></span>belum dikenali</span></div>
-        <div class="q">kak bisa pakai rekber ga? takut soalnya</div>
-        <div class="small muted" style="margin-top:8px">Ketik <b>rekber</b> → pilih <b>Pola: Ragu / takut ditipu</b> → <b>Ajarkan</b>. Pesan serupa berikutnya dijawab dengan naskah "Aman kakk, kami sudah vendor nasional…", bukan langsung dilempar ke CS.</div>
-      </div>`;
-  $$('#teachList .teach-form').forEach((f) => { wireIntent(f); f.onsubmit = (e) => { e.preventDefault(); teach(f); }; });
-  const dismiss = async (el, undo) => {
-    await api('/unrecognised/dismiss', { method:'POST', body: JSON.stringify({ text: el.closest('[data-text]').dataset.text, undo }) });
-    toast(undo ? 'Dipulihkan ke daftar' : 'Diabaikan: tetap diserahkan ke CS'); loadLatih();
-  };
-  $$('#teachList [data-dismiss]').forEach((b) => b.onclick = () => dismiss(b, false));
-  $$('#teachList [data-undismiss]').forEach((b) => b.onclick = () => dismiss(b, true));
-  renderKwList();
-}
-function wireIntent(form) {
-  const i = $('[name=intent]', form), p = $('[name=product]', form);
-  const sync = () => p.classList.toggle('hidden', i.value !== 'product'); i.onchange = sync; sync();
-}
-wireIntent($('#kwForm'));
-async function teach(form) {
-  const data = Object.fromEntries(new FormData(form));
-  try { const r = await api('/keywords', { method:'POST', body: JSON.stringify(data) }); toast(r.pattern ? `"${r.phrase}" ditambahkan ke pola ${r.pattern}` : `Kata kunci "${r.phrase}" diajarkan`); form.reset?.(); polaLoaded = false; loadLatih(); }
-  catch (err) { toast('Gagal: ' + err.message); }
-}
-$('#kwForm').onsubmit = (e) => { e.preventDefault(); teach(e.target); };
-async function removeKw(id) { await api('/keywords/' + id, { method:'DELETE' }); toast('Kata kunci dihapus'); loadLatih(); }
-
-/** Every keyword (bawaan and tim) by what it means; product keywords live on the Produk page. */
-function renderKwList() {
-  const q = ($('#kwSearch')?.value || '').trim().toLowerCase();
-  const all = kwMeta.keywords.filter((k) => k.intent !== 'product' && (!q || k.phrase.includes(q)));
-  const groups = kwMeta.intents.filter((i) => i !== 'product');
-  const productCount = kwMeta.keywords.filter((k) => k.intent === 'product').length;
-  $('#kwList').innerHTML = groups.map((intent) => {
-    const list = all.filter((k) => k.intent === intent);
-    if (!list.length && q) return '';
-    return `<details class="kwgroup" ${q ? 'open' : ''}><summary><b>${esc(INTENT[intent] || intent)}</b> <span class="small muted">${list.length} kata kunci</span></summary>
-      <div class="kwrows">${list.map((k) => `<div class="kwrow"><span class="kwp">${esc(k.phrase)}</span>${k.source === 'tim' ? '<span class="pill good" style="padding:0 7px">tim</span>' : '<span class="pill quiet" style="padding:0 7px">bawaan</span>'}
-        <button class="mini" onclick="editKw(${k.id})" title="Ubah">✎</button><button class="mini" onclick="removeKw(${k.id})" title="Hapus">✕</button></div>`).join('') || '<div class="small muted">Kosong. Tambah lewat formulir di atas.</div>'}</div></details>`;
-  }).join('') + `<div class="small muted" style="margin-top:10px">${productCount} kata kunci produk diatur di halaman <a href="#produk" data-goto="produk">Produk</a>. Kata kunci Lokasi, Pengiriman, Ragu, Minimal order ada di <a href="#pola" data-goto="pola">Pola jawaban</a>.</div>`;
-}
-/* ------------------------------------------------------------- kamus --- */
-// Every word list the bot reads (src/bot/words.js): add, change, delete.
-let kamusLists = [], kamusWords = [];
-async function loadKamus(list) {
-  const name = list || $('#kamusList').value || 'singkatan';
-  const r = await api('/words?list=' + encodeURIComponent(name));
-  kamusLists = r.lists; kamusWords = r.words;
-  $('#kamusList').innerHTML = kamusLists.map((l) => `<option value="${esc(l.name)}" ${l.name === name ? 'selected' : ''}>${esc(l.label)} (${l.count})</option>`).join('');
-  renderKamus();
-}
-function renderKamus() {
-  const meta = kamusLists.find((l) => l.name === $('#kamusList').value) || {};
-  $('#kamusHelp').textContent = meta.help || '';
-  $('#kamusForm [name=value]').classList.toggle('hidden', !meta.pairs);
-  $('#kamusForm [name=value]').required = Boolean(meta.pairs);
-  const q = $('#kamusSearch').value.trim().toLowerCase();
-  const rows = kamusWords.filter((w) => !q || w.word.includes(q) || String(w.value || '').includes(q));
-  $('#kamusRows').innerHTML = rows.map((w) => `<div class="kwrow"><span class="kwp">${esc(w.word)}${meta.pairs ? ` <span class="muted">→</span> ${esc(w.value)}` : ''}</span>${w.source === 'tim' ? '<span class="pill good" style="padding:0 7px">tim</span>' : '<span class="pill quiet" style="padding:0 7px">bawaan</span>'}
-    <button class="mini" onclick="editWord(${w.id})" title="Ubah">✎</button><button class="mini" onclick="removeWord(${w.id})" title="Hapus">✕</button></div>`).join('') || '<div class="small muted">Kosong.</div>';
-}
-$('#kamusList').onchange = () => loadKamus($('#kamusList').value);
-$('#kamusSearch').oninput = renderKamus;
-$('#kamusForm').onsubmit = async (e) => {
-  e.preventDefault();
-  const f = e.target;
-  try { await api('/words', { method:'POST', body: JSON.stringify({ list: $('#kamusList').value, word: f.word.value, value: f.value.value || null }) }); f.reset(); toast('Ditambahkan, langsung berlaku'); loadKamus(); }
-  catch { /* shown in the error pop-up */ }
-};
-async function editWord(id) {
-  const w = kamusWords.find((x) => x.id === id); if (!w) return;
-  const meta = kamusLists.find((l) => l.name === w.list) || {};
-  const word = prompt('Kata:', w.word); if (word === null) return;
-  const value = meta.pairs ? prompt('Dibaca sebagai:', w.value || '') : null; if (meta.pairs && value === null) return;
-  try { await api('/words/' + id, { method:'PUT', body: JSON.stringify(meta.pairs ? { word, value } : { word }) }); toast('Diubah, langsung berlaku'); loadKamus(); }
-  catch { /* shown in the error pop-up */ }
-}
-async function removeWord(id) {
-  const w = kamusWords.find((x) => x.id === id);
-  if (!confirm(`Hapus "${w?.word}" dari kamus?`)) return;
-  try { await api('/words/' + id, { method:'DELETE' }); toast('Dihapus'); loadKamus(); }
-  catch { /* shown in the error pop-up */ }
-}
-
-async function editKw(id) {
-  const k = kwMeta.keywords.find((x) => x.id === id); if (!k) return;
-  const phrase = prompt('Ubah kata kunci:', k.phrase); if (phrase === null || phrase.trim() === k.phrase) return;
-  try { const r = await api('/keywords/' + id, { method:'PUT', body: JSON.stringify({ phrase }) }); toast(`Diubah jadi "${r.phrase}"`); loadLatih(); }
-  catch (err) { toast('Gagal: ' + err.message); }
-}
-
-/* --------------------------------------------------------- statistik --- */
 let statDays = 30, lastStats = null;
 $$('#rangeChips .chip').forEach((b) => b.onclick = () => { statDays = Number(b.dataset.d); $$('#rangeChips .chip').forEach((x) => x.classList.toggle('on', x === b)); loadStatistik(); });
 
@@ -1889,13 +1557,12 @@ function renderStatistik() {
   hbars($('#chHandover'), a.handovers, { label: (r) => r.reason, value: (r) => r.n });
   const first = a.funnel[0]?.n || 0;
   hbars($('#chFunnel'), first ? a.funnel : [], { label: (r) => `${r.stage}${first ? ' · ' + Math.round(r.n / first * 100) + '%' : ''}`, value: (r) => r.n });
-  hbars($('#chPatterns'), a.patterns, { label: (r) => r.name, value: (r) => r.n });
-  if (!a.patterns.length) $('#chPatterns').innerHTML = '<div class="empty">Belum ada pola yang terpakai. Buat di halaman <a href="#pola" data-goto="pola">Pola jawaban</a>.</div>';
 }
 function rerenderCharts() { renderStatistik(); }
 let resizeTimer; addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(rerenderCharts, 150); });
 
 /* -------------------------------------------------------------- media --- */
+let kwMeta = null;
 const withKey = (url) => key ? url + (url.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key) : url;
 const kb = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
 let mediaSlots = [];
@@ -2057,7 +1724,7 @@ let settingsLoaded = false;
 function renderAi(ai) {
   $('#aiState').innerHTML = ai.enabled
     ? `<span class="pill good"><span class="dot"></span>aktif · ${esc(ai.model)}</span>`
-    : '<span class="pill quiet">mati · kata kunci saja</span>';
+    : '<span class="pill warn">belum terhubung · jawaban AI belum tersedia</span>';
   $('#aiKeyHint').textContent = ai.keyMasked
     ? `Tersimpan: ${ai.keyMasked} (dari ${ai.keySource}). Kosongkan kalau tidak diubah.`
     : 'Belum ada kunci.';
@@ -2068,8 +1735,6 @@ function renderAi(ai) {
     $('#aiForm [name=aiHost]').value = ai.hostSet ? ai.host : '';
     $('#aiForm [name=aiChatPrompt]').value = ai.chatPrompt || '';
     $('#aiForm [name=aiChatExamples]').value = ai.chatExamples || '';
-    $('#aiForm [name=aiOpeningPrompt]').value = ai.openingPrompt || '';
-    $('#aiForm [name=aiAnswerPrompt]').value = ai.answerPrompt || '';
     $('#aiForm [name=aiPerCustomer]').value = ai.perCustomer ?? '';
     $('#aiForm [name=aiTotal]').value = ai.total ?? '';
     $('#aiForm [name=aiTimeout]').value = ai.timeoutSeconds ?? '';
@@ -2078,7 +1743,7 @@ function renderAi(ai) {
 async function loadAi() { renderAi(await api('/ai')); }
 $('#aiForm').onsubmit = async (e) => {
   e.preventDefault();
-  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, openingPrompt: f.aiOpeningPrompt.value, answerPrompt: f.aiAnswerPrompt.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value, timeoutSeconds: f.aiTimeout.value };
+  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value, timeoutSeconds: f.aiTimeout.value };
   if (f.aiKey.value.trim()) body.key = f.aiKey.value;
   try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify(body) })); f.aiKey.value = ''; toast('Pengaturan AI tersimpan dan langsung berlaku'); loadStatus(); }
   catch (err) { /* shown in the error pop-up */ }
@@ -2104,7 +1769,6 @@ $('#aiTest').onclick = async (e) => {
   finally { e.target.disabled = false; }
 };
 async function loadPengaturan() {
-  loadAi();
   const [{ values, backupSuggestions, lastBackup }, { text }] = await Promise.all([api('/settings'), api('/recap/preview')]);
   $('#recapPreview').textContent = text || 'Belum ada pelanggan sejak rekap terakhir. Rekap akan berisi daftar pelanggan semalam.';
   $('#recapAtHint').textContent = values.recapAt ? '' : `sekarang: ${values.activeUntil}`;
@@ -2116,7 +1780,7 @@ async function loadPengaturan() {
   // Do not overwrite what someone is typing when the page refreshes.
   if (!settingsLoaded || !document.activeElement?.closest('form')) {
     const set = (form, name, v) => { const el = $(`${form} [name=${name}]`); if (el) el.value = v ?? ''; };
-    for (const n of ['botName', 'csName', 'botMode', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'detailWaitDays']) set('#settingsForm', n, values[n]);
+    for (const n of ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'detailWaitDays']) set('#settingsForm', n, values[n]);
     set('#settingsForm', 'holidays', (values.holidays || []).map((h) => `${h.from}${h.to !== h.from ? ' - ' + h.to : ''}${h.label ? ' ' + h.label : ''}`).join('\n'));
     set('#recapForm', 'recapTo', (values.recapTo || []).map((n) => '0' + n.slice(2)).join(', '));
     set('#recapForm', 'recapAt', values.recapAt);
@@ -2155,7 +1819,7 @@ async function saveForm(form, fields) {
   catch (err) { toast('Belum tersimpan: ' + err.message); }
   finally { btn.disabled = false; }
 }
-$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'botMode', 'activeFrom', 'activeUntil', 'handoverHours', 'maxMisses', 'detailWaitDays', 'holidays']); };
+$('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'detailWaitDays', 'holidays']); };
 $('#recapForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['recapTo', 'recapAt']); };
 $('#backupForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['backupDir']); };
 $('#autoForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['autoMessages']); };
@@ -2180,14 +1844,14 @@ async function refresh() {
     await loadStatus();
     if (page === 'ringkasan') await loadRingkasan();
     if (page === 'percakapan') await loadConvs();
-    if (page === 'latih') await loadLatih();
     if (page === 'template' && !tplLoaded) await loadTemplates();
-    if (page === 'pola' && !polaLoaded) await loadPola();
     if (page === 'produk' && !prodLoaded) await loadProduk();
     if (page === 'pengetahuan') await loadPengetahuan();
     if (page === 'coba') await loadUjiAi();
     if (page === 'statistik') await loadStatistik();
-    if (page === 'media') { kwMeta ??= await api('/keywords'); await loadMedia(); }
+    if (page === 'media') { kwMeta ??= await api('/products'); await loadMedia(); }
+    if (page === 'promo') await loadPromotions();
+    if (page === 'ai') await loadAi();
     if (page === 'pengaturan') await loadPengaturan();
     if (page === 'log') await loadLog();
     $('#footInfo').textContent = `Versi ${info.version}${info.commit ? ' (' + info.commit + ')' : ''} · diperbarui ` + new Date().toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
@@ -2196,6 +1860,7 @@ async function refresh() {
     $('#footInfo').textContent = err.message;
   } finally { busy = false; }
 }
+setupNavigation();
 go(location.hash.slice(1) || 'ringkasan');
 setInterval(() => { if (['ringkasan', 'percakapan', 'log'].includes(page) && !document.hidden) refresh(); else loadStatus().catch(() => {}); pollErrors(); }, 5000);
 pollErrors();

@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { normalise } from '../text.js';
 import { wordMap, wordSet } from './words.js';
 import { fillText, replies } from './replies.js';
+import { isSizeQuestion, sizeChartActions } from './media-plan.js';
 
 /**
  * The reply flow from SPEK-CHATBOT.md as a pure function.
@@ -179,6 +180,9 @@ export function decide(conversation, classified, media, { random = Math.random }
         const question = productQuestions(state().product)[i];
         if (!question) return false;
 
+        if (getProduct(state().product)?.sizeChart && isSizeQuestion(question) && media.has('size-chart', state().product, 'reguler')) {
+            actions.push(...sizeChartActions(media, state().product));
+        }
         say(fillText(question, { nama: state().name ?? '', produk: productName(state().product) }));
         patch.detail_index = i;
         patch.step = 'awaiting_detail';

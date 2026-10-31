@@ -3,6 +3,8 @@ import path from 'node:path';
 import { config } from '../config.js';
 import { recordActivity } from '../activity.js';
 import { logger } from '../logger.js';
+import { db } from '../db.js';
+import { cancelDeliveries, completeDelivery, enqueueDelivery, pendingDeliveries } from '../delivery.js';
 import { classify as defaultClassify } from './classify.js';
 import { isAutoMessage, releaseAutoHandovers } from './auto-messages.js';
 import { chatTurn } from './chat.js';
@@ -45,6 +47,7 @@ export class Bot {
 
         this.buffers = new Map();
         this.queues = new Map();
+        this.deliveries = new Map();
         // "session|jid" -> when the WhatsApp Business Salam went out to a new customer.
         this.autoGreeted = new Map();
         this.log = logger.child({ part: 'bot' });
@@ -55,6 +58,7 @@ export class Bot {
      *                   action is { type: 'text', text } or { type: 'file', file }
      */
     onIncoming(sessionKey, transport, { jid, id, text = '', hasImage = false, hasAudio = false, attachment = null, quoted = null, selfTest = false }) {
+        if (this.store.hasReceived?.(sessionKey, jid, id)) return;
         // A picture, location or file without words is logged by what it is, so CS sees it in Percakapan.
         this.store.logMessage({ sessionKey, jid, direction: 'in', waMessageId: id, text: text || attachment?.note || '' });
 
@@ -115,6 +119,7 @@ export class Bot {
         if (!id || this.store.isBotMessage(id)) {
             return;
         }
+        if (this.store.hasReceived?.(sessionKey, jid, id)) return;
 
         // WhatsApp Business sent its own Salam / away message: not CS, the bot carries on.
         if (isAutoMessage(text)) {
@@ -144,6 +149,7 @@ export class Bot {
 
         // Refresh even when already handed over, so the silence lasts from CS's last reply.
         this.store.markHandover(sessionKey, jid, 'CS membalas');
+        cancelDeliveries(sessionKey, jid);
 
         const key = `${sessionKey}|${jid}`;
         clearTimeout(this.buffers.get(key)?.timer);
@@ -168,6 +174,13 @@ export class Bot {
         // The night may have ended while we were waiting.
         if (!selfTest && !this.isActive()) return;
 
+        // Finish the previous turn before generating another reply.
+        await this.flushPending(sessionKey, transport, jid).catch((error) => {
+            // The new customer's text must still be processed and queued. The
+            // previous turn's state was committed with its pending deliveries.
+            this.log.info({ jid, err: error.message }, 'balasan sebelumnya masih dalam antrean');
+        });
+
         const conversation = this.store.loadConversation(sessionKey, jid);
 
         if (conversation.step === 'handed_over') return;
@@ -186,7 +199,7 @@ export class Bot {
             // A new (or started-over) conversation: the lines of the old one are not its context.
             const history = conversation.step === 'new' ? [] : this.store.recentHistory?.(sessionKey, jid, texts.length, 12) ?? [];
             const turn = await this.chat(conversation, { text, hasImage, hasAudio, attachments, history, who: key, autoGreeted: salamRecent }, { media: this.media });
-            const classified = { intent: turn.silent ? 'ai_diam' : 'ai', source: 'ai' };
+            const classified = { intent: turn.silent ? 'ai_diam' : 'ai', source: 'ai', selfTest };
 
             this.store.tagIncoming(sessionKey, jid, classified.intent);
             // CS may have replied while the AI was writing.
@@ -208,6 +221,7 @@ export class Bot {
             // The last few lines before this message, so the AI gets "yang tadi", "itu".
             history: this.store.recentHistory?.(sessionKey, jid, texts.length) ?? [],
         });
+        classified.selfTest = selfTest;
 
         // Team patterns show up by name in Statistik ("pola: Ukuran").
         this.store.tagIncoming(sessionKey, jid, classified.intent === 'custom' ? `pola: ${classified.pattern.name}` : classified.intent);
@@ -236,6 +250,12 @@ export class Bot {
             detail: `"${text.slice(0, 120)}" · ${conversation.step} → ${patch.step ?? conversation.step}`,
         });
 
+        db.transaction(() => this.#queueTurn(sessionKey, transport, jid, conversation, classified, actions, patch, who))();
+        await this.flushPending(sessionKey, transport, jid);
+    }
+
+    /** State and every outgoing bubble are committed together before sending. */
+    #queueTurn(sessionKey, transport, jid, conversation, classified, actions, patch, who) {
         let handover = null;
 
         const outgoing = actions.flatMap((action) => {
@@ -302,7 +322,7 @@ export class Bot {
                 intent: classified.intent,
             });
 
-            await transport.send(jid, action, id);
+            enqueueDelivery(sessionKey, jid, classified.selfTest ? { ...action, selfTest: true } : action, id, classified.intent, false);
         }
 
         // Everything was a repeat: the bot has nothing new to say, so a person should look.
@@ -311,7 +331,11 @@ export class Bot {
             handover = 'pesan berulang';
 
             const notice = replies.handoverNotice();
-            if (notice) await this.#sendNote(sessionKey, transport, jid, notice);
+            if (notice) {
+                const id = transport.newMessageId();
+                this.store.logMessage({ sessionKey, jid, direction: 'out', waMessageId: id, text: notice });
+                enqueueDelivery(sessionKey, jid, { type: 'text', text: notice }, id, classified.intent);
+            }
         }
 
         // A handover is stored by markHandover, which also stamps the time.
@@ -330,12 +354,55 @@ export class Bot {
         }
     }
 
-    /** Internal message (the morning recap). Logged first, like every bot message. */
-    async sendNotice(sessionKey, transport, jid, text) {
-        const id = transport.newMessageId();
+    /** Replayed on reconnect and periodically. Each chat has only one sender. */
+    async flushPending(sessionKey, transport, onlyJid = null) {
+        const jids = [...new Set(pendingDeliveries(sessionKey, onlyJid).map((row) => row.jid))];
+        const results = await Promise.allSettled(jids.map((jid) => {
+            const key = `${sessionKey}|${jid}`;
+            if (this.deliveries.has(key)) return this.deliveries.get(key);
+            const sending = this.#flushChat(sessionKey, transport, jid).finally(() => this.deliveries.delete(key));
+            this.deliveries.set(key, sending);
+            return sending;
+        }));
+        const failure = results.find((r) => r.status === 'rejected');
+        if (failure) throw failure.reason;
+    }
 
-        this.store.logMessage({ sessionKey, jid, direction: 'out', waMessageId: id, text, intent: 'rekap' });
-        await transport.send(jid, { type: 'text', text }, id);
+    async #flushChat(sessionKey, transport, jid) {
+        while (true) {
+            const row = pendingDeliveries(sessionKey, jid)[0];
+            if (!row) return;
+            // CS can take over while a previous bubble is awaiting the network.
+            const conv = this.store.loadConversation(sessionKey, jid);
+            if (!row.staff && ['CS membalas', 'diambil alih dari konsol'].includes(conv.handover_reason)) {
+                cancelDeliveries(sessionKey, jid);
+                return;
+            }
+            if (!row.staff && Date.now() - Date.parse(`${row.created_at.replace(' ', 'T')}Z`) > 15 * 60000) {
+                cancelDeliveries(sessionKey, jid);
+                this.store.markHandover(sessionKey, jid, 'balasan gagal terkirim lebih dari 15 menit');
+                this.log.warn({ jid, messageId: row.id }, 'balasan tertunda terlalu lama; perlu ditindaklanjuti CS');
+                return;
+            }
+            if (!row.staff && !this.isActive() && !row.action.selfTest) return;
+            // Recheck the row: a reset / CS takeover may have removed it while sending.
+            if (!pendingDeliveries(sessionKey, jid).some((r) => r.id === row.id)) continue;
+            await transport.send(jid, row.action, row.id);
+            completeDelivery(row.id);
+        }
+    }
+
+    /** Internal message (the morning recap). Logged first, like every bot message. */
+    async sendNotice(sessionKey, transport, jid, text, deliveryId = null) {
+        const id = deliveryId ?? transport.newMessageId();
+
+        db.transaction(() => {
+            if (!this.store.isBotMessage(id)) {
+                this.store.logMessage({ sessionKey, jid, direction: 'out', waMessageId: id, text, intent: 'rekap' });
+                enqueueDelivery(sessionKey, jid, { type: 'text', text }, id, 'rekap', true);
+            }
+        })();
+        await this.flushPending(sessionKey, transport, jid);
     }
 
     /** Answers every collected batch now instead of after the debounce; for shutdown and tests. */

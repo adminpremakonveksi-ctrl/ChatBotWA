@@ -22,6 +22,7 @@ import { MIME } from './bot/media.js';
 import { config } from './config.js';
 import { now, run } from './db.js';
 import { logger } from './logger.js';
+import { pendingDeliveries, rememberRetryMessage, retryMessage } from './delivery.js';
 
 const MAX_BACKOFF_MS = 60000;
 const RECONNECTS_BEFORE_ALERT = 3;
@@ -56,7 +57,10 @@ export const isRecentCatchUp = (message, now = Date.now()) => now / 1000 - Numbe
 
 /** One WhatsApp number: its socket, its pairing state and its reconnect loop. */
 export class Session {
-    constructor(row, bot) {
+    constructor(row, bot, deps = {}) {
+        this.makeSocket = deps.makeSocket ?? makeWASocket;
+        this.fetchVersion = deps.fetchVersion ?? fetchLatestBaileysVersion;
+        this.authState = deps.authState ?? useSqliteAuthState;
         this.bot = bot;
         this.id = row.id;
         this.key = row.key;
@@ -74,6 +78,9 @@ export class Session {
         this.starting = null;
         this.stopping = false;
         this.reconnectTimer = null;
+        this.generation = 0;
+        this.retryCounterCache = makePlaceholderCache();
+        this.decryptCache = makePlaceholderCache(15 * 60000);
         this.log = logger.child({ session: row.key });
         // Baileys is chatty at info (pairing blobs, handshakes); keep its warnings only.
         // Its connection errors that this session handles go to the log file, not the pop-up (baileys-fixes.js).
@@ -90,28 +97,49 @@ export class Session {
         }
 
         this.stopping = false;
-        this.starting = this.#connect().finally(() => {
-            this.starting = null;
+        clearTimeout(this.reconnectTimer);
+        const generation = ++this.generation;
+        const starting = this.#connect(generation).catch(async (error) => {
+            if (this.stopping || generation !== this.generation) return;
+            this.lastError = error.message;
+            this.socket?.end(error);
+            this.socket = null;
+            await this.#setState('disconnected', { last_error: error.message });
+            this.#scheduleReconnect();
+            throw error;
+        }).finally(() => {
+            if (this.starting === starting) this.starting = null;
         });
+        this.starting = starting;
 
         return this.starting;
     }
 
-    async #connect() {
+    async #connect(generation) {
         await this.#setState('connecting');
 
-        const { state, saveCreds, clear } = await useSqliteAuthState(this.id);
+        const { state, saveCreds, clear } = await this.authState(this.id);
         this.clearCredentials = clear;
 
-        const { version } = await fetchLatestBaileysVersion();
+        // This HTTP request used to wait indefinitely when internet disappeared.
+        // Baileys falls back to its bundled version on failure.
+        const { version } = await this.fetchVersion({ timeout: 10000 });
+        if (this.stopping || generation !== this.generation) return;
 
-        const socket = makeWASocket({
+        const connectionLog = sessionHandledLog(this.baileysLog, this.log, () => {
+            if (this.socket === socket && !this.stopping) {
+                // A ping query can fail without Baileys closing its websocket.
+                // Closing explicitly drives the same reconnect path as a drop.
+                socket.end(new Error('Koneksi WhatsApp tidak merespons; menyambung ulang'));
+            }
+        });
+        const socket = this.makeSocket({
             version,
             auth: {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, this.baileysLog),
             },
-            logger: this.baileysLog,
+            logger: connectionLog,
             browser: ['ChatBot Prema', 'Chrome', '1.0.0'],
             markOnlineOnConnect: false,
             syncFullHistory: false,
@@ -138,6 +166,8 @@ export class Session {
             shouldIgnoreJid: (jid) => ignoredJid(jid),
             // Baileys' own cache throws on an empty key from our phone (baileys-fixes.js).
             placeholderResendCache: makePlaceholderCache(),
+            msgRetryCounterCache: this.retryCounterCache,
+            getMessage: async (key) => retryMessage(this.key, key),
         });
 
         this.socket = socket;
@@ -145,12 +175,15 @@ export class Session {
         // Our phone sends by LID while its encryption session was made under the
         // number: read those messages with that session (see lid.js). Without it
         // a reply CS typed on the phone could not be decrypted and went unseen.
-        withLidFallback(socket.signalRepository);
+        withLidFallback(socket.signalRepository, undefined, this.decryptCache);
         this.#learnOwnLid(state.creds.me);
         // Linked-profile "mex" notifications are not channel ones (baileys-fixes.js).
         fixMexNotifications(socket);
 
-        socket.ev.on('creds.update', saveCreds);
+        socket.ev.on('creds.update', () => {
+            if (this.stopping || generation !== this.generation || this.socket !== socket) return;
+            saveCreds().catch((error) => this.log.error({ err: error.message }, 'gagal menyimpan sesi WhatsApp'));
+        });
         // WhatsApp sends our own LID after the connection opens (creds.me has
         // only the number until then), so the pair is learnt when it arrives.
         // Without it, our phone's messages by LID were never retried with the
@@ -158,11 +191,20 @@ export class Session {
         socket.ev.on('creds.update', (update) => {
             if (update?.me) this.#learnOwnLid({ ...state.creds.me, ...update.me });
         });
-        socket.ev.on('connection.update', (update) => this.#onConnectionUpdate(update));
-        socket.ev.on('messages.upsert', (event) => this.#onMessages(event));
+        socket.ev.on('connection.update', (update) => {
+            if (this.stopping || generation !== this.generation || this.socket !== socket) return;
+            this.#onConnectionUpdate(update, socket).catch((error) => {
+                this.log.error({ err: error.message }, 'gagal memproses status WhatsApp');
+                if (!this.stopping && generation === this.generation) this.#scheduleReconnect();
+            });
+        });
+        socket.ev.on('messages.upsert', (event) => {
+            if (this.stopping || generation !== this.generation || this.socket !== socket) return;
+            this.#onMessages(event).catch((error) => this.log.error({ err: error.message }, 'gagal memproses pesan WhatsApp'));
+        });
     }
 
-    async #onConnectionUpdate({ connection, lastDisconnect, qr }) {
+    async #onConnectionUpdate({ connection, lastDisconnect, qr }, socket) {
         if (qr) {
             this.qr = await QRCode.toDataURL(qr, { margin: 1, width: 360 });
             // WhatsApp rotates the pairing code roughly every 20 seconds.
@@ -189,8 +231,17 @@ export class Session {
                 last_connected_at: now(),
                 last_error: null,
             });
+            if (this.stopping || this.socket !== socket) return;
 
             this.log.info({ number: this.phoneNumber }, 'tersambung');
+            clearTimeout(this.reconnectTimer);
+            clearInterval(this.deliveryTimer);
+            const flush = () => this.bot.flushPending?.(this.key, this)?.catch((error) => {
+                this.log.warn({ err: error.message, pending: pendingDeliveries(this.key).length }, 'balasan tertunda, akan dikirim ulang otomatis');
+            });
+            flush();
+            this.deliveryTimer = setInterval(flush, 30000);
+            this.deliveryTimer.unref?.();
             this.#learnOwnLid(this.socket?.user);
 
             // Read the WhatsApp Business catalog once the connection has settled
@@ -206,6 +257,7 @@ export class Session {
             // A catalog read waiting for its retry belongs to this connection; the next one schedules its own.
             clearTimeout(this.catalogRetry);
             clearInterval(this.catalogTimer);
+            clearInterval(this.deliveryTimer);
 
             const statusCode = lastDisconnect?.error?.output?.statusCode ?? null;
             const loggedOut = statusCode === DisconnectReason.loggedOut;
@@ -245,25 +297,34 @@ export class Session {
                 return;
             }
 
-            const delay = Math.min(MAX_BACKOFF_MS, 2000 * 2 ** this.attempts++);
-            this.log.info({ delay, statusCode, error: this.lastError }, 'menyambung ulang');
-            // One drop is normal (WhatsApp's 515 after connecting, a network blip) and is
-            // retried quietly; still down after a few tries needs a person: said once, raw.
-            if (this.attempts === RECONNECTS_BEFORE_ALERT) {
-                this.log.error(
-                    { statusCode, error: this.lastError, attempts: this.attempts },
-                    `WhatsApp belum tersambung lagi setelah ${this.attempts} kali mencoba; bot terus mencoba`,
-                );
-            }
-
-            this.reconnectTimer = setTimeout(() => {
-                this.start().catch((error) => this.log.error(error, 'gagal menyambung ulang'));
-            }, delay);
+            this.#scheduleReconnect(statusCode);
         }
+    }
+
+    #scheduleReconnect(statusCode = null) {
+        if (this.stopping || ['logged_out', 'replaced'].includes(this.state)) return;
+        clearTimeout(this.reconnectTimer);
+        const delay = Math.min(MAX_BACKOFF_MS, 2000 * 2 ** Math.min(this.attempts++, 6));
+        this.log.info({ delay, statusCode, error: this.lastError }, 'menyambung ulang');
+        // One drop is normal (WhatsApp's 515 after connecting, a network blip) and is
+        // retried quietly; still down after a few tries needs a person: said once, raw.
+        if (this.attempts === RECONNECTS_BEFORE_ALERT) {
+            this.log.error(
+                { statusCode, error: this.lastError, attempts: this.attempts },
+                `WhatsApp belum tersambung lagi setelah ${this.attempts} kali mencoba; bot terus mencoba`,
+            );
+        }
+
+        this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            this.start().catch((error) => this.log.error(error, 'gagal menyambung ulang'));
+        }, delay);
+        this.reconnectTimer.unref?.();
     }
 
     async #onMessages({ messages, type }) {
         for (const message of messages) {
+            if (message.key?.fromMe && this.bot.isBotMessage(message.key.id)) rememberRetryMessage(this.key, message);
             // Which LID is which number (WhatsApp sends both); then one customer
             // is one conversation, whether a message came by number or by LID.
             learnFromKey(message.key);
@@ -349,15 +410,23 @@ export class Session {
             throw new Error(`Nomor "${this.label}" sedang tidak tersambung`);
         }
 
+        const socket = this.socket;
         try {
-            await this.socket.sendPresenceUpdate('composing', jid);
+            await socket.sendPresenceUpdate('composing', jid);
             await sleep(config.bot.typingMs);
-            await this.socket.sendPresenceUpdate('paused', jid);
+            await socket.sendPresenceUpdate('paused', jid);
         } catch {
             /* presence is cosmetic */
         }
 
-        await this.socket.sendMessage(jid, Session.content(action), { messageId });
+        if (this.socket !== socket || this.state !== 'connected') throw new Error('Connection Closed');
+        try {
+            const result = await socket.sendMessage(jid, Session.content(action), { messageId });
+            rememberRetryMessage(this.key, result);
+        } catch (error) {
+            if (this.socket === socket && /connection closed|timed? ?out|econnreset|enotfound/i.test(error.message)) socket.end(error);
+            throw error;
+        }
     }
 
     /**
@@ -424,11 +493,15 @@ export class Session {
      * pop-up). Meanwhile the bot keeps sending the shop's catalog link.
      */
     async syncCatalogWithRetry(attempt = 0) {
+        const socket = this.socket;
+        if (this.catalogSyncing === socket) return;
+        this.catalogSyncing = socket;
         try {
             if (this.state !== 'connected' || !this.socket) return;
 
-            await syncCatalog(this.socket);
+            await syncCatalog(socket, { isCurrent: () => this.socket === socket && this.state === 'connected' });
         } catch (error) {
+            if (this.socket !== socket || this.state !== 'connected') return;
             const retry = CATALOG_RETRY_MS[attempt];
 
             if (retry != null && /timed? ?out/i.test(error.message)) {
@@ -440,6 +513,15 @@ export class Session {
             }
 
             this.#catalogFailed(error, attempt + 1);
+            if (/timed? ?out|connection closed|econnreset|enotfound/i.test(error.message)) {
+                // Keep the last good catalog and uploaded files usable while
+                // WhatsApp's catalog service is unavailable. Do not give up for 6h.
+                clearTimeout(this.catalogRetry);
+                this.catalogRetry = setTimeout(() => this.syncCatalogWithRetry(), 30 * 60000);
+                this.catalogRetry.unref?.();
+            }
+        } finally {
+            if (this.catalogSyncing === socket) this.catalogSyncing = null;
         }
     }
 
@@ -472,6 +554,9 @@ export class Session {
     }
 
     async stop() {
+        ++this.generation;
+        this.starting = null;
+        clearInterval(this.deliveryTimer);
         clearInterval(this.catalogTimer);
         clearTimeout(this.catalogRetry);
         this.stopping = true;
@@ -490,6 +575,9 @@ export class Session {
 
     /** Unlinks the device on the phone and clears the stored pairing. */
     async logout() {
+        ++this.generation;
+        this.starting = null;
+        clearInterval(this.deliveryTimer);
         this.stopping = true;
         clearInterval(this.catalogTimer);
         clearTimeout(this.catalogRetry);
@@ -522,6 +610,7 @@ export class Session {
             pushName: this.me?.name ?? null,
             hasQr: Boolean(this.qr),
             lastError: this.lastError,
+            pendingMessages: pendingDeliveries(this.key).length,
         };
     }
 

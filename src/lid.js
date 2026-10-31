@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { all, db, get, now, run } from './db.js';
 
 /**
@@ -92,6 +93,7 @@ function mergeConversations(lid, pn) {
     }
 
     run('UPDATE message_log SET jid = ? WHERE jid = ?', [pnJid, lidJid]);
+    run('UPDATE outgoing_queue SET jid = ? WHERE jid = ?', [pnJid, lidJid]);
 }
 
 /** The phone number user of a LID, or null. Our own from memory: it must work before anything is stored. */
@@ -138,10 +140,10 @@ export function learnFromKey(key = {}) {
  * session was made under the number is read with that session. When that
  * fails too, the original error is reported (it names the real address).
  */
-export function withLidFallback(repository, toPn = pnJidOf) {
+export function withLidFallback(repository, toPn = pnJidOf, cache = null) {
     const decrypt = repository.decryptMessage.bind(repository);
 
-    repository.decryptMessage = async (args) => {
+    const attempt = async (args) => {
         try {
             return await decrypt(args);
         } catch (error) {
@@ -156,6 +158,21 @@ export function withLidFallback(repository, toPn = pnJidOf) {
                 throw error;
             }
         }
+    };
+
+    repository.decryptMessage = async (args) => {
+        if (!cache || !Buffer.isBuffer(args?.ciphertext)) return attempt(args);
+        // A duplicate ciphertext must not consume its Signal key twice. Keep
+        // successful decrypts across reconnects; failures still trigger the
+        // library's normal retry receipt / new-key exchange.
+        const key = `${args.jid}|${args.type}|${createHash('sha256').update(args.ciphertext).digest('hex')}`;
+        let result = cache.get(key);
+        if (!result) {
+            result = attempt(args);
+            cache.set(key, result);
+            result.catch(() => cache.del(key));
+        }
+        return Buffer.from(await result);
     };
 
     return repository;
