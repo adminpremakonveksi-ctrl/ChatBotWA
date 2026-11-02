@@ -29,6 +29,20 @@ async function internet(fetchImpl) {
 function whatsapp(main) {
     const raw = main?.lastError ?? '';
     if (!main) return check('wa', 'Nomor WhatsApp tersambung', false, 'Belum ada nomor.', 'Tambahkan nomor dan scan QR di kartu WhatsApp.');
+    if (main.connected && main.healing?.needsRelink) {
+        return check('wa', 'Nomor WhatsApp tersambung', false,
+            `Tersambung (+${main.phoneNumber ?? ''}), tapi pesan dari HP toko tidak bisa dibuka bot: kunci enkripsinya sudah tidak cocok.`,
+            'Pastikan hanya SATU bot yang jalan (tutup/hapus folder bot lain di PC ini atau PC lain). Lalu klik "Scan ulang (kunci baru)" di kartu WhatsApp dan scan dari HP toko. Data chat dan pengaturan tidak hilang.');
+    }
+    const others = Object.keys(main.healing?.otherDevices ?? {});
+    if (main.connected && others.length) {
+        return check('wa', 'Nomor WhatsApp tersambung', false,
+            `Tersambung (+${main.phoneNumber ?? ''}), tapi ada pesan dari perangkat tertaut lain (nomor perangkat ${others.join(', ')}) yang tidak bisa dibuka bot.`,
+            'Ada bot atau WhatsApp Web lain yang memakai nomor ini. Di HP toko buka WhatsApp Business > Perangkat tertaut, lalu lepas semua yang bukan bot ini. Satu nomor, satu bot.');
+    }
+    if (main.connected && main.healing?.selfHealing) {
+        return check('wa', 'Nomor WhatsApp tersambung', true, `+${main.phoneNumber ?? ''} · memperbaiki sendiri sambungan enkripsi dengan HP toko (tidak perlu apa-apa)`);
+    }
     if (main.connected) return check('wa', 'Nomor WhatsApp tersambung', true, `+${main.phoneNumber ?? ''}`);
     const fixes = {
         qr: 'Buka WhatsApp Business di HP toko > Perangkat tertaut > Tautkan perangkat, lalu scan QR di kartu WhatsApp.',

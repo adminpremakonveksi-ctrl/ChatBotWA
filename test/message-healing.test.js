@@ -244,3 +244,113 @@ test('SQLite key writes roll back the whole batch on failure, preserving prekeys
         assert.ok((await state.keys.get('pre-key', ['keep-key']))['keep-key']);
     } finally { db.exec('DROP TRIGGER fail_auth_write'); }
 });
+
+test('an unreadable phone message holds that customer only briefly, then the bot answers (91 stuck, 2026-11-02)', (t) => {
+    const f = fixture(t);
+    f.healing.failed(failure());
+    assert.equal(f.healing.waitingForOwn(failure().key.remoteJid), true, 'held while a resend may still come');
+    f.advance(3 * 60000);
+    assert.equal(f.healing.waitingForOwn(failure().key.remoteJid), false, 'never held forever');
+});
+
+test('messages the phone never resends are released after 30 minutes and reported once an hour with the chats to check', async (t) => {
+    const f = fixture(t);
+    const customer = { key: { remoteJid: '628111@s.whatsapp.net', fromMe: false, id: 'CUST1' }, err: new Error('No matching sessions found for message') };
+    f.healing.failed(failure());
+    f.healing.failed(customer);
+    for (let i = 0; i < 40; i++) {
+        f.advance(60000);
+        await f.healing.tick();
+    }
+    assert.equal(f.healing.status().pending, 0, 'the "memulihkan N pesan" pill clears');
+    assert.equal(f.healing.status().lost, 2);
+    const reports = f.logs.filter((l) => l[0] === 'warn' && /dilepas dari pemulihan/.test(l[2]));
+    assert.equal(reports.length, 1);
+    assert.match(reports[0][2], /1 chat pelanggan perlu dicek langsung di HP/);
+    assert.deepEqual(reports[0][1].customerChats, ['628111@s.whatsapp.net']);
+    assert.match(reports[0][1].err.message, /Invalid PreKey ID/, 'raw error kept');
+
+    // More released within the hour wait for the next report, together.
+    f.healing.failed(failure('LATER'));
+    f.advance(2 * 60 * 60000);
+    await f.healing.tick();
+    assert.equal(f.logs.filter((l) => l[0] === 'warn' && /dilepas dari pemulihan/.test(l[2])).length, 2);
+    assert.equal(f.saved().lost, 3, 'kept across restarts');
+});
+
+test('every phone message unreadable: the bot renews its session with the phone by itself; a new QR only if that fails for 30 minutes', async (t) => {
+    const f = fixture(t);
+    f.socket.user = { id: '6281999911895:12@s.whatsapp.net', lid: '62702630207741:12@lid' };
+    f.socket.assertSessions = async (jids, force) => f.calls.push(['sessions', jids, force]);
+    for (let i = 0; i < 5; i++) f.healing.failed(failure(`OWN${i}`));
+    f.advance(2 * 60000);
+    await f.healing.tick();
+    assert.deepEqual(f.calls.find((c) => c[0] === 'sessions'), ['sessions', ['6281999911895@s.whatsapp.net', '62702630207741@lid'], true], 'fresh session with the phone, device 0, forced');
+    assert.ok(f.calls.findIndex((c) => c[0] === 'sessions') < f.calls.findIndex((c) => c[0] === 'resend'), 'the resend request carries the new session');
+
+    f.advance(3 * 60000);
+    await f.healing.tick();
+    const said = () => f.logs.filter((l) => l[0] === 'warn' && !l[1].quiet);
+    assert.equal(f.healing.status().selfHealing, true);
+    assert.equal(f.healing.status().needsRelink, false);
+    assert.equal(said().length, 0, 'no pop-up while it repairs itself');
+
+    // Repaired: a readable message from the phone ends it, nothing for a person to do.
+    f.healing.received({ id: 'OK', fromMe: true, remoteJid: 'x@lid' });
+    assert.equal(f.healing.status().ownSessionBroken, false);
+
+    // Never repaired: after 30 minutes and two renewals, one actionable alert, kept across restarts.
+    f.advance(1000);
+    for (let i = 0; i < 5; i++) f.healing.failed(failure(`AGAIN${i}`));
+    for (let i = 0; i < 40; i++) { f.advance(60000); await f.healing.tick(); }
+    assert.ok(f.calls.filter((c) => c[0] === 'sessions').length >= 3);
+    assert.equal(f.healing.status().needsRelink, true);
+    assert.equal(said().filter((l) => /tidak cocok/.test(l[2])).length, 1);
+    assert.match(said().find((l) => /tidak cocok/.test(l[2]))[2], /perbaikan otomatis 30 menit belum berhasil[\s\S]*Scan ulang/);
+    assert.equal(new MessageHealing(f.options).status().needsRelink, true);
+});
+
+test('a full recovery queue keeps tracking new messages quietly; the oldest goes to the hourly report (02:50 pop-ups, 2026-11-02)', (t) => {
+    const f = fixture(t);
+    for (let i = 0; i < 100; i++) f.healing.failed(failure(`M${i}`));
+    assert.equal(f.healing.failed(failure('NEW')), true, 'still handled, so no pop-up');
+    assert.equal(f.healing.status().pending, 100);
+    assert.equal(f.healing.status().lost, 1);
+    assert.equal(f.saved().pending.some((p) => p.key.id === 'M0'), false, 'the oldest was released');
+    assert.equal(f.saved().unreported.count, 1, 'and is reported, not hidden');
+});
+
+test('the sender device is recorded: the shop phone (device 0) and another linked device are told apart (2026-11-02)', async (t) => {
+    const { deviceOfJid } = await import('../src/message-healing.js');
+    assert.equal(deviceOfJid('6281999911895@s.whatsapp.net'), 0);
+    assert.equal(deviceOfJid('62702630207741:47@lid'), 47);
+    assert.equal(deviceOfJid(undefined), 0);
+
+    const f = fixture(t);
+    const from = (id, sender) => ({ key: { remoteJid: 'cust@lid', fromMe: true, id }, err: Object.assign(new Error('No matching sessions found for message'), { senderJid: sender, e2eType: 'msg' }) });
+    for (let i = 0; i < 5; i++) f.healing.failed(from(`DEV${i}`, '62702630207741:47@lid'));
+    f.advance(6 * 60000);
+    await f.healing.tick();
+
+    assert.deepEqual(f.healing.status().otherDevices, { 47: 5 });
+    assert.equal(f.healing.status().ownSessionBroken, false, 'not the shop phone: scanning again would not help');
+    assert.equal(f.saved().pending[0].error.sender, '62702630207741:47@lid', 'kept for diagnosis');
+    assert.equal(f.saved().pending[0].error.e2eType, 'msg');
+    const alert = f.logs.find((l) => l[0] === 'warn' && !l[1].quiet);
+    assert.match(alert[2], /perangkat tertaut lain \(nomor perangkat 47\)[\s\S]*Perangkat tertaut/);
+    assert.deepEqual(alert[1].otherDevices, { 47: 5 });
+
+    // The same errors from the phone itself (device 0) are the phone's problem, not another device's.
+    const g = fixture(t);
+    for (let i = 0; i < 5; i++) g.healing.failed(from(`PH${i}`, '62702630207741:0@lid'));
+    assert.deepEqual(g.healing.status().otherDevices, {});
+});
+
+test('the decrypt wrapper tags the error with the sender address and encryption type', async () => {
+    const repository = { decryptMessage: async () => { throw new Error('No session record'); } };
+    withLidFallback(repository, () => null);
+    await assert.rejects(
+        repository.decryptMessage({ jid: '62702630207741:47@lid', type: 'pkmsg', ciphertext: Buffer.from('x') }),
+        (error) => error.senderJid === '62702630207741:47@lid' && error.e2eType === 'pkmsg',
+    );
+});

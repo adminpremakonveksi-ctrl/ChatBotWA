@@ -26,7 +26,20 @@ cooldowns, refreshes prekeys through Baileys, requests phone resend, and alerts
 only after 5 minutes (at most once per 10 minutes). Never erase pairing keys,
 resurrect consumed prekeys, or trust changed identities automatically. Unknown
 crypto errors remain visible. Hold outgoing customer replies while an unreadable
-fromMe message may be CS typing. CIPHERTEXT stubs must not count as recovery.
+fromMe message may be CS typing, but at most 3 minutes (`OWN_HOLD_MS`): a resend
+that never came held customers forever (2026-11-02). Unhealed after 30 minutes →
+released into one hourly report; a full queue releases its oldest, never pop-ups.
+All phone (fromMe) messages unreadable = session with our own phone out of step:
+the bot renews it itself (`assertSessions` forced on our device-0 PN/LID, then
+resend requests carry the new session); "Scan ulang" is asked only after 30
+minutes of failed self-repair. CIPHERTEXT stubs must not count as recovery.
+Every unreadable message records its sender address with device number and e2e type
+(`lid.js` tags the error): device 0 = the shop phone (self-repair above), any other
+device = another linked device (second bot, WhatsApp Web) that only a person can
+unlink on the phone, so `otherDevices` is told apart and named in the alert. Log
+analysis 2026-11-02 (dev PC, 905 messages): 99.9% were fromMe, 77% failed within 2 s
+of a reconnect (WhatsApp redelivers its unacked queue), and "stopped" on 10-29 only
+because the number was unpaired, not fixed.
 
 The user requested AI-only WhatsApp Business operation. This supersedes the
 older two-mode dashboard instructions below. Settings cannot enable naskah;

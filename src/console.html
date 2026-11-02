@@ -823,6 +823,7 @@ async function loadStatus() {
   const main = sessions[0];
   const wa = $('#waPill');
   if (!main) { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Belum ada nomor'; }
+  else if (main.connected && main.healing?.needsRelink) { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Perlu scan ulang: pesan dari HP tidak terbaca'; }
   else if (main.connected) { wa.className = main.pendingMessages || main.pendingIncoming || main.healing?.pending ? 'pill warn' : 'pill good'; wa.innerHTML = `<span class="dot"></span>WhatsApp tersambung${main.healing?.pending ? ` · memulihkan ${num(main.healing.pending)} pesan` : main.pendingIncoming ? ` · ${num(main.pendingIncoming)} pesan menunggu diproses` : main.pendingMessages ? ` · ${num(main.pendingMessages)} pesan menunggu dikirim` : ''}`; }
   else if (main.state === 'qr') { wa.className = 'pill warn pulse'; wa.innerHTML = '<span class="dot"></span>Perlu scan QR'; }
   else if (main.state === 'replaced') { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Nomor dipakai program lain'; }
@@ -897,10 +898,16 @@ async function loadRingkasan() {
   // WhatsApp card
   const wc = $('#waCard');
   if (!main) wc.innerHTML = '<h3>Nomor WhatsApp</h3><p class="hint">Belum ada nomor terdaftar.</p>';
+  else if (main.connected && main.healing?.needsRelink) wc.innerHTML = `<div class="row"><h3 style="flex:1">Pesan dari HP toko tidak terbaca</h3><span class="pill bad"><span class="dot"></span>perlu scan ulang</span></div>
+      <p class="small" style="margin:8px 0">Bot tersambung (+${esc(main.phoneNumber)}), tetapi kunci enkripsi bot dan HP toko sudah tidak cocok, jadi pesan yang dikirim dari HP (CS atau pesan otomatis WhatsApp Business) tidak bisa dibuka. Ini terjadi kalau data bot dipakai dua salinan (misalnya folder bot kedua), atau database lama dikembalikan. Bot sudah mencoba memperbaikinya sendiri selama 30 menit tanpa hasil.</p>
+      <ol class="small"><li>Pastikan hanya <b>satu</b> bot yang jalan: tutup atau hapus folder bot lain di PC ini atau PC lain.</li><li>Klik <b>Scan ulang (kunci baru)</b>, lalu scan QR dari HP toko (WhatsApp Business &gt; Perangkat tertaut). Chat, pengaturan dan data toko tidak hilang.</li></ol>
+      <div class="row" style="gap:8px;margin-top:8px"><button class="btn primary sm" onclick="rescan('${esc(main.key)}')">Scan ulang (kunci baru)</button></div>`;
   else if (main.connected) wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp</h3><span class="pill good"><span class="dot"></span>tersambung</span></div>
       <p style="margin:6px 0 2px;font-size:18px;font-weight:650">+${esc(main.phoneNumber)}</p><p class="hint">${esc(main.pushName || main.label)} · tidak perlu scan ulang setelah PC restart.</p>
       ${main.pendingMessages ? `<p class="hint">${num(main.pendingMessages)} pesan menunggu dikirim. Bot mencoba lagi otomatis.</p>` : ''}
       ${main.pendingIncoming ? `<p class="hint">${num(main.pendingIncoming)} pesan menunggu diproses. Pesan tetap tersimpan dan dicoba lagi otomatis.</p>` : ''}
+      ${Object.keys(main.healing?.otherDevices ?? {}).length ? `<p class="hint" style="color:var(--warn)"><b>Ada perangkat tertaut lain di nomor ini</b> (nomor perangkat ${Object.keys(main.healing.otherDevices).map(esc).join(', ')}): pesannya tidak bisa dibuka bot. Di HP toko buka WhatsApp Business &gt; Perangkat tertaut, lalu lepas yang bukan bot ini.</p>` : ''}
+      ${main.healing?.selfHealing ? '<p class="hint">Sambungan enkripsi dengan HP toko sedang diperbaiki otomatis. Tidak perlu scan ulang; pastikan HP toko online.</p>' : ''}
       ${main.healing?.pending ? `<p class="hint">${num(main.healing.pending)} pesan sedang dipulihkan otomatis.${main.healing.needsAttention ? ' Pemulihan lebih dari 5 menit; pastikan HP utama online dan WhatsApp Business dibuka.' : ' Tidak perlu scan ulang.'}</p>` : ''}
       <button class="btn sm" onclick="rescan('${esc(main.key)}')">Ganti nomor</button>`;
   else if (main.state === 'replaced') wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp dipakai program lain</h3><span class="pill bad"><span class="dot"></span>berhenti</span></div>

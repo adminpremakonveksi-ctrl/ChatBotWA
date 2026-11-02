@@ -130,3 +130,20 @@ test('Siap mulai: no internet, wrong PC clock and a lost WhatsApp each say what 
     assert.match(clock.fix, /Set time automatically/);
     assert.equal(r.checks.find((c) => c.key === 'wa').ok, true);
 });
+
+test('Siap mulai: connected but the phone\'s messages unreadable says to run one bot and scan a new QR', async () => {
+    const manager = { list: () => [{ state: 'connected', connected: true, phoneNumber: '62812', healing: { ownSessionBroken: true, needsRelink: true } }] };
+    const r = await startupChecks({ manager, fresh: true, fetchImpl: async () => ({ ok: true, status: 200, headers: new Headers() }) });
+    const wa = r.checks.find((c) => c.key === 'wa');
+    assert.equal(wa.ok, false);
+    assert.match(wa.fix, /SATU bot[\s\S]*Scan ulang \(kunci baru\)/);
+});
+
+test('Siap mulai: unreadable messages from another linked device say to unlink it on the phone', async () => {
+    const manager = { list: () => [{ state: 'connected', connected: true, phoneNumber: '62812', healing: { otherDevices: { 47: 3 } } }] };
+    const r = await startupChecks({ manager, fresh: true, fetchImpl: async () => ({ ok: true, status: 200, headers: new Headers() }) });
+    const wa = r.checks.find((c) => c.key === 'wa');
+    assert.equal(wa.ok, false);
+    assert.match(wa.detail, /nomor perangkat 47/);
+    assert.match(wa.fix, /Perangkat tertaut[\s\S]*Satu nomor, satu bot/);
+});

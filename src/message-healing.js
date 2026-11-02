@@ -4,6 +4,42 @@ export const recoverableDecrypt = (detail) => Boolean(detail?.key?.id && detail?
     /invalid prekey id|missing signedprekey|no (matching )?sessions?|no session record|bad mac|key used already or never filled/i.test(String(detail.err?.message ?? detail.err ?? '')));
 
 const MINUTE = 60000;
+
+/** Device number in a sender address: "628:47@lid" -> 47; no suffix is the main phone (0). */
+export const deviceOfJid = (jid) => {
+    const head = String(jid ?? '').split('@')[0];
+    const device = head.includes(':') ? Number(head.split(':')[1]) : 0;
+
+    return Number.isInteger(device) && device >= 0 ? device : 0;
+};
+// From our own account's phone (or the sender is unknown), as opposed to another linked
+// device (a second bot, WhatsApp Web): those need a different fix, so they are told apart.
+const fromPhone = (p) => Boolean(p.key.fromMe) && (!p.error.sender || deviceOfJid(p.error.sender) === 0);
+const fromOtherDevice = (p) => Boolean(p.key.fromMe) && Boolean(p.error.sender) && deviceOfJid(p.error.sender) !== 0;
+// An unreadable message "from our phone" may be CS typing, so the bot holds that
+// customer's replies, but only briefly: the bot works outside office hours, when such
+// messages are nearly always WhatsApp Business automatic ones, and a resend that never
+// comes held the customer forever (91 stuck on a client PC, 2026-11-02).
+export const OWN_HOLD_MS = 3 * MINUTE;
+// No resend after this (asked 3 times), or this old in any case: released and reported once.
+export const GIVE_UP_MS = 30 * MINUTE;
+const GIVE_UP_ANYWAY_MS = 2 * 60 * MINUTE;
+// This many messages from our own phone unreadable, none readable since, for 5 minutes:
+// the encryption with the shop's phone is out of step (data used by two copies of the
+// bot, or an old backup restored). No resend fixes that; a fresh link (new QR) does.
+export const OWN_BROKEN_COUNT = 5;
+// Self-healing first: the bot fetches the phone's current keys from WhatsApp and starts a
+// fresh session with it (Baileys assertSessions, force). Its next message to the phone (a
+// resend request, any reply's copy) carries the new session and the phone switches to it.
+// Pairing keys are untouched, so no new QR. Only if that has not worked for this long is a
+// person asked to scan again.
+export const OWN_REFRESH_AFTER_MS = 2 * MINUTE;
+export const RELINK_AFTER_MS = 30 * MINUTE;
+
+/** The shop phone's own addresses (device 0) for the bot's socket: by number and by LID. */
+export const ownPhoneJids = (user) => [user?.id, user?.lid]
+    .filter(Boolean)
+    .map((jid) => { const [address, server] = String(jid).split('@'); return `${address.split(':')[0]}@${server}`; });
 export class MessageHealing {
     constructor({ socket, reconnect, log, clock = Date.now, read = () => null, write = () => {} }) {
         this.socket = socket;
@@ -20,6 +56,14 @@ export class MessageHealing {
                 .map((p) => ({ ...p, since: Math.min(p.since, clock()), requests: Number.isInteger(p.requests) && p.requests >= 0 ? p.requests : 0, lastRequest: time(p.lastRequest) })),
             healed: Number.isInteger(stored?.healed) && stored.healed >= 0 ? stored.healed : 0,
             lastUpload: time(stored?.lastUpload), lastReconnect: time(stored?.lastReconnect), lastAlert: time(stored?.lastAlert),
+            lost: Number.isInteger(stored?.lost) && stored.lost >= 0 ? stored.lost : 0,
+            lastLostReport: time(stored?.lastLostReport),
+            lastBrokenAlert: time(stored?.lastBrokenAlert),
+            ownBrokenSince: time(stored?.ownBrokenSince),
+            lastSessionRefresh: time(stored?.lastSessionRefresh),
+            sessionRefreshes: Number.isInteger(stored?.sessionRefreshes) && stored.sessionRefreshes >= 0 ? stored.sessionRefreshes : 0,
+            ownBroken: stored?.ownBroken === true,
+            unreported: Number.isInteger(stored?.unreported?.count) && Array.isArray(stored.unreported.chats) ? stored.unreported : null,
         };
         if (stored && (!Array.isArray(stored.pending) || stored.pending.length !== this.state.pending.length)) {
             this.log.warn({}, 'status pemulihan lama tidak valid; entri rusak diabaikan');
@@ -33,12 +77,18 @@ export class MessageHealing {
         const key = { ...detail.key };
         if (!this.state.pending.some((p) => p.key.id === key.id)) {
             if (this.state.pending.length >= 100) {
-                this.alert('Terlalu banyak pesan belum terbaca; pemulihan otomatis masih berjalan', detail);
-                return false; // Do not hide errors that cannot be tracked.
+                // Full: the oldest goes to the hourly "dilepas" report (still reported, raw),
+                // so new ones stay tracked instead of a pop-up each (02:50 on a client PC, 2026-11-02).
+                this.release([this.state.pending[0]]);
             }
             this.state.pending.push({
                 key, since: this.clock(), requests: 0, lastRequest: null,
-                error: { name: detail.err?.name, message: String(detail.err?.message ?? detail.err), stack: String(detail.err?.stack ?? '').slice(0, 5000) },
+                error: {
+                    name: detail.err?.name, message: String(detail.err?.message ?? detail.err), stack: String(detail.err?.stack ?? '').slice(0, 5000),
+                    // Who sent it and how it was encrypted (lid.js): the log alone cannot tell the phone from another device.
+                    sender: typeof detail.err?.senderJid === 'string' ? detail.err.senderJid : undefined,
+                    e2eType: typeof detail.err?.e2eType === 'string' ? detail.err.e2eType : undefined,
+                },
             });
             this.save();
         }
@@ -47,6 +97,16 @@ export class MessageHealing {
 
     received(key) {
         this.lastSuccess = this.clock();
+        if (key?.fromMe) {
+            this.lastOwnSuccess = this.clock();
+            if (this.state.ownBroken) {
+                this.state.ownBroken = false;
+                this.state.ownBrokenSince = null;
+                this.state.sessionRefreshes = 0;
+                this.save();
+                this.log.info('pesan dari HP toko terbaca lagi: kunci enkripsi sudah cocok');
+            }
+        }
         const before = this.state.pending.length;
         this.state.pending = this.state.pending.filter((p) => p.key.id !== key?.id);
         if (before !== this.state.pending.length) {
@@ -74,14 +134,51 @@ export class MessageHealing {
         clearInterval(this.timer);
     }
     reset() {
-        this.state = { pending: [], healed: 0, lastUpload: null, lastReconnect: null, lastAlert: null };
+        this.state = { pending: [], healed: 0, lastUpload: null, lastReconnect: null, lastAlert: null, lost: 0, lastLostReport: null, unreported: null, lastBrokenAlert: null, ownBroken: false, ownBrokenSince: null, lastSessionRefresh: null, sessionRefreshes: 0 };
         this.save();
     }
+    /** True when the bot can no longer read the shop's own phone (see OWN_BROKEN_COUNT). */
+    ownSessionBroken() {
+        // Remembered (also across restarts) until a message from the phone is readable again.
+        if (this.state.ownBroken) return true;
+        const own = this.state.pending.filter((p) => fromPhone(p) && p.since > (this.lastOwnSuccess ?? -Infinity));
+        if (own.length < OWN_BROKEN_COUNT || this.clock() - Math.min(...own.map((p) => p.since)) < 5 * MINUTE) return false;
+        this.state.ownBroken = true;
+        this.state.ownBrokenSince ??= this.clock();
+        this.save();
+        return true;
+    }
+    /** Self-healing has not fixed it: a person must link the bot again. */
+    needsRelink() {
+        return this.ownSessionBroken() && (this.state.sessionRefreshes ?? 0) >= 2 && this.clock() - (this.state.ownBrokenSince ?? this.clock()) >= RELINK_AFTER_MS;
+    }
+    /** Other linked devices of this number whose messages cannot be read: { 47: 3, 45: 1 }. */
+    otherDevices() {
+        const devices = {};
+        for (const p of this.state.pending.filter(fromOtherDevice)) {
+            const id = deviceOfJid(p.error.sender);
+            devices[id] = (devices[id] ?? 0) + 1;
+        }
+
+        return devices;
+    }
     status() {
-        return { pending: this.state.pending.length, recovered: this.state.healed, needsAttention: this.state.pending.some((p) => this.clock() - p.since >= 5 * MINUTE) };
+        return { otherDevices: this.otherDevices(), pending: this.state.pending.length, recovered: this.state.healed, lost: this.state.lost, ownSessionBroken: this.ownSessionBroken(), selfHealing: this.ownSessionBroken() && !this.needsRelink(), needsRelink: this.needsRelink(), needsAttention: this.state.pending.some((p) => this.clock() - p.since >= 5 * MINUTE) };
     }
     waitingForOwn(jid, canonical = (value) => value, isBotMessage = () => false) {
-        return this.state.pending.some((p) => p.key.fromMe && canonical(p.key.remoteJid) === canonical(jid) && !isBotMessage(p.key.id));
+        return this.state.pending.some((p) => p.key.fromMe && this.clock() - p.since < OWN_HOLD_MS && canonical(p.key.remoteJid) === canonical(jid) && !isBotMessage(p.key.id));
+    }
+    /** The 5-minute alert: names the other linked devices when those are the senders, since only the person at the phone can fix that. */
+    deadlineAlert(pending) {
+        const others = this.otherDevices();
+        const ids = Object.keys(others);
+        const first = pending.find(fromOtherDevice) ?? pending[0];
+        this.alert(
+            ids.length
+                ? `Pesan dari perangkat tertaut lain (nomor perangkat ${ids.join(', ')}) tidak bisa dibuka setelah 5 menit: ada bot atau WhatsApp Web lain yang memakai nomor ini. Di HP toko buka WhatsApp Business > Perangkat tertaut, lalu lepas semua yang bukan bot ini.`
+                : 'Pesan WhatsApp belum bisa dipulihkan setelah 5 menit; perlu diperiksa',
+            { key: first.key, err: first.error, otherDevices: others },
+        );
     }
     alert(message, detail) {
         if (this.state.lastAlert !== null && this.clock() - this.state.lastAlert < 10 * MINUTE) return;
@@ -89,12 +186,54 @@ export class MessageHealing {
         this.save();
         this.log.warn({ ...detail, pending: this.state.pending.length }, message);
     }
+    /** Out of the queue, into the next hourly report. */
+    release(old) {
+        if (!old.length) return;
+        this.state.pending = this.state.pending.filter((p) => !old.includes(p));
+        this.state.lost += old.length;
+        const report = this.state.unreported ?? { count: 0, fromPhone: 0, chats: [], key: null, err: null };
+        report.count += old.length;
+        report.fromPhone += old.filter((p) => p.key.fromMe).length;
+        report.chats = [...new Set([...report.chats, ...old.filter((p) => !p.key.fromMe).map((p) => p.key.remoteJid)])].slice(0, 50);
+        report.key ??= old[0].key;
+        report.err ??= old[0].error;
+        this.state.unreported = report;
+        this.save();
+    }
+    /** Messages the phone never resent: out of the queue, reported once with the chats to check on the phone. */
+    giveUp() {
+        const now = this.clock();
+        this.release(this.state.pending.filter((p) => (now - p.since >= GIVE_UP_MS && p.requests >= 3) || now - p.since >= GIVE_UP_ANYWAY_MS));
+        // Reported at most once an hour, everything released since the last report together.
+        const report = this.state.unreported;
+        if (!report?.count || (this.state.lastLostReport != null && now - this.state.lastLostReport < 60 * MINUTE)) return;
+        this.state.lastLostReport = now;
+        this.state.unreported = null;
+        this.save();
+        this.log.warn(
+            { lost: report.count, fromPhone: report.fromPhone, customerChats: report.chats, key: report.key, err: report.err },
+            `${report.count} pesan WhatsApp tetap tidak bisa dibuka setelah 30 menit dan dilepas dari pemulihan${report.chats.length ? `; ${report.chats.length} chat pelanggan perlu dicek langsung di HP` : ' (semuanya pesan dari HP toko sendiri)'}`,
+        );
+    }
     tick() {
         if (!this.running) return;
+        this.giveUp();
         // A slow/hung network operation must not block the escalation deadline.
         const pending = this.state.pending;
-        if (pending.length && this.clock() - Math.min(...pending.map((p) => p.since)) >= 5 * MINUTE) {
-            this.alert('Pesan WhatsApp belum bisa dipulihkan setelah 5 menit; perlu diperiksa', { key: pending[0].key, err: pending[0].error });
+        if (this.ownSessionBroken()) {
+            // Repaired automatically first (repair below); a person is asked only once that failed,
+            // once an hour. The generic 5-minute alert would only repeat it.
+            if (this.needsRelink() && (this.state.lastBrokenAlert == null || this.clock() - this.state.lastBrokenAlert >= 60 * MINUTE)) {
+                this.state.lastBrokenAlert = this.clock();
+                this.save();
+                const own = pending.filter(fromPhone);
+                this.log.warn(
+                    { unreadableFromPhone: own.length, key: own[0]?.key, err: own[0]?.error },
+                    'Pesan dari HP toko tidak bisa dibuka bot, dan perbaikan otomatis 30 menit belum berhasil: kunci enkripsi bot dan HP sudah tidak cocok. Pastikan hanya SATU bot yang jalan (hapus/tutup folder bot lain), lalu klik "Scan ulang (kunci baru)" di kartu WhatsApp dan scan dari HP toko.',
+                );
+            }
+        } else if (pending.length && this.clock() - Math.min(...pending.map((p) => p.since)) >= 5 * MINUTE) {
+            this.deadlineAlert(pending);
         }
         const socket = this.socket();
         if (this.working && this.workSocket !== socket) this.working = null;
@@ -122,8 +261,8 @@ export class MessageHealing {
         const pending = this.state.pending;
         if (!pending.length) return;
         const oldest = Math.min(...pending.map((p) => p.since));
-        if (this.clock() - oldest >= 5 * MINUTE) {
-            this.alert('Pesan WhatsApp belum bisa dipulihkan setelah 5 menit; perlu diperiksa', { key: pending[0].key, err: pending[0].error });
+        if (this.clock() - oldest >= 5 * MINUTE && !this.ownSessionBroken()) {
+            this.deadlineAlert(pending);
         }
         const socket = this.socket();
         if (!socket || this.clock() - oldest < 30000) return;
@@ -138,6 +277,21 @@ export class MessageHealing {
             }
         }
         if (!current()) return;
+        // Messages from our own phone unreadable and none readable since: a fresh session with
+        // the phone (at most every 10 minutes), then ask the resends again right away.
+        const own = pending.filter((p) => fromPhone(p) && p.since > (this.lastOwnSuccess ?? -Infinity));
+        const ownJids = ownPhoneJids(socket.user);
+        if (own.length && socket.assertSessions && ownJids.length &&
+            this.clock() - Math.min(...own.map((p) => p.since)) >= OWN_REFRESH_AFTER_MS &&
+            (this.state.lastSessionRefresh == null || this.clock() - this.state.lastSessionRefresh >= 10 * MINUTE)) {
+            this.state.lastSessionRefresh = this.clock();
+            this.state.sessionRefreshes = (this.state.sessionRefreshes ?? 0) + 1;
+            this.save();
+            await socket.assertSessions(ownJids, true);
+            this.log.info({ jids: ownJids, attempt: this.state.sessionRefreshes }, 'sesi enkripsi dengan HP toko diperbarui otomatis (tanpa scan ulang)');
+            for (const p of own) p.lastRequest = null;
+            if (!current()) return;
+        }
         let batch = 0;
         for (const p of [...pending]) {
             if (!current()) return;

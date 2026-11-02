@@ -144,10 +144,22 @@ export function learnFromKey(key = {}) {
 export function withLidFallback(repository, toPn = pnJidOf, cache = null) {
     const decrypt = repository.decryptMessage.bind(repository);
 
+    // Who sent it (with the device number) and how it was encrypted: the library's log only
+    // names the chat, so "from the shop phone" and "from another linked device" looked alike.
+    const tag = (error, args) => {
+        if (error && typeof error === 'object') {
+            error.senderJid ??= args?.jid;
+            error.e2eType ??= args?.type;
+        }
+
+        return error;
+    };
+
     const attempt = async (args) => {
         try {
             return await decrypt(args);
         } catch (error) {
+            tag(error, args);
             const pn = isLid(args?.jid) ? toPn(args.jid) : null;
 
             if (!pn || !/no (matching )?sessions?|no session record|invalid prekey id|missing signedprekey/i.test(String(error?.message))) throw error;

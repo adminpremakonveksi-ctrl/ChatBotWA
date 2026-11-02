@@ -122,11 +122,15 @@ test('handover: the AI reply, then the fixed [7] (and [8] when the order is comp
     assert.deepEqual(texts(complaint.actions), ['Mohon maaf kak 🙏', replies.waitForCs()]);
 });
 
-test('files the AI asks to send go out only when they exist', async () => {
+test('files the AI asks to send must exist and belong to the current product', async () => {
     const ask = async () => answer({ reply: 'Ini size chart dan katalognya kak', send: [{ jenis: 'size_chart', produk: 'kaos' }, { jenis: 'katalog', produk: 'kaos' }, { jenis: 'katalog', produk: 'jersey' }, { jenis: 'size_chart', produk: 'tidak-ada' }] });
-    const r = await withAi(() => chatTurn({ step: 'chat' }, { text: 'boleh lihat contohnya?', who: 't5' }, { media, ask }));
+    const r = await withAi(() => chatTurn({ step: 'chat', product: 'kaos' }, { text: 'boleh lihat contohnya?', who: 't5' }, { media, ask }));
 
-    assert.deepEqual(r.actions.filter((a) => a.type === 'media').map((a) => `${a.kind}:${a.product}`), ['size-chart:kaos', 'katalog:jersey']);
+    assert.deepEqual(r.actions.filter((a) => a.type === 'media').map((a) => `${a.kind}:${a.product}`), ['size-chart:kaos']);
+    const missing = await withAi(() => chatTurn({ step: 'chat', product: 'hoodie' }, { text: 'boleh lihat contohnya?', who: 't5' }, {
+        media, ask: async () => answer({ send: [{ jenis: 'size_chart', produk: 'hoodie' }, { jenis: 'katalog', produk: 'hoodie' }] }),
+    }));
+    assert.ok(!missing.actions.some((a) => a.type === 'media'));
 });
 
 test('the shop data: topics and Q&A are editable, product details hold what is and is not done', () => {

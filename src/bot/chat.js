@@ -579,8 +579,8 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
         actions.push(...sizeChartActions(media, order.produk, r.sizeVariant));
         if (!order.produk) patch.step = 'awaiting_size_chart_product';
         else {
-            const key = `size-chart:${order.produk}:${r.sizeVariant || 'reguler'}`;
-            if (actions.some((a) => a.type === 'media')) order.media_sent[key] = true;
+            const chart = actions.find((a) => a.type === 'media' && a.kind === 'size-chart');
+            if (chart) order.media_sent[`size-chart:${order.produk}:${chart.variant || 'reguler'}`] = true;
             patch.order_info = JSON.stringify(order);
         }
         return { actions, patch };
@@ -655,12 +655,20 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
 
     for (const item of answer.send ?? []) {
         const product = validProduct(item.produk);
+        // The model cannot attach another product's catalog or measurements.
+        // Product selection comes from the customer's context above.
+        if (!product || product !== order.produk) continue;
         if (item.jenis === 'katalog' && media?.has?.('katalog', product) && !actions.some((a) => a.type === 'media' && a.kind === 'katalog' && a.product === product)) actions.push({ type: 'media', kind: 'katalog', product, variant: null });
         if (item.jenis === 'size_chart' && product) {
-            const variant = media?.has?.('size-chart', product, 'reguler') ? 'reguler' : null;
-            if (media?.has?.('size-chart', product, variant) && !actions.some((a) => a.type === 'media' && a.kind === 'size-chart' && a.product === product)) actions.push({ type: 'media', kind: 'size-chart', product, variant });
+            const key = `size-chart:${product}:reguler`;
+            if (!order.media_sent[key] && !actions.some((a) => a.type === 'media' && a.kind === 'size-chart' && a.product === product)) {
+                const chart = sizeChartActions(media, product);
+                actions.push(...chart);
+                if (chart.some((a) => a.type === 'media')) order.media_sent[key] = true;
+            }
         }
     }
+    patch.order_info = JSON.stringify(order);
 
     if (!conv.name && !patch.name && isName(answer.name)) patch.name = answer.name;
 

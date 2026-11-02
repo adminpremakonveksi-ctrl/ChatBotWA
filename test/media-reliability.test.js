@@ -103,3 +103,44 @@ test('a product catalog goes out automatically when AI forgets kirim, and is not
     const next = await withAi(() => chatTurn({ step: 'chat', ...first.patch }, { text: '40 pcs', who: 'media-catalog' }, { media, ask: async () => answer() }));
     assert.ok(!next.actions.some((a) => a.kind === 'katalog'));
 });
+
+test('AI cannot send charts or catalogs for a different product than the customer is discussing', async (t) => {
+    const media = fresh(t);
+    media.save('size-chart:kaos:reguler', JPG);
+    media.save('katalog:jersey', JPG);
+    const turn = await withAi(() => chatTurn({ step: 'chat', product: 'kemeja' }, { text: 'bahannya apa kak?', who: 'media-wrong-product' }, {
+        media,
+        ask: async () => answer({ send: [{ jenis: 'size_chart', produk: 'kaos' }, { jenis: 'katalog', produk: 'jersey' }] }),
+    }));
+    assert.ok(!turn.actions.some((a) => a.type === 'media' && ['kaos', 'jersey'].includes(a.product)));
+    assert.equal(turn.patch.product, 'kemeja');
+});
+
+test('AI-selected size chart includes measurement guidance and is remembered across turns', async (t) => {
+    const media = fresh(t);
+    media.save('size-chart:kaos:reguler', JPG);
+    const ask = async () => answer({ send: [{ jenis: 'size_chart', produk: 'kaos' }] });
+    const first = await withAi(() => chatTurn({ step: 'chat', product: 'kaos' }, { text: 'bahannya apa kak?', who: 'media-chart-state' }, { media, ask }));
+    const pictureAt = first.actions.findIndex((a) => a.kind === 'size-chart');
+    assert.ok(pictureAt >= 0);
+    assert.equal(first.actions[pictureAt + 1].text, replies.sizeChartNote());
+    assert.equal(JSON.parse(first.patch.order_info).media_sent['size-chart:kaos:reguler'], true);
+    const next = await withAi(() => chatTurn({ ...first.patch }, { text: 'oke kak', who: 'media-chart-state' }, { media, ask }));
+    assert.ok(!next.actions.some((a) => a.kind === 'size-chart'));
+    const requested = await chatTurn({ ...first.patch }, { text: 'minta size chart kaos lagi' }, { media, ask: async () => assert.fail('explicit request does not require AI') });
+    assert.ok(requested.actions.some((a) => a.kind === 'size-chart'), 'customer can explicitly ask for the chart again');
+});
+
+test('a variant fallback remembers the chart actually sent before the next size question', async (t) => {
+    const media = fresh(t);
+    media.save('size-chart:kaos:reguler', JPG);
+    const original = getProduct('kaos').info;
+    updateProduct('kaos', { info: { tanya: ['warna', 'rincian ukuran'] } });
+    t.after(() => updateProduct('kaos', { info: original }));
+    const first = await chatTurn({ step: 'chat', product: 'kaos' }, { text: 'minta size chart boxy' }, { media });
+    assert.equal(JSON.parse(first.patch.order_info).media_sent['size-chart:kaos:reguler'], true);
+    const next = await withAi(() => chatTurn({ ...first.patch }, { text: 'navy', who: 'media-fallback-state' }, {
+        media, ask: async () => answer({ answered: [{ hal: 'warna', isi: 'navy' }] }),
+    }));
+    assert.ok(!next.actions.some((a) => a.kind === 'size-chart'), 'regular fallback must not be sent twice');
+});
