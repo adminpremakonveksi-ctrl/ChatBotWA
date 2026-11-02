@@ -81,7 +81,7 @@ test('a newer commit on GitHub says "not the latest bot", once per new version',
     await checkUpdate({ dir, fetchImpl: github('bbbbbbb2222') });
     const warned = errorsSince(before).filter((e) => /belum versi terbaru/.test(e.message));
     assert.equal(warned.length, 1, 'the pop-up shows it once, not every 6 hours');
-    assert.match(warned[0].meaning, /Mulai ChatBot Prema/);
+    assert.match(warned[0].guide.todo, /Mulai ChatBot Prema/);
 
     r = await checkUpdate({ dir, fetchImpl: github('aaaaaaa1111') });
     assert.equal(r.available, false, 'same commit: up to date');
@@ -146,4 +146,13 @@ test('Siap mulai: unreadable messages from another linked device say to unlink i
     assert.equal(wa.ok, false);
     assert.match(wa.detail, /nomor perangkat 47/);
     assert.match(wa.fix, /Perangkat tertaut[\s\S]*Satu nomor, satu bot/);
+});
+
+test('Siap mulai: messages sent as the bot\'s own device number say a second copy shares the link', async () => {
+    const manager = { list: () => [{ state: 'connected', connected: true, phoneNumber: '62812', healing: { selfCopies: 9, otherDevices: {} } }] };
+    const r = await startupChecks({ manager, fresh: true, fetchImpl: async () => ({ ok: true, status: 200, headers: new Headers() }) });
+    const wa = r.checks.find((c) => c.key === 'wa');
+    assert.equal(wa.ok, false);
+    assert.match(wa.detail, /9 pesan[\s\S]*perangkat bot ini sendiri/);
+    assert.match(wa.fix, /kunci tautan yang sama[\s\S]*Mulai ChatBot Prema[\s\S]*Scan ulang \(kunci baru\)/);
 });

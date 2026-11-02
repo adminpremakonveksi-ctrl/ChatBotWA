@@ -301,6 +301,12 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 .errbox.hidden { display:none }
 .errcard { background:var(--panel); color:var(--ink); border:2px solid var(--bad); border-radius:14px; width:min(760px, 100%); max-height:90vh; display:flex; flex-direction:column; padding:18px; box-shadow:0 20px 60px rgba(0,0,0,.4) }
 .errcard #errTitle { color:var(--bad) }
+.errlist { overflow:auto; flex:1; min-height:0 }
+.errone { border-left:5px solid var(--line); border-radius:10px; background:var(--panel-2, var(--line-2)); padding:10px 12px; margin-bottom:12px; font-size:14px; line-height:1.5 }
+.errone.tindak { border-left-color:var(--bad) } .errone.cek { border-left-color:var(--warn) } .errone.info { border-left-color:var(--good) }
+.errone .errlevel { font-weight:700; font-size:13px; letter-spacing:.02em; margin-bottom:6px }
+.errone.tindak .errlevel { color:var(--bad) } .errone.cek .errlevel { color:var(--warn) } .errone.info .errlevel { color:var(--good) }
+.errone pre { margin:6px 0 0; max-height:220px; font-size:11.5px }
 .errcard pre { margin:0; overflow:auto; flex:1; background:var(--bad-soft); color:var(--ink); border-radius:10px; padding:12px; font:12.5px/1.5 ui-monospace, Consolas, monospace; white-space:pre-wrap; word-break:break-word }
 .toast { background:var(--ink); color:var(--bg); padding:10px 14px; border-radius:10px; font-size:13px; box-shadow:0 8px 24px rgba(0,0,0,.2); animation:rise .2s ease-out }
 @keyframes rise { from { transform:translateY(8px); opacity:0 } }
@@ -616,8 +622,9 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 <div class="errbox hidden" id="errBox" role="alertdialog" aria-labelledby="errTitle">
   <div class="errcard">
     <div class="row" style="gap:8px"><b id="errTitle" style="flex:1;font-size:16px">⚠️ Terjadi error</b><span class="small muted" id="errCount"></span></div>
-    <p class="small muted" style="margin:6px 0 10px">Foto layar ini dan kirim ke developer. Isinya error apa adanya.</p>
-    <pre id="errText"></pre>
+    <p class="small muted" style="margin:6px 0 10px">Ikuti langkah di bawah. Kalau masih bingung, foto layar ini dan kirim ke developer: isi detail di bawahnya apa adanya.</p>
+    <div class="errlist" id="errList"></div>
+    <pre id="errText" class="hidden"></pre>
     <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px"><button class="btn" id="errCopy">Salin teks</button><button class="btn primary" id="errClose">Tutup</button></div>
   </div>
 </div>
@@ -630,10 +637,20 @@ const headers = { 'Content-Type': 'application/json', ...(key ? { 'X-Api-Key': k
 // Every error, raw: the client photographs it, the developer reads what failed.
 const errQueue = [];
 let appVersion = '';
+const LEVEL_TEXT = { tindak: 'PERLU TINDAKAN', cek: 'CEK: tindakan hanya kalau berulang', info: 'TIDAK PERLU TINDAKAN: bot memperbaiki sendiri' };
+// What to do about it. The server sends a guide with every error; errors born in this page
+// (the bot cannot be reached, a script failed) get theirs here. None is ever empty.
+function guideFor(e) {
+  if (e.guide) return e.guide;
+  if (e.source === 'konsol → bot') return { level: 'tindak', meaning: 'Halaman ini tidak bisa menghubungi bot: bot belum jalan atau jendelanya tertutup.', todo: '1) Klik "Mulai ChatBot Prema". 2) Tunggu 20 detik, lalu muat ulang halaman (F5).' };
+  if (e.source === 'konsol (browser)') return { level: 'cek', meaning: 'Halaman dashboard mengalami kesalahan sendiri; bot tidak terpengaruh.', todo: '1) Muat ulang halaman (F5). 2) Kalau berulang, tekan "Salin teks" dan kirim ke developer.' };
+  if (e.source === 'bot (server)' && Number(e.detail?.status) < 500) return { level: 'cek', meaning: e.message, todo: '1) Periksa isian yang barusan disimpan dan perbaiki sesuai pesan di atas. 2) Simpan lagi.' };
+  return { level: 'cek', meaning: e.meaning || 'Bot mencatat kesalahan yang belum dikenali.', todo: '1) Muat ulang halaman (F5) dan coba lagi. 2) Kalau berulang, tekan "Salin teks" dan kirim ke developer.' };
+}
+const guideLines = (g) => [`>> ${LEVEL_TEXT[g.level] || LEVEL_TEXT.cek}`, `Artinya : ${g.meaning}`, `Lakukan : ${g.todo}`, ''];
 function errorText(e) {
   const d = e.detail || {};
   const lines = [
-    ...(e.meaning ? [`Artinya : ${e.meaning}`, ''] : []),
     `Waktu   : ${d.time || e.time || new Date().toLocaleString('id-ID')}`,
     `Sumber  : ${e.source || ''}${d.method ? ` ${d.method} ${d.path || ''}` : ''}${d.status ? ` (HTTP ${d.status})` : ''}`,
     `Level   : ${e.level || 'error'}`,
@@ -655,10 +672,22 @@ function showError(e) {
     return;
   }
   errSeen.set(key, 1);
-  errQueue.push(errorText(e));
-  $('#errText').textContent = errQueue.join('\n\n────────────────────────\n\n');
+  const g = guideFor(e);
+  const raw = errorText(e);
+  errQueue.push({ g, raw, full: [...guideLines(g), raw].join('\n') });
+  renderErrors();
   $('#errCount').textContent = errQueue.length > 1 ? `${errQueue.length} error` : '';
   $('#errBox').classList.remove('hidden');
+}
+// One card per error: whether to act, what it means, the steps; the raw text below it for the developer.
+function renderErrors() {
+  $('#errList').innerHTML = errQueue.map(({ g, raw }) => `<div class="errone ${esc(g.level)}">
+    <div class="errlevel">${esc(LEVEL_TEXT[g.level] || LEVEL_TEXT.cek)}</div>
+    <div><b>Artinya</b><br>${esc(g.meaning)}</div>
+    <div style="margin-top:6px"><b>Yang perlu dilakukan</b><br><span style="white-space:pre-line">${esc(String(g.todo).replace(/ (\d\) )/g, '\n$1'))}</span></div>
+    <details style="margin-top:8px"><summary class="small muted">Detail untuk developer</summary><pre>${esc(raw)}</pre></details>
+  </div>`).join('');
+  $('#errText').textContent = errQueue.map((q) => q.full).join('\n\n────────────────────────\n\n');
 }
 document.getElementById('errClose')?.addEventListener('click', () => { errQueue.length = 0; errSeen.clear(); $('#errBox').classList.add('hidden'); });
 document.getElementById('errCopy')?.addEventListener('click', async () => { try { await navigator.clipboard.writeText($('#errText').textContent); toast('Teks error disalin'); } catch {} });
@@ -827,6 +856,7 @@ async function loadStatus() {
   else if (main.connected) { wa.className = main.pendingMessages || main.pendingIncoming || main.healing?.pending ? 'pill warn' : 'pill good'; wa.innerHTML = `<span class="dot"></span>WhatsApp tersambung${main.healing?.pending ? ` · memulihkan ${num(main.healing.pending)} pesan` : main.pendingIncoming ? ` · ${num(main.pendingIncoming)} pesan menunggu diproses` : main.pendingMessages ? ` · ${num(main.pendingMessages)} pesan menunggu dikirim` : ''}`; }
   else if (main.state === 'qr') { wa.className = 'pill warn pulse'; wa.innerHTML = '<span class="dot"></span>Perlu scan QR'; }
   else if (main.state === 'replaced') { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>Nomor dipakai program lain'; }
+  else if (main.reconnecting) { wa.className = 'pill warn pulse'; wa.innerHTML = '<span class="dot"></span>Menyambung ulang…'; }
   else { wa.className = 'pill bad'; wa.innerHTML = '<span class="dot"></span>WhatsApp terputus'; }
   const bp = $('#botPill');
   if (info.botActive) { bp.className = 'pill good pulse'; bp.innerHTML = `<span class="dot"></span>Bot aktif${info.nextChange ? ' · diam dalam ' + countdown(info.nextChange) : ''}`; }
@@ -906,6 +936,7 @@ async function loadRingkasan() {
       <p style="margin:6px 0 2px;font-size:18px;font-weight:650">+${esc(main.phoneNumber)}</p><p class="hint">${esc(main.pushName || main.label)} · tidak perlu scan ulang setelah PC restart.</p>
       ${main.pendingMessages ? `<p class="hint">${num(main.pendingMessages)} pesan menunggu dikirim. Bot mencoba lagi otomatis.</p>` : ''}
       ${main.pendingIncoming ? `<p class="hint">${num(main.pendingIncoming)} pesan menunggu diproses. Pesan tetap tersimpan dan dicoba lagi otomatis.</p>` : ''}
+      ${main.healing?.selfCopies ? `<p class="hint" style="color:var(--warn)"><b>Ada salinan bot lain dengan kunci tautan yang sama</b> (${num(main.healing.selfCopies)} pesan atas nama perangkat bot ini tidak bisa dibuka). Tutup semua salinan lain dengan klik Mulai ChatBot Prema, lalu klik <b>Scan ulang (kunci baru)</b> di bawah dan scan dari HP toko.</p><button class="btn primary sm" onclick="rescan('${esc(main.key)}')">Scan ulang (kunci baru)</button>` : ''}
       ${Object.keys(main.healing?.otherDevices ?? {}).length ? `<p class="hint" style="color:var(--warn)"><b>Ada perangkat tertaut lain di nomor ini</b> (nomor perangkat ${Object.keys(main.healing.otherDevices).map(esc).join(', ')}): pesannya tidak bisa dibuka bot. Di HP toko buka WhatsApp Business &gt; Perangkat tertaut, lalu lepas yang bukan bot ini.</p>` : ''}
       ${main.healing?.selfHealing ? '<p class="hint">Sambungan enkripsi dengan HP toko sedang diperbaiki otomatis. Tidak perlu scan ulang; pastikan HP toko online.</p>' : ''}
       ${main.healing?.pending ? `<p class="hint">${num(main.healing.pending)} pesan sedang dipulihkan otomatis.${main.healing.needsAttention ? ' Pemulihan lebih dari 5 menit; pastikan HP utama online dan WhatsApp Business dibuka.' : ' Tidak perlu scan ulang.'}</p>` : ''}

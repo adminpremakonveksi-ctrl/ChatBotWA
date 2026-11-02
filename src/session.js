@@ -91,6 +91,12 @@ export class Session {
             reconnect: (socket) => {
                 if (socket === this.socket && !this.stopping) socket.end(new Error('Pemulihan enkripsi: menyambung ulang tanpa menghapus sesi'));
             },
+            // Our own device number ("628...:66@s.whatsapp.net" -> 66), to tell our own messages from another device's.
+            ownDevice: () => {
+                const device = /:(\d+)@/.exec(this.socket?.user?.id ?? this.socket?.user?.lid ?? '')?.[1];
+
+                return device === undefined ? null : Number(device);
+            },
             log: this.log,
             read: () => {
                 try { return JSON.parse(getSetting('healing:' + this.key) || 'null'); } catch { return null; }
@@ -208,7 +214,12 @@ export class Session {
         // Our phone sends by LID while its encryption session was made under the
         // number: read those messages with that session (see lid.js). Without it
         // a reply CS typed on the phone could not be decrypted and went unseen.
-        withLidFallback(socket.signalRepository, undefined, this.decryptCache);
+        withLidFallback(socket.signalRepository, undefined, this.decryptCache, async (jid) => {
+            const address = socket.signalRepository.jidToSignalProtocolAddress(jid);
+            const { [address]: record } = await state.keys.get('session', [address]);
+
+            return record;
+        });
         this.#learnOwnLid(state.creds.me);
         // Linked-profile "mex" notifications are not channel ones (baileys-fixes.js).
         fixMexNotifications(socket);
@@ -673,6 +684,8 @@ export class Session {
             label: this.label,
             state: this.state,
             connected: this.state === 'connected',
+            // Between two connections (a drop, or a deliberate reconnect): the dashboard says so instead of a red "terputus".
+            reconnecting: ['disconnected', 'connecting'].includes(this.state) && !this.stopping && Boolean(this.reconnectTimer || this.starting),
             phoneNumber: this.phoneNumber,
             pushName: this.me?.name ?? null,
             hasQr: Boolean(this.qr),

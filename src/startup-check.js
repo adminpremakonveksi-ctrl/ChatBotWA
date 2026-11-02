@@ -34,6 +34,11 @@ function whatsapp(main) {
             `Tersambung (+${main.phoneNumber ?? ''}), tapi pesan dari HP toko tidak bisa dibuka bot: kunci enkripsinya sudah tidak cocok.`,
             'Pastikan hanya SATU bot yang jalan (tutup/hapus folder bot lain di PC ini atau PC lain). Lalu klik "Scan ulang (kunci baru)" di kartu WhatsApp dan scan dari HP toko. Data chat dan pengaturan tidak hilang.');
     }
+    if (main.connected && main.healing?.selfCopies) {
+        return check('wa', 'Nomor WhatsApp tersambung', false,
+            `Tersambung (+${main.phoneNumber ?? ''}), tapi ada ${main.healing.selfCopies} pesan yang dikirim atas nama perangkat bot ini sendiri dan tidak bisa dibuka.`,
+            'Ada salinan bot lain yang memakai kunci tautan yang sama (folder bot yang disalin). Tutup semua salinan lain: klik "Mulai ChatBot Prema" (salinan dari folder lain dimatikan otomatis). Lalu klik "Scan ulang (kunci baru)" di kartu WhatsApp dan scan dari HP toko.');
+    }
     const others = Object.keys(main.healing?.otherDevices ?? {});
     if (main.connected && others.length) {
         return check('wa', 'Nomor WhatsApp tersambung', false,

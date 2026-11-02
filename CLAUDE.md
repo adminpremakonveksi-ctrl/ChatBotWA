@@ -39,7 +39,10 @@ device = another linked device (second bot, WhatsApp Web) that only a person can
 unlink on the phone, so `otherDevices` is told apart and named in the alert. Log
 analysis 2026-11-02 (dev PC, 905 messages): 99.9% were fromMe, 77% failed within 2 s
 of a reconnect (WhatsApp redelivers its unacked queue), and "stopped" on 10-29 only
-because the number was unpaired, not fixed.
+because the number was unpaired, not fixed. Sender device == OUR OWN device number
+(`ownDevice` from socket.user) means another copy shares this link's keys (`selfCopies`,
+not "other device"); a failure for an id that already arrived readable is a
+re-delivery and is ignored (`seen`). Device numbers grow with every re-link.
 
 The user requested AI-only WhatsApp Business operation. This supersedes the
 older two-mode dashboard instructions below. Settings cannot enable naskah;
@@ -115,6 +118,10 @@ Content language is Indonesian. Code and comments are English.
   recognises them so they are not taken for CS typing.
 - Every warn/error log line reaches the console's error pop-up (`src/errors.js`,
   logger hook). Show errors raw; do not soften or hide them: fix the cause.
+  Every one also carries a guide for the person at the PC (`GUIDE` in errors.js: whether
+  to act, what it means, numbered steps), shown above the raw text. A new warn/error needs
+  a guide entry (or `{ quiet: true }`): test/error-guides.test.js scans src/ and fails
+  without one, and the fallback guide still says what to do for unknown errors.
 - WhatsApp addresses people (and our own phone) by LID or by number. `src/lid.js`
   learns the mapping (table lid_map), keeps one conversation per customer, and
   retries a failed LID decrypt with the number's session (CS replies typed on the
@@ -158,6 +165,10 @@ scripts/repo.txt      GitHub repo that "Update" pulls from (public; ZIP download
                       Mulai checks GitHub first and installs a newer version before starting
                       (skipped on a git checkout); Update installs it and stops the bot, does
                       NOT start it, and tells them to click Mulai (client, 2026-10-27).
+                      Mulai also stops copies of this bot running from OTHER folders (client,
+                      2026-11-02: "ChatBotWA-main (1)" in Downloads next to the real one):
+                      matched by src\index.js / launcher.ps1 path + same package name, wrappers
+                      before node, never other Node programs (launcher.ps1 other-copies block).
 ```
 
 The bot logs each outgoing message id **before** sending: WhatsApp echoes the

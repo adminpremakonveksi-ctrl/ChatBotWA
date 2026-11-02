@@ -141,7 +141,7 @@ export function learnFromKey(key = {}) {
  * session was made under the number is read with that session. When that
  * fails too, the original error is reported (it names the real address).
  */
-export function withLidFallback(repository, toPn = pnJidOf, cache = null) {
+export function withLidFallback(repository, toPn = pnJidOf, cache = null, hasSession = null) {
     const decrypt = repository.decryptMessage.bind(repository);
 
     // Who sent it (with the device number) and how it was encrypted: the library's log only
@@ -155,12 +155,26 @@ export function withLidFallback(repository, toPn = pnJidOf, cache = null) {
         return error;
     };
 
+    // Which of the sender's addresses has a stored session: { lid: bool, pn: bool }. Signal sessions are
+    // kept per address and Baileys 6.7 does not join the LID and number forms of one device, so this
+    // tells "no session at all" from "a session under the other form" for each failure.
+    const records = async (jids) => {
+        if (!hasSession) return undefined;
+        const found = {};
+        for (const jid of jids.filter(Boolean)) {
+            try { found[isLid(jid) ? 'lid' : 'pn'] = Boolean(await hasSession(jid)); } catch { /* diagnosis only */ }
+        }
+
+        return found;
+    };
+
     const attempt = async (args) => {
         try {
             return await decrypt(args);
         } catch (error) {
             tag(error, args);
             const pn = isLid(args?.jid) ? toPn(args.jid) : null;
+            if (error && typeof error === 'object') error.records ??= await records([args?.jid, pn]);
 
             if (!pn || !/no (matching )?sessions?|no session record|invalid prekey id|missing signedprekey/i.test(String(error?.message))) throw error;
 

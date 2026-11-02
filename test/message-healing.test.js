@@ -354,3 +354,87 @@ test('the decrypt wrapper tags the error with the sender address and encryption 
         (error) => error.senderJid === '62702630207741:47@lid' && error.e2eType === 'pkmsg',
     );
 });
+
+test('a message sent as OUR OWN device number means a second copy shares this link, not "another device" (2026-11-02, device 66)', async (t) => {
+    const { senderKind } = await import('../src/message-healing.js');
+    const p = (sender) => ({ key: { fromMe: true, id: 'x' }, error: { sender } });
+    assert.equal(senderKind(p('28067997159547:66@lid'), 66), 'self');
+    assert.equal(senderKind(p('28067997159547:66@lid'), 59), 'other');
+    assert.equal(senderKind(p('28067997159547:66@lid'), null), 'other', 'own device unknown: not claimed to be ours');
+    assert.equal(senderKind(p('28067997159547@lid'), 66), 'phone');
+    assert.equal(senderKind(p(undefined), 66), 'phone');
+    assert.equal(senderKind({ key: { fromMe: false }, error: {} }, 66), null);
+
+    const f = fixture(t, { ownDevice: () => 66 });
+    const own = (id) => ({ key: { remoteJid: '44586827268336@lid', fromMe: true, id }, err: Object.assign(new Error('Key used already or never filled'), { senderJid: '28067997159547:66@lid', e2eType: 'pkmsg' }) });
+    for (let i = 0; i < 9; i++) f.healing.failed(own(`SELF${i}`));
+    f.advance(6 * 60000);
+    await f.healing.tick();
+
+    assert.equal(f.healing.status().selfCopies, 9);
+    assert.deepEqual(f.healing.status().otherDevices, {}, 'not blamed on a device that is not there');
+    assert.equal(f.healing.status().ownSessionBroken, false);
+    const alert = f.logs.find((l) => l[0] === 'warn' && !l[1].quiet);
+    assert.match(alert[2], /perangkat bot ini sendiri \(nomor perangkat 66\)[\s\S]*salinan bot lain[\s\S]*Scan ulang/);
+    assert.equal(alert[1].ownDevice, 66);
+    assert.equal(alert[1].err.sender, '28067997159547:66@lid', 'raw detail kept');
+});
+
+test('a message that already arrived readable and is delivered again is not a failure (replayed queue after reconnect)', (t) => {
+    const f = fixture(t);
+    f.healing.received({ id: 'READ1', fromMe: true, remoteJid: 'c@lid' });
+    const dup = { key: { remoteJid: 'c@lid', fromMe: true, id: 'READ1' }, err: Object.assign(new Error('Key used already or never filled'), { senderJid: '1:66@lid' }) };
+
+    assert.equal(f.healing.failed(dup), true, 'handled: no pop-up');
+    assert.equal(f.healing.status().pending, 0, 'not queued, nothing to repair or release');
+    assert.equal(f.logs.filter((l) => l[0] === 'warn').length, 0);
+
+    // A message that never arrived readable is still tracked.
+    assert.equal(f.healing.failed({ ...dup, key: { ...dup.key, id: 'NEVER' } }), true);
+    assert.equal(f.healing.status().pending, 1);
+
+    // The memory is bounded.
+    for (let i = 0; i < 5200; i++) f.healing.received({ id: `M${i}` });
+    assert.ok(f.healing.seen.size <= 5000);
+});
+
+test('a new connection is only forced for messages it can fix: not for another device or a second copy (pill said "terputus" every 10 min)', async (t) => {
+    const unreadable = (id, sender) => ({ key: { remoteJid: 'c@lid', fromMe: true, id }, err: Object.assign(new Error('No matching sessions found for message'), { senderJid: sender }) });
+
+    const other = fixture(t, { ownDevice: () => 59 });
+    for (let i = 0; i < 21; i++) other.healing.failed(unreadable(`O${i}`, '1:66@lid'));
+    for (let i = 0; i < 5; i++) { other.advance(3 * 60000); await other.healing.tick(); }
+    assert.equal(other.reconnects(), 0, '21 messages from another device: reconnecting cannot help');
+
+    const self = fixture(t, { ownDevice: () => 66 });
+    for (let i = 0; i < 21; i++) self.healing.failed(unreadable(`S${i}`, '1:66@lid'));
+    for (let i = 0; i < 5; i++) { self.advance(3 * 60000); await self.healing.tick(); }
+    assert.equal(self.reconnects(), 0, 'nor for a second copy sharing our link');
+
+    const phone = fixture(t);
+    for (let i = 0; i < 5; i++) phone.healing.failed(unreadable(`P${i}`, '1:0@lid'));
+    phone.advance(3 * 60000);
+    await phone.healing.tick();
+    assert.equal(phone.reconnects(), 1, 'the shop phone still gets its bounded reconnect');
+
+    const consolePage = (await import('node:fs')).readFileSync(new URL('../src/console.html', import.meta.url), 'utf8');
+    assert.match(consolePage, /main\.reconnecting[\s\S]{0,120}Menyambung ulang/, 'a reconnect is not shown as a red "terputus"');
+});
+
+test('a failure says which address has a stored session: LID, number, or neither (the cause of "No session record")', async (t) => {
+    const stored = { '628111': true }; // a session exists under the number's address only
+    const repository = {
+        decryptMessage: async () => { throw new Error('No session record'); },
+        jidToSignalProtocolAddress: (jid) => jid.split('@')[0].split(':')[0],
+    };
+    withLidFallback(repository, (jid) => (jid.startsWith('100:') ? '628111:7@s.whatsapp.net' : null), null, async (jid) => stored[repository.jidToSignalProtocolAddress(jid)]);
+
+    let caught;
+    await assert.rejects(repository.decryptMessage({ jid: '100:7@lid', type: 'msg', ciphertext: Buffer.from('x') }), (error) => { caught = error; return true; });
+    assert.deepEqual(caught.records, { lid: false, pn: true }, 'the session is under the number, not under the LID');
+    assert.equal(caught.senderJid, '100:7@lid');
+
+    const f = fixture(t);
+    f.healing.failed({ key: { remoteJid: 'c@lid', fromMe: true, id: 'REC1' }, err: caught });
+    assert.deepEqual(f.saved().pending[0].error.records, { lid: false, pn: true }, 'kept with the failure, for the developer');
+});

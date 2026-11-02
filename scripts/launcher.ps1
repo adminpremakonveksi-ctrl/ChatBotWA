@@ -156,6 +156,56 @@ function Get-BotProcesses {
         Where-Object { $_.CommandLine -and $_.CommandLine -like "*$entry*" }
 }
 
+# BEGIN other-copies
+# A second copy of this bot (another folder, e.g. "ChatBotWA-main (1)" in Downloads) must not run
+# next to this one: two bots on one number fight over the WhatsApp keys and every message turns
+# into "failed to decrypt". Found by the path of its src\index.js (node) or scripts\launcher.ps1
+# (its auto-start wrapper). Only folders that really are this project (same package name and a
+# launcher) are touched, never other Node programs.
+function Get-ProjectName {
+    param([string]$Folder)
+    try { return (Get-Content (Join-Path $Folder 'package.json') -Raw | ConvertFrom-Json).name } catch { return $null }
+}
+
+function Get-OtherBotCopies {
+    param($Processes = $null)
+
+    $mine = Get-ProjectName $root
+    if (-not $mine) { return @() }
+    if ($null -eq $Processes) {
+        $Processes = Get-CimInstance Win32_Process -Filter "Name = 'node.exe' OR Name = 'powershell.exe'"
+    }
+
+    $found = @()
+    foreach ($p in @($Processes)) {
+        if (-not $p.CommandLine -or $p.ProcessId -eq $PID) { continue }
+
+        $folder = $null
+        if ($p.Name -eq 'node.exe' -and $p.CommandLine -match '.*([A-Za-z]:\\[^"]*?)\\src\\index\.js') { $folder = $Matches[1] }
+        elseif ($p.Name -eq 'powershell.exe' -and $p.CommandLine -match '.*([A-Za-z]:\\[^"]*?)\\scripts\\launcher\.ps1.*-Action service') { $folder = $Matches[1] }
+
+        if (-not $folder) { continue }
+        if ($folder.TrimEnd('\') -ieq $root.TrimEnd('\')) { continue }
+        if (-not (Test-Path (Join-Path $folder 'scripts\launcher.ps1'))) { continue }
+        if ((Get-ProjectName $folder) -ne $mine) { continue }
+
+        $found += [pscustomobject]@{ ProcessId = $p.ProcessId; Name = $p.Name; Folder = $folder }
+    }
+
+    return $found
+}
+
+# Wrappers first, or their loop starts node again; then node.
+function Stop-OtherBotCopies {
+    param($Copies)
+
+    foreach ($c in @($Copies | Sort-Object { $_.Name -ne 'powershell.exe' })) {
+        Stop-Process -Id $c.ProcessId -Force -ErrorAction SilentlyContinue
+    }
+    Start-Sleep -Seconds 2
+}
+# END other-copies
+
 function Test-PortBusy {
     return [bool](Get-NetTCPConnection -LocalPort (Get-Port) -State Listen -ErrorAction SilentlyContinue)
 }
@@ -509,6 +559,24 @@ function Invoke-Service {
 # already, just open the dashboard (no Administrator prompt for the daily
 # click); not running, install and start it. No internet: start what is here.
 function Invoke-Mulai {
+    # Before anything else: with another copy running, the health check below would even
+    # open THAT copy's dashboard, and the two bots would keep breaking each other's keys.
+    $others = @(Get-OtherBotCopies)
+    if ($others.Count) {
+        $folders = ($others | ForEach-Object { $_.Folder } | Select-Object -Unique) -join ', '
+        Write-Warn "Ada salinan bot lain yang sedang jalan dari folder: $folders"
+        Write-Info 'Satu nomor hanya boleh satu bot (dua bot saling merusak kunci enkripsi). Salinan lain dimatikan; foldernya tidak dihapus.'
+        if (-not (Test-Admin)) {
+            Write-Info 'Mematikannya butuh izin Administrator, membuka ulang...'
+            Start-Process powershell -Verb RunAs -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', "`"$PSCommandPath`"", '-Action', 'mulai')
+            return
+        }
+
+        Stop-OtherBotCopies $others
+        if (@(Get-OtherBotCopies).Count) { Write-Warn 'salinan lain masih jalan; tutup lewat Task Manager (node.exe dari folder itu), lalu klik Mulai lagi' }
+        else { Write-Ok 'salinan lain sudah dimatikan' }
+    }
+
     $latest = $null
     if (Test-DevCheckout) {
         Write-Info 'PC developer (git): cek update otomatis dilewati.'
