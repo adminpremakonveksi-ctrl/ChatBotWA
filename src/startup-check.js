@@ -41,9 +41,9 @@ function whatsapp(main) {
     }
     const others = Object.keys(main.healing?.otherDevices ?? {});
     if (main.connected && others.length) {
-        return check('wa', 'Nomor WhatsApp tersambung', false,
-            `Tersambung (+${main.phoneNumber ?? ''}), tapi ada pesan dari perangkat tertaut lain (nomor perangkat ${others.join(', ')}) yang tidak bisa dibuka bot.`,
-            'Ada bot atau WhatsApp Web lain yang memakai nomor ini. Di HP toko buka WhatsApp Business > Perangkat tertaut, lalu lepas semua yang bukan bot ini. Satu nomor, satu bot.');
+        // A note, not a failure: the shop's own CS devices are legitimate and must stay linked.
+        return check('wa', 'Nomor WhatsApp tersambung', true,
+            `+${main.phoneNumber ?? ''} · pesan dari perangkat tertaut lain (nomor perangkat ${others.join(', ')}) belum bisa dibuka bot. Wajar kalau perangkat itu dipakai CS; bot tetap melayani pelanggan.`);
     }
     if (main.connected && main.healing?.selfHealing) {
         return check('wa', 'Nomor WhatsApp tersambung', true, `+${main.phoneNumber ?? ''} · memperbaiki sendiri sambungan enkripsi dengan HP toko (tidak perlu apa-apa)`);

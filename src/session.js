@@ -17,6 +17,7 @@ import makeWASocket, {
 
 import { useSqliteAuthState } from './auth-state.js';
 import { recordSyncError, syncCatalog } from './bot/catalog.js';
+import { markSeen, wasSeen } from './bot/store.js';
 import { fixMexNotifications, makePlaceholderCache, sessionHandledLog } from './baileys-fixes.js';
 import { conversationJid, learnFromKey, setOwnIdentity, userOf, withLidFallback } from './lid.js';
 import { MIME } from './bot/media.js';
@@ -92,6 +93,8 @@ export class Session {
                 if (socket === this.socket && !this.stopping) socket.end(new Error('Pemulihan enkripsi: menyambung ulang tanpa menghapus sesi'));
             },
             // Our own device number ("628...:66@s.whatsapp.net" -> 66), to tell our own messages from another device's.
+            wasSeen: (id) => wasSeen(this.key, id),
+            markSeen: (id) => markSeen(this.key, id),
             ownDevice: () => {
                 const device = /:(\d+)@/.exec(this.socket?.user?.id ?? this.socket?.user?.lid ?? '')?.[1];
 

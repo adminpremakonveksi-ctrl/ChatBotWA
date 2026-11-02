@@ -51,8 +51,11 @@ export const ownPhoneJids = (user) => [user?.id, user?.lid]
     .filter(Boolean)
     .map((jid) => { const [address, server] = String(jid).split('@'); return `${address.split(':')[0]}@${server}`; });
 export class MessageHealing {
-    constructor({ socket, reconnect, log, clock = Date.now, read = () => null, write = () => {}, ownDevice = () => null }) {
+    constructor({ socket, reconnect, log, clock = Date.now, read = () => null, write = () => {}, ownDevice = () => null, wasSeen = () => false, markSeen = () => {} }) {
         this.socket = socket;
+        // Kept in the database (not only here): the copy WhatsApp redelivers after a restart is still known.
+        this.wasSeenStored = wasSeen;
+        this.markSeenStored = markSeen;
         this.ownDevice = ownDevice;
         // Ids of messages that arrived readable (bounded): a later failure for one of them is a re-delivery.
         this.seen = new Map();
@@ -72,6 +75,7 @@ export class MessageHealing {
             lost: Number.isInteger(stored?.lost) && stored.lost >= 0 ? stored.lost : 0,
             lastLostReport: time(stored?.lastLostReport),
             lastBrokenAlert: time(stored?.lastBrokenAlert),
+            lastOtherAlert: time(stored?.lastOtherAlert),
             ownBrokenSince: time(stored?.ownBrokenSince),
             lastSessionRefresh: time(stored?.lastSessionRefresh),
             sessionRefreshes: Number.isInteger(stored?.sessionRefreshes) && stored.sessionRefreshes >= 0 ? stored.sessionRefreshes : 0,
@@ -90,7 +94,7 @@ export class MessageHealing {
         const key = { ...detail.key };
         // Already read once: this is WhatsApp delivering it again (its unacknowledged queue after a
         // reconnect) and the keys are consumed, so there is nothing to repair and nothing to alarm about.
-        if (this.seen.has(key.id)) {
+        if (this.seen.has(key.id) || this.storedSeen(key.id)) {
             this.log.info({ messageId: key.id, err: detail.err?.message }, 'pesan yang sudah terbaca dikirim ulang WhatsApp; diabaikan');
             return true;
         }
@@ -120,9 +124,14 @@ export class MessageHealing {
         return senderKind(p, this.ownDevice());
     }
 
+    storedSeen(id) {
+        try { return Boolean(this.wasSeenStored(id)); } catch { return false; }
+    }
+
     received(key) {
         this.lastSuccess = this.clock();
         if (key?.id) {
+            try { this.markSeenStored(key.id); } catch (error) { this.log.info({ err: error.message }, 'pesan terbaca tidak tersimpan; hanya diingat selama bot jalan'); }
             this.seen.set(key.id, this.clock());
             if (this.seen.size > 5000) {
                 for (const id of this.seen.keys()) {
@@ -168,7 +177,7 @@ export class MessageHealing {
         clearInterval(this.timer);
     }
     reset() {
-        this.state = { pending: [], healed: 0, lastUpload: null, lastReconnect: null, lastAlert: null, lost: 0, lastLostReport: null, unreported: null, lastBrokenAlert: null, ownBroken: false, ownBrokenSince: null, lastSessionRefresh: null, sessionRefreshes: 0 };
+        this.state = { pending: [], healed: 0, lastUpload: null, lastReconnect: null, lastAlert: null, lost: 0, lastLostReport: null, unreported: null, lastBrokenAlert: null, lastOtherAlert: null, ownBroken: false, ownBrokenSince: null, lastSessionRefresh: null, sessionRefreshes: 0 };
         this.save();
     }
     /** True when the bot can no longer read the shop's own phone (see OWN_BROKEN_COUNT). */
@@ -220,12 +229,21 @@ export class MessageHealing {
 
             return;
         }
-        this.alert(
-            ids.length
-                ? `Pesan dari perangkat tertaut lain (nomor perangkat ${ids.join(', ')}) tidak bisa dibuka setelah 5 menit: ada bot atau WhatsApp Web lain yang memakai nomor ini. Di HP toko buka WhatsApp Business > Perangkat tertaut, lalu lepas semua yang bukan bot ini.`
-                : 'Pesan WhatsApp belum bisa dipulihkan setelah 5 menit; perlu diperiksa',
-            { key: first.key, err: first.error, otherDevices: others },
-        );
+        if (ids.length) {
+            // The shop's own CS devices (WhatsApp Web, Desktop) are legitimate and cannot be removed
+            // (client, 2026-11-02: "3 devices in use + the bot = 4"), so this is a note, once a day,
+            // never an alarm that asks anyone to unlink them. The dashboard card keeps showing it.
+            if (this.state.lastOtherAlert != null && this.clock() - this.state.lastOtherAlert < 24 * 60 * MINUTE) return;
+            this.state.lastOtherAlert = this.clock();
+            this.save();
+            this.log.warn(
+                { key: first.key, err: first.error, otherDevices: others, pending: this.state.pending.length },
+                `Pesan dari perangkat tertaut lain (nomor perangkat ${ids.join(', ')}) belum bisa dibuka bot. Kalau perangkat itu dipakai CS, biarkan saja: bot tetap melayani pelanggan, hanya balasan CS dari perangkat itu yang tidak terbaca.`,
+            );
+
+            return;
+        }
+        this.alert('Pesan WhatsApp belum bisa dipulihkan setelah 5 menit; perlu diperiksa', { key: first.key, err: first.error, otherDevices: others });
     }
     alert(message, detail) {
         if (this.state.lastAlert !== null && this.clock() - this.state.lastAlert < 10 * MINUTE) return;
@@ -240,7 +258,15 @@ export class MessageHealing {
         this.state.lost += old.length;
         const report = this.state.unreported ?? { count: 0, fromPhone: 0, chats: [], key: null, err: null };
         report.count += old.length;
-        report.fromPhone += old.filter((p) => p.key.fromMe).length;
+        report.fromPhone += old.filter((p) => this.kind(p) === 'phone').length;
+        // Who sent them, how they were encrypted and what failed: the report used to call every
+        // message from the shop's account "from the phone" (it was device 66, 2026-11-02).
+        const tally = (name, value) => { if (value != null) { report[name] ??= {}; report[name][value] = (report[name][value] ?? 0) + 1; } };
+        for (const p of old) {
+            tally('devices', p.error.sender ? deviceOfJid(p.error.sender) : null);
+            tally('e2e', p.error.e2eType);
+            tally('errors', String(p.error.message ?? '').replace(/\s*\(juga dicoba.*$/s, '').slice(0, 60));
+        }
         report.chats = [...new Set([...report.chats, ...old.filter((p) => !p.key.fromMe).map((p) => p.key.remoteJid)])].slice(0, 50);
         report.key ??= old[0].key;
         report.err ??= old[0].error;
@@ -258,8 +284,12 @@ export class MessageHealing {
         this.state.unreported = null;
         this.save();
         this.log.warn(
-            { lost: report.count, fromPhone: report.fromPhone, customerChats: report.chats, key: report.key, err: report.err },
-            `${report.count} pesan WhatsApp tetap tidak bisa dibuka setelah 30 menit dan dilepas dari pemulihan${report.chats.length ? `; ${report.chats.length} chat pelanggan perlu dicek langsung di HP` : ' (semuanya pesan dari HP toko sendiri)'}`,
+            {
+                lost: report.count, fromPhone: report.fromPhone, customerChats: report.chats, key: report.key, err: report.err,
+                // Senders by device number, encryption type and error; our own device number to compare with.
+                devices: report.devices, e2e: report.e2e, errors: report.errors, ownDevice: this.ownDevice(),
+            },
+            `${report.count} pesan WhatsApp tetap tidak bisa dibuka setelah 30 menit dan dilepas dari pemulihan${report.chats.length ? `; ${report.chats.length} chat pelanggan perlu dicek langsung di HP` : report.devices ? `; pengirimnya perangkat nomor ${Object.keys(report.devices).join(', ')}` : ''}`,
         );
     }
     tick() {

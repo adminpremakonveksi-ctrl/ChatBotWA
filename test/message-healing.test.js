@@ -337,7 +337,12 @@ test('the sender device is recorded: the shop phone (device 0) and another linke
     assert.equal(f.saved().pending[0].error.sender, '62702630207741:47@lid', 'kept for diagnosis');
     assert.equal(f.saved().pending[0].error.e2eType, 'msg');
     const alert = f.logs.find((l) => l[0] === 'warn' && !l[1].quiet);
-    assert.match(alert[2], /perangkat tertaut lain \(nomor perangkat 47\)[\s\S]*Perangkat tertaut/);
+    assert.match(alert[2], /perangkat tertaut lain \(nomor perangkat 47\)[\s\S]*dipakai CS, biarkan saja/);
+    assert.doesNotMatch(alert[2], /lepas/i, 'the CS devices must not be unlinked');
+    // Once a day, not every ten minutes: it is a note.
+    f.advance(30 * 60000);
+    await f.healing.tick();
+    assert.equal(f.logs.filter((l) => l[0] === 'warn' && !l[1].quiet && /perangkat tertaut lain/.test(l[2])).length, 1);
     assert.deepEqual(alert[1].otherDevices, { 47: 5 });
 
     // The same errors from the phone itself (device 0) are the phone's problem, not another device's.
@@ -437,4 +442,53 @@ test('a failure says which address has a stored session: LID, number, or neither
     const f = fixture(t);
     f.healing.failed({ key: { remoteJid: 'c@lid', fromMe: true, id: 'REC1' }, err: caught });
     assert.deepEqual(f.saved().pending[0].error.records, { lid: false, pn: true }, 'kept with the failure, for the developer');
+});
+
+test('the released-messages report names the real senders: not "all from the shop phone" when it was device 66 (client, 2026-11-02)', async (t) => {
+    const f = fixture(t, { ownDevice: () => 12 });
+    const from66 = (id) => ({ key: { remoteJid: '259850068086932@lid', fromMe: true, id }, err: Object.assign(new Error('Key used already or never filled'), { name: 'MessageCounterError', senderJid: '28067997159547:66@lid', e2eType: 'pkmsg' }) });
+    for (let i = 0; i < 5; i++) f.healing.failed(from66(`R${i}`));
+    f.healing.failed({ key: { remoteJid: 'c@lid', fromMe: true, id: 'R-PHONE' }, err: Object.assign(new Error('No matching sessions found for message'), { senderJid: '28067997159547@lid', e2eType: 'msg' }) });
+    for (let i = 0; i < 40; i++) { f.advance(60000); await f.healing.tick(); }
+
+    const report = f.logs.find((l) => l[0] === 'warn' && /dilepas dari pemulihan/.test(l[2]));
+    assert.ok(report, 'reported');
+    assert.equal(report[1].fromPhone, 1, 'only the device-0 message is "from the phone"');
+    assert.deepEqual(report[1].devices, { 66: 5, 0: 1 });
+    assert.deepEqual(report[1].e2e, { pkmsg: 5, msg: 1 });
+    assert.equal(report[1].ownDevice, 12, 'our own device number, to compare with the senders');
+    assert.match(report[2], /perangkat nomor 0, 66/);
+    assert.doesNotMatch(report[2], /semuanya pesan dari HP toko/);
+});
+
+test('a message read before a restart and redelivered after it is a duplicate, not an unreadable message (client PC, 2026-11-02)', async (t) => {
+    const { markSeen, wasSeen, prune } = await import('../src/bot/store.js');
+    const { run } = await import('../src/db.js');
+
+    // The database remembers; the first process "read" the message, a new process has an empty memory.
+    const store = { wasSeen: (id) => wasSeen('utama', id), markSeen: (id) => markSeen('utama', id) };
+    const before = fixture(t, store);
+    before.healing.received({ id: 'READ-BEFORE-RESTART', fromMe: true, remoteJid: 'c@lid' });
+    assert.equal(wasSeen('utama', 'READ-BEFORE-RESTART'), true);
+    assert.equal(wasSeen('lain', 'READ-BEFORE-RESTART'), false, 'per number');
+
+    const after = fixture(t, store);
+    const dup = { key: { remoteJid: 'c@lid', fromMe: true, id: 'READ-BEFORE-RESTART' }, err: Object.assign(new Error('Key used already or never filled'), { senderJid: '1:66@lid', e2eType: 'pkmsg' }) };
+    assert.equal(after.healing.failed(dup), true, 'handled, no pop-up');
+    assert.equal(after.healing.status().pending, 0, 'not queued, not released, not reported');
+    assert.equal(after.logs.filter((l) => l[0] === 'warn').length, 0);
+
+    // One that never arrived readable is still tracked.
+    after.healing.failed({ ...dup, key: { ...dup.key, id: 'NEVER-READ' } });
+    assert.equal(after.healing.status().pending, 1);
+
+    // A week later it is forgotten (the table does not grow forever).
+    run(`UPDATE seen_messages SET seen_at = datetime('now', '-8 days') WHERE message_id = 'READ-BEFORE-RESTART'`);
+    prune(90);
+    assert.equal(wasSeen('utama', 'READ-BEFORE-RESTART'), false);
+
+    // A database that cannot be read must not stop the bot from working.
+    const broken = fixture(t, { wasSeen: () => { throw new Error('disk'); }, markSeen: () => { throw new Error('disk'); } });
+    assert.doesNotThrow(() => broken.healing.received({ id: 'X' }));
+    assert.equal(broken.healing.failed({ ...dup, key: { ...dup.key, id: 'Y' } }), true);
 });

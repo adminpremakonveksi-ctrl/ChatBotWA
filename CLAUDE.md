@@ -42,7 +42,11 @@ of a reconnect (WhatsApp redelivers its unacked queue), and "stopped" on 10-29 o
 because the number was unpaired, not fixed. Sender device == OUR OWN device number
 (`ownDevice` from socket.user) means another copy shares this link's keys (`selfCopies`,
 not "other device"); a failure for an id that already arrived readable is a
-re-delivery and is ignored (`seen`). Device numbers grow with every re-link.
+re-delivery and is ignored (`seen`, kept in table seen_messages so it survives a restart;
+pkmsg + "Key used already" = a session exists and the counter was used: a duplicate).
+Device numbers grow with every re-link. The client's other linked devices are its CS team
+(3 + the bot = the 4 WhatsApp allows): never tell anyone to unlink them; unreadable messages
+from them are a once-a-day note (`lastOtherAlert`), not an alarm, and not a red Siap mulai.
 
 The user requested AI-only WhatsApp Business operation. This supersedes the
 older two-mode dashboard instructions below. Settings cannot enable naskah;

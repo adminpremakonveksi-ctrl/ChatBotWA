@@ -629,6 +629,21 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
             CREATE INDEX incoming_queue_due ON incoming_queue(session_key, next_attempt_at);`);
         },
     },
+    {
+        // Ids of messages that arrived readable. WhatsApp sends its unacknowledged queue again after
+        // every reconnect; a second copy of a message already read fails ("Key used already") and
+        // used to count as an unreadable message once the bot had restarted (client PC, 2026-11-02).
+        id: '024_seen_messages',
+        up(db) {
+            db.exec(`CREATE TABLE seen_messages (
+                session_key TEXT NOT NULL,
+                message_id TEXT NOT NULL,
+                seen_at TEXT NOT NULL,
+                PRIMARY KEY(session_key, message_id)
+            );
+            CREATE INDEX seen_messages_at ON seen_messages(seen_at);`);
+        },
+    },
 ];
 
 /** Adds the away message to a list the team already saved, once; a fresh install gets it as the default. */

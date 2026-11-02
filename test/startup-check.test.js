@@ -139,13 +139,14 @@ test('Siap mulai: connected but the phone\'s messages unreadable says to run one
     assert.match(wa.fix, /SATU bot[\s\S]*Scan ulang \(kunci baru\)/);
 });
 
-test('Siap mulai: unreadable messages from another linked device say to unlink it on the phone', async () => {
+test('Siap mulai: unreadable messages from another linked device are a note, never a request to unlink it', async () => {
+    // The client's 3 other devices are the CS team's and must stay linked (2026-11-02).
     const manager = { list: () => [{ state: 'connected', connected: true, phoneNumber: '62812', healing: { otherDevices: { 47: 3 } } }] };
     const r = await startupChecks({ manager, fresh: true, fetchImpl: async () => ({ ok: true, status: 200, headers: new Headers() }) });
     const wa = r.checks.find((c) => c.key === 'wa');
-    assert.equal(wa.ok, false);
-    assert.match(wa.detail, /nomor perangkat 47/);
-    assert.match(wa.fix, /Perangkat tertaut[\s\S]*Satu nomor, satu bot/);
+    assert.equal(wa.ok, true, 'not a failure: it does not turn the card red');
+    assert.match(wa.detail, /nomor perangkat 47[\s\S]*dipakai CS/);
+    assert.doesNotMatch(`${wa.detail} ${wa.fix}`, /lepas/i, 'never tells anyone to unlink');
 });
 
 test('Siap mulai: messages sent as the bot\'s own device number say a second copy shares the link', async () => {

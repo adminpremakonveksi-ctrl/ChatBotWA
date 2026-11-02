@@ -150,9 +150,18 @@ export function messagesOf(sessionKey, jid, limit = 200) {
     ).reverse();
 }
 
+/** A message arrived readable. Kept a week so a re-delivery of it, after a restart too, is known for what it is. */
+export function markSeen(sessionKey, messageId) {
+    run('INSERT OR IGNORE INTO seen_messages (session_key, message_id, seen_at) VALUES (?, ?, ?)', [sessionKey, messageId, now()]);
+}
+
+export const wasSeen = (sessionKey, messageId) =>
+    Boolean(get('SELECT 1 FROM seen_messages WHERE session_key = ? AND message_id = ? LIMIT 1', [sessionKey, messageId]));
+
 /** Deletes chat text older than `days`; customers' messages are not kept forever. */
 export function prune(days) {
     const cutoff = `-${Number(days)} days`;
+    run(`DELETE FROM seen_messages WHERE seen_at < datetime('now', '-7 days')`);
     const messages = run(`DELETE FROM message_log WHERE created_at < datetime('now', ?)`, [cutoff]).changes;
     const conversations = run(`DELETE FROM conversations WHERE last_message_at < datetime('now', ?)`, [cutoff]).changes;
 
