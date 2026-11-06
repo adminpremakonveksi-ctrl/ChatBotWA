@@ -5,21 +5,7 @@ import test from 'node:test';
 
 import { classifyWithRules } from '../src/bot/classify-rules.js';
 
-/**
- * How customers really write, in five levels, for every meaning the bot
- * knows. The offline classifier (no AI) must get each one right.
- *
- *   1  very short, shorthand and typos      "hrg jrsy brp", "loc?"
- *   2  casual chat                           "kak mau bikin kaos dong"
- *   3  standard, polite                      "Halo kak, saya mau pesan jersey futsal"
- *   4  Javanese / Sundanese / mixed          "badhe damel kaos, pinten regane mas"
- *   5  formal and long, several questions    "Selamat malam, perkenalkan saya ..."
- *
- * Each case: [level, step the bot is at, message, expected].
- * expected: an intent, "product:<key>", "pola:<pattern name>", or "intro:<Name>".
- */
 const CASES = [
-    // greeting
     [1, 'new', 'p', 'greeting'],
     [2, 'new', 'halo kakk', 'greeting'],
     [3, 'new', 'Selamat malam kak', 'greeting'],
@@ -28,7 +14,6 @@ const CASES = [
     [4, 'new', 'punten', 'greeting'],
     [5, 'new', 'Assalamualaikum, selamat malam', 'greeting'],
 
-    // introduction
     [1, 'awaiting_intro', 'budi jogja', 'intro:Budi'],
     [2, 'awaiting_intro', 'aku rina dr magelang kak', 'intro:Rina'],
     [3, 'awaiting_intro', 'Saya Andi dari Purworejo', 'intro:Andi'],
@@ -37,7 +22,6 @@ const CASES = [
     [4, 'awaiting_intro', 'abdi Asep ti Garut', 'intro:Asep'],
     [5, 'awaiting_intro', 'Perkenalkan, nama saya Dimas dari SMA 1 Purworejo', 'intro:Dimas'],
 
-    // product
     [1, 'awaiting_product', 'jrsy', 'product:jersey'],
     [1, 'awaiting_product', 'hoddie', 'product:hoodie'],
     [2, 'awaiting_product', 'mau bikin kaos dong kak', 'product:kaos'],
@@ -48,7 +32,6 @@ const CASES = [
     [4, 'awaiting_product', 'hoyong damel pdl', 'product:pdl'],
     [5, 'awaiting_product', 'Kami dari OSIS berencana membuat seragam OSIS untuk pengurus baru', 'product:seragam-sekolah'],
 
-    // price
     [1, 'awaiting_product', 'hrg?', 'price'],
     [2, 'awaiting_product', 'harganya brp kak', 'price'],
     [3, 'awaiting_quantity', 'Untuk biayanya kira-kira berapa ya kak?', 'price'],
@@ -56,14 +39,12 @@ const CASES = [
     [4, 'awaiting_product', 'regine pinten nggih', 'price'],
     [5, 'awaiting_product', 'Mohon informasi kisaran harga per pcs nya', 'price'],
 
-    // size chart
     [1, 'awaiting_product', 'sz chart', 'size_chart'],
     [2, 'awaiting_product', 'ukurannya ada apa aja kak', 'size_chart'],
     [3, 'awaiting_product', 'Boleh minta tabel ukurannya?', 'size_chart'],
     [4, 'awaiting_product', 'ukurane wonten nopo mawon', 'size_chart'],
     [5, 'awaiting_product', 'Apakah tersedia ukuran XXL untuk peserta dewasa?', 'size_chart'],
 
-    // location
     [1, 'awaiting_product', 'loc?', 'pola:Lokasi'],
     [2, 'awaiting_product', 'alamatnya dmn kak', 'pola:Lokasi'],
     [3, 'awaiting_product', 'Lokasi tokonya di mana ya kak?', 'pola:Lokasi'],
@@ -71,21 +52,18 @@ const CASES = [
     [4, 'awaiting_product', 'nggone neng endi to', 'pola:Lokasi'],
     [5, 'awaiting_product', 'Apakah saya bisa datang langsung ke workshop untuk melihat bahan?', 'pola:Lokasi'],
 
-    // shipping
     [1, 'awaiting_product', 'ongkir?', 'pola:Pengiriman'],
     [2, 'awaiting_product', 'bs kirim ke makassar ga', 'pola:Pengiriman'],
     [3, 'awaiting_product', 'Pengirimannya dari mana ya kak?', 'pola:Pengiriman'],
     [4, 'awaiting_product', 'saged dikintun teng Surabaya?', 'pola:Pengiriman'],
     [5, 'awaiting_product', 'Apakah bisa dikirim ke luar pulau menggunakan ekspedisi?', 'pola:Pengiriman'],
 
-    // trust
     [1, 'awaiting_product', 'amanah?', 'pola:Ragu / takut ditipu'],
     [2, 'awaiting_product', 'ini bukan penipuan kan kak', 'pola:Ragu / takut ditipu'],
     [3, 'awaiting_product', 'Ada testimoni pelanggan sebelumnya?', 'pola:Ragu / takut ditipu'],
     [4, 'awaiting_product', 'ora ngapusi to mas?', 'pola:Ragu / takut ditipu'],
     [5, 'awaiting_product', 'Terus terang saya masih ragu karena belum pernah order online', 'pola:Ragu / takut ditipu'],
 
-    // minimum order
     [1, 'awaiting_product', 'min order?', 'pola:Minimal order'],
     [2, 'awaiting_product', 'bisa satuan ga kak', 'pola:Minimal order'],
     [3, 'awaiting_product', 'Minimal pemesanannya berapa ya?', 'pola:Minimal order'],
@@ -93,14 +71,12 @@ const CASES = [
     [4, 'awaiting_product', 'saged pesen sekedhik mboten', 'pola:Minimal order'],
     [5, 'awaiting_product', 'Berapa jumlah minimum pemesanan untuk setiap produk?', 'pola:Minimal order'],
 
-    // design reference
     [1, 'awaiting_product', 'katalog', 'design_reference'],
     [2, 'awaiting_product', 'ada contoh desainnya ga kak', 'design_reference'],
     [3, 'awaiting_product', 'Boleh lihat portofolio hasil produksinya?', 'design_reference'],
     [4, 'awaiting_product', 'wonten contoh desain mboten', 'design_reference'],
     [5, 'awaiting_product', 'Saya ingin melihat referensi desain yang pernah dikerjakan', 'design_reference'],
 
-    // design answers
     [1, 'awaiting_design', 'blm', 'no_reference'],
     [2, 'awaiting_design', 'blm ada kak bingung', 'no_reference'],
     [3, 'awaiting_design', 'Belum ada desain, bisa dibantu?', 'no_reference'],
@@ -111,7 +87,6 @@ const CASES = [
     [4, 'awaiting_design', 'sampun wonten desaine', 'has_reference'],
     [5, 'awaiting_design', 'Desainnya warna navy dengan logo sekolah di dada kiri', 'has_reference'],
 
-    // quantity
     [1, 'awaiting_quantity', '50', 'quantity'],
     [2, 'awaiting_quantity', 'sekitar 2 lusin kak', 'quantity'],
     [3, 'awaiting_quantity', 'Rencananya 30 pcs', 'quantity'],
@@ -119,7 +94,6 @@ const CASES = [
     [4, 'awaiting_quantity', 'satu kelas mas', 'quantity'],
     [5, 'awaiting_quantity', 'Untuk satu angkatan sekitar 120 orang', 'quantity'],
 
-    // wants to ask first
     [1, 'awaiting_quantity', 'tny dlu', 'ask_first'],
     [2, 'awaiting_quantity', 'Mau nanya2 dulu mas', 'ask_first'],
     [3, 'awaiting_product', 'Izin bertanya kak', 'ask_first'],
@@ -127,7 +101,6 @@ const CASES = [
     [4, 'awaiting_product', 'nyuwun pirsa mas', 'ask_first'],
     [5, 'awaiting_product', 'Saya masih survey beberapa vendor, belum mau pesan sekarang', 'ask_first'],
 
-    // acknowledgement
     [1, 'awaiting_product', 'ok', 'ack'],
     [1, 'awaiting_product', '👍', 'ack'],
     [2, 'awaiting_design', 'siap kak makasih', 'ack'],
@@ -136,7 +109,6 @@ const CASES = [
     [4, 'awaiting_product', 'hatur nuhun', 'ack'],
     [5, 'awaiting_product', 'Baik, terima kasih banyak atas informasinya', 'ack'],
 
-    // second round: harder ones from real chats
     [1, 'new', 'pp', 'greeting'],
     [1, 'awaiting_product', 'ganci', 'product:gantungan-kunci'],
     [1, 'awaiting_product', 'lanyrd', 'product:id-card-lanyard'],
@@ -178,7 +150,6 @@ const CASES = [
     [5, 'awaiting_product', 'Mohon maaf mengganggu, saya ingin menanyakan beberapa hal terlebih dahulu', 'ask_first'],
     [5, 'awaiting_product', 'Berapa estimasi pengiriman ke Kalimantan dan menggunakan ekspedisi apa?', 'pola:Pengiriman'],
 
-    // third round: the wider variations
     [1, 'new', 'asw', 'greeting'],
     [1, 'new', 'met malam', 'greeting'],
     [1, 'awaiting_product', '3xl ada?', 'size_chart'],
@@ -226,7 +197,6 @@ const CASES = [
     [5, 'awaiting_product', 'Saya sedang membandingkan beberapa vendor konveksi', 'ask_first'],
     [5, 'awaiting_product', 'Terima kasih atas penjelasannya, sangat membantu', 'ack'],
 
-    // fourth round (migration 007, jas almamater, krama)
     [1, 'awaiting_product', 'almet', 'product:jas-almamater'],
     [2, 'awaiting_product', 'harga borongan brp kak', 'price'],
     [2, 'awaiting_product', 'oke nanti saya kabari ya kak', 'ack'],
@@ -236,7 +206,6 @@ const CASES = [
     [4, 'awaiting_product', 'menawi kulo mundhut kaos saged dikintun dumugi Makassar?', 'pola:Pengiriman'],
     [5, 'awaiting_product', 'Kami masih menimbang beberapa penawaran', 'ask_first'],
 
-    // fifth round: odd messages (migration 008)
     [1, 'awaiting_product', 'bot ya?', 'about_bot'],
     [2, 'awaiting_product', 'kamu robot ya kak', 'about_bot'],
     [2, 'awaiting_product', 'lama banget sih bales nya', 'human'],
@@ -249,10 +218,6 @@ const CASES = [
     [5, 'awaiting_product', 'Apakah melayani pembuatan mukena?', 'product_unknown'],
 ];
 
-/**
- * Messages that must NOT be caught by the wrong answer: a word that only
- * looks like a keyword ("karyawan" is not "karya", "Rabu" is not "RAB").
- */
 const NOT = [
     ['awaiting_product', 'mau bikin kaos untuk karyawan', 'product:kaos'],
     ['awaiting_product', 'ukurannya gimana kak', 'size_chart'],

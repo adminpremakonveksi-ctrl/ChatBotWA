@@ -37,7 +37,6 @@ test('products by many names', () => {
 
 test('FAQ questions in different wordings', () => {
     for (const text of ['size chart nya ada kak?', 'ukurannya gimana', 'minta sizechart']) assert.equal(c(text).intent, 'size_chart', text);
-    // These four are seeded answer patterns now (editable, deletable in the console).
     const pattern = (text) => (c(text).intent === 'custom' ? c(text).pattern.name : c(text).intent);
     for (const text of ['lokasinya dimana kak', 'minta serlok', 'shareloc dong', 'alamatnya di mana ya']) assert.equal(pattern(text), 'Lokasi', text);
     for (const text of ['ini kirim dari mana ya', 'bisa kirim ke makassar?', 'ongkirnya berapa']) assert.equal(pattern(text), 'Pengiriman', text);

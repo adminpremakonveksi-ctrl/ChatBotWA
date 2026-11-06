@@ -2,16 +2,6 @@ import { all, get, now, run } from '../db.js';
 import { chatTurn } from './chat.js';
 import { wordSet } from './words.js';
 
-/**
- * The team's test chats for the AI (Coba bot > Uji AI), stored in SQLite and
- * editable in the console. Running one plays the chat through the real AI
- * turn (chat.js) in memory: nothing is sent and no customer is touched.
- *
- * A run fails when a bot reply contains a "tidak boleh" entry, misses a
- * "harus ada" entry, or the bot stays silent where #diam forbids it.
- * Special entries: #angka (any number), #angka-uang (an amount of money),
- * #link (any link), #serah (the chat must end with CS), #diam (never silent).
- */
 
 const fail = (message, statusCode = 422) => {
     throw Object.assign(new Error(message), { statusCode });
@@ -64,11 +54,6 @@ const SPECIAL = {
 
 const found = (entry, text) => (SPECIAL[entry] ? SPECIAL[entry].test(text) : text.toLowerCase().includes(entry.toLowerCase()));
 
-/**
- * A "tidak boleh" phrase said in the negative is no violation: "tidak bisa
- * disablon" does not say "bisa disablon". The two words before each
- * occurrence are checked against Kamus kata_tidak (tidak, belum, gak, ...).
- */
 function saidPositively(entry, text) {
     if (SPECIAL[entry]) return SPECIAL[entry].test(text);
 
@@ -84,7 +69,6 @@ function saidPositively(entry, text) {
     return false;
 }
 
-/** Plays one scenario through the AI turn. { id, name, pass, problems, transcript }. */
 export async function runScenario(id, { media, ask, fetchImpl } = {}) {
     const scenario = row(get('SELECT * FROM ai_scenarios WHERE id = ?', [id])) ?? fail('Skenario tidak ditemukan', 404);
     const transcript = [];
@@ -94,7 +78,6 @@ export async function runScenario(id, { media, ask, fetchImpl } = {}) {
 
     for (const text of scenario.messages) {
         transcript.push({ from: 'pelanggan', text });
-        // Only what was said in the chat: the AI's thinking and system lines are not conversation.
         const history = transcript.slice(0, -1).filter((t) => t.from === 'pelanggan' || t.from === 'bot').map((t) => ({ who: t.from, text: t.text })).slice(-12);
         const turn = await chatTurn(conv, { text, history, who: `uji|${id}` }, { media, ...(ask ? { ask } : {}), ...(fetchImpl ? { fetchImpl } : {}) });
 
@@ -116,7 +99,6 @@ export async function runScenario(id, { media, ask, fetchImpl } = {}) {
         if (handedOver) break;
     }
 
-    // "Tidak boleh" counts in everything the bot sent; "harus ada" only in what the AI wrote (the fixed greeting mentions CS too).
     const said = transcript.filter((t) => t.from === 'bot').map((t) => t.text).join('\n');
     const written = transcript.filter((t) => t.ai).map((t) => t.text).join('\n');
     for (const entry of scenario.forbid) if (saidPositively(entry, said)) problems.push(`muncul yang tidak boleh: ${entry}`);

@@ -4,13 +4,9 @@ import { recordError } from './errors.js';
 
 const WARN = 40;
 
-// Readable lines everywhere; colours only on a real terminal, so the log file
-// written by the auto-start service has no escape codes. LOG_FORMAT=json for raw pino.
 export const logger = pino({
     level: config.logLevel,
     hooks: {
-        // Every warning and error also goes to the console's error pop-up, as
-        // logged (no friendlier rewording). { quiet: true } keeps a line out.
         logMethod(args, method, level) {
             if (level >= WARN) {
                 const [first, second] = args;

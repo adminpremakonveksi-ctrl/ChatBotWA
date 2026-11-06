@@ -33,7 +33,6 @@ test('several questions get every answer, and the bot question comes last', () =
     const r = c('mau bikin jersey, minimal order berapa? bisa kirim ke makassar?');
     const { actions, patch } = decide({ step: 'awaiting_product' }, r, media);
 
-    // In the order asked: minimum order, then shipping.
     assert.deepEqual(texts(actions), [seedText('moq', 0), seedText('moq', 1), seedText('shipping', 0), replies.askQuantityCatalog()]);
     assert.equal(patch.step, 'awaiting_quantity');
     assert.equal(actions.filter((a) => a.type === 'media').length, 1, 'jersey catalog');
@@ -101,9 +100,7 @@ test('incoming messages are labelled, and the unrecognised ones listed for teach
 test('next switch between active and silent', () => {
     const options = { timezone: 'Asia/Jakarta', activeFrom: '17:30', activeUntil: '07:30', forceMode: '' };
 
-    // Monday 12.00 WIB -> starts 17.30 WIB.
     assert.equal(nextChange(new Date('2026-10-05T05:00:00Z'), options).toISOString(), '2026-10-05T10:30:00.000Z');
-    // Saturday 20.00 WIB -> runs through Sunday, stops Monday 07.30 WIB.
     assert.equal(nextChange(new Date('2026-10-10T13:00:00Z'), options).toISOString(), '2026-10-12T00:30:00.000Z');
     assert.equal(nextChange(new Date(), { ...options, forceMode: 'always' }), null);
 });

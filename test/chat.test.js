@@ -10,10 +10,6 @@ import { replies } from '../src/bot/replies.js';
 import { config } from '../src/config.js';
 import { PREMA_PRODUCTS } from '../src/seeds-prema.js';
 
-/**
- * AI chat mode (2026-10-21): after the fixed greeting the AI writes the
- * replies from the shop's data; the guards stay in code.
- */
 
 const texts = (actions) => actions.filter((a) => a.type === 'text').map((a) => a.text);
 const media = { has: (kind, product) => (kind === 'size-chart' && product === 'kaos') || (kind === 'katalog' && product === 'jersey') };
@@ -57,11 +53,9 @@ test('the first message gets the fixed greeting; a plain hello does not call the
     assert.deepEqual(texts(known.actions), [replies.greetKnown('Budi')]);
     assert.equal(known.patch.name, 'Budi');
 
-    // A request in the first message: the greeting, then the AI answers it.
     const asks = await withAi(() => chatTurn({ step: 'new' }, { text: 'halo kak mau bikin kaos 50 pcs', who: 't1' }, { media, ask }));
     assert.deepEqual(texts(asks.actions), [replies.greetUnknown(), answer().reply]);
 
-    // The WhatsApp Business Salam already greeted: no second greeting.
     const salam = await withAi(() => chatTurn({ step: 'new' }, { text: 'mau tanya jaket', who: 't1', autoGreeted: true }, { media, ask }));
     assert.deepEqual(texts(salam.actions), [answer().reply]);
 });
@@ -107,14 +101,12 @@ test('a refused reply is sent back once with the reason; refused twice it is not
 
 test('handover: the AI reply, then the fixed [7] (and [8] when the order is complete); the summary is kept for CS', async () => {
     const ask = async () => answer({ reply: 'Siap kak, sudah lengkap. Saya teruskan ke CS ya.', handover: true, reason: 'pesanan_lengkap', note: 'Kaos 50 pcs, combed 24s, sablon depan' });
-    // A product the team gave no question list: the AI's 'complete' is taken (code decides when there is a list, see below).
     const r = await withAi(() => chatTurn({ step: 'chat', order_info: JSON.stringify({ produk: 'hoodie', jawaban: {} }) }, { text: 'ukurannya S 10 M 20 L 20', who: 't4' }, { media, ask }));
 
     assert.deepEqual(texts(r.actions), ['Siap kak, sudah lengkap. Saya teruskan ke CS ya.', replies.waitForCs(), replies.socials()]);
     assert.equal(r.actions.at(-1).type, 'handover');
     assert.deepEqual(JSON.parse(r.patch.notes), ['Pesanan Hoodie', 'Kaos 50 pcs, combed 24s, sablon depan']);
 
-    // Without a product the AI cannot call the order complete.
     const early = await withAi(() => chatTurn({ step: 'chat' }, { text: 'udah itu aja', who: 't4' }, { media, ask }));
     assert.ok(!early.actions.some((x) => x.type === 'handover'));
 
@@ -135,7 +127,6 @@ test('files the AI asks to send must exist and belong to the current product', a
 
 test('the shop data: topics and Q&A are editable, product details hold what is and is not done', () => {
     const titles = listTopics().map((t) => t.title);
-    // Seeded from the owner's answers (2026-10-24), editable like any topic.
     assert.ok(titles.includes('Pembayaran & DP'));
     assert.match(listTopics().find((t) => t.title === 'Pembayaran & DP').content, /Kabupaten Purworejo minimal 50%/);
     const blank = saveTopic({ title: 'Topik baru kosong', content: '' });
@@ -224,7 +215,6 @@ test('code holds the order: answers kept per item, next item in the team\'s orde
         return { ...r, conv: { ...conv, ...r.patch } };
     };
 
-    // "almet" is the keywords' or the AI's: the AI says which product.
     let r = await step({ step: 'chat' }, 'mau bikin almet buat himpunan', { reply: 'Siap kak, mau berapa pcs?', product: 'jas-almamater' });
     assert.equal(readOrder(r.conv).produk, 'jas-almamater');
     assert.equal(r.conv.product, 'jas-almamater');
@@ -232,24 +222,20 @@ test('code holds the order: answers kept per item, next item in the team\'s orde
     r = await step(r.conv, '40 pcs warna navy', { reply: 'Logonya sudah ada kak?', answered: [{ hal: 'jumlah', isi: '40 pcs' }, { hal: 'Warna', isi: 'navy' }] });
     assert.deepEqual(readOrder(r.conv).jawaban, { jumlah: '40 pcs', warna: 'navy' }, 'kept under the team\'s own wording');
     assert.deepEqual(orderStatus(readOrder(r.conv)).open, ['logo kampus', 'rincian ukuran']);
-    // What the AI is told: the order so far, the next items in order, this product in full.
     r = await step(r.conv, 'logo nanti saya kirim, ukuran masih didata ya', { reply: 'Siap kak, ditunggu ya', answered: [{ hal: 'logo', isi: 'menyusul' }, { hal: 'rincian ukuran', isi: 'menyusul' }] });
     assert.deepEqual(seen.at(-1).focus, ['jas-almamater']);
     assert.equal(seen.at(-1).order.jawaban.warna, 'navy');
     assert.ok(!r.actions.some((a) => a.type === 'handover'), 'items to come later keep the chat open');
     assert.deepEqual(orderStatus(readOrder(r.conv)).waiting, ['logo kampus', 'rincian ukuran']);
 
-    // The AI calling it complete early is not enough...
     const early = await step(r.conv, 'oke', { reply: 'Siap', handover: true, reason: 'pesanan_lengkap' });
     assert.ok(!early.actions.some((a) => a.type === 'handover'));
 
-    // ...but once every item is in, code hands over, whatever the AI said.
     r = await step(r.conv, 'ini logonya, ukuran S 10 M 20 L 10', { reply: 'Terima kasih kak, sudah lengkap', answered: [{ hal: 'logo kampus', isi: 'dikirim (gambar)' }, { hal: 'rincian ukuran', isi: 'S 10, M 20, L 10' }] });
     assert.deepEqual(texts(r.actions), ['Terima kasih kak, sudah lengkap', replies.waitForCs(), replies.socials()]);
     assert.equal(r.actions.at(-1).reason, 'data pesanan lengkap');
     assert.equal(JSON.parse(r.conv.notes)[0], 'Pesanan Jas Almamater · jumlah: 40 pcs · warna: navy · logo kampus: dikirim (gambar) · rincian ukuran: S 10, M 20, L 10');
 
-    // Another product named: its own order starts.
     const other = await step({ step: 'chat', order_info: JSON.stringify({ produk: 'jas-almamater', jawaban: { jumlah: '40 pcs' } }) }, 'eh kalau kaos bisa?', { reply: 'Bisa kak' });
     assert.deepEqual(readOrder(other.conv), { produk: 'kaos', jawaban: {}, ditanya: 'jumlah', lain: { 'jas-almamater': { jumlah: '40 pcs' } }, media_sent: {} }, 'kaos asks its own list; the almamater answers are kept (audit 2026-10-24)');
 
@@ -299,12 +285,10 @@ test('Uji AI: seeded scenarios, editable, and a run reports what broke (2026-10-
     const s = saveScenario({ name: 'Harga uji', messages: 'halo\nharga kaos berapa?', forbid: '#angka-uang, dijamin', expect: '#diam, CS' });
     assert.deepEqual(s.forbid, ['#angka-uang', 'dijamin']);
 
-    // A good run: no amount, says CS, never silent.
     const ok = await withAi(() => runScenario(s.id, { media, ask: async () => answer({ reply: 'Harganya dihitung CS Anggun ya kak' }) }));
     assert.equal(ok.pass, true, ok.problems.join('; '));
     assert.equal(ok.transcript[0].from, 'pelanggan');
 
-    // A bad run: every broken rule is named. (An amount gets past here only because ask is faked.)
     const bad = await withAi(() => runScenario(s.id, { media, ask: async () => answer({ reply: 'Dijamin murah, cuma Rp 45.000 kak' }) }));
     assert.equal(bad.pass, false);
     assert.ok(bad.problems.some((p) => /#angka-uang/.test(p)));
@@ -334,11 +318,9 @@ test('the AI left "terjawab" empty: code puts the reply under the item being ask
     r = await step(r.conv, 'navy');
     assert.deepEqual(readOrder(r.conv).jawaban, { jumlah: '40 pcs', warna: 'navy' });
 
-    // A question back is not an answer.
     r = await step(r.conv, 'logonya bisa di dada kiri?');
     assert.equal(readOrder(r.conv).jawaban['logo kampus'], undefined);
 
-    // "Nanti saya kirim" is menyusul; a picture alone is "dikirim".
     r = await step(r.conv, 'logonya nanti saya kirim ya');
     assert.equal(readOrder(r.conv).jawaban['logo kampus'], 'menyusul');
     assert.equal(readOrder(r.conv).ditanya, 'rincian ukuran');
@@ -375,9 +357,7 @@ test('fixed amounts written in the shop data may be quoted exactly; any other am
     assert.equal(checkReply('XXL tambah 5rb kak', data, { money: data }), null, 'the same amount written another way');
     assert.match(checkReply('3XL tambah Rp8.000 kak', data, { money: data }), /tidak tertulis di data toko/, 'the old surcharge is refused');
     assert.match(checkReply('Harga kaosnya Rp45.000 kak', data, { money: data }), /tidak tertulis/);
-    // An amount the customer typed is not the shop's.
     assert.match(checkReply('Iya kak Rp1.000 saja', `${data}\n<pesan>boleh Rp1.000?</pesan>`, { money: data }), /tidak tertulis/);
-    // Without the shop's amounts every amount is refused, as before.
     assert.match(checkReply('XXL tambah Rp5.000', data), /nominal uang/);
 });
 
@@ -397,7 +377,6 @@ test('the owner\'s answers are seeded: topics, product details, new products, Q&
     assert.equal(classifyWithRules({ text: 'mau bikin pdh', step: 'awaiting_product' }).product, 'kemeja', 'PDH is Kemeja PDH, not PDL');
     assert.equal(classifyWithRules({ text: 'mau bikin pdl', step: 'awaiting_product' }).product, 'pdl');
 
-    // Run again over a database the team already edited: nothing of theirs is touched.
     const { db } = await import('../src/db.js');
     const { runMigrations } = await import('../src/migrations.js');
     const t = listTopics().find((x) => x.title === 'Promo');
@@ -420,7 +399,6 @@ test('a fixed amount from the data used as a product price is refused ("harganya
 test('audit 2026-10-24: amounts only from the shop data, whole numbers, real answers, late lists, handover step, first-message questions, product switch, fresh chats', async () => {
     const { readOrder, orderStatus, orderSummary } = await import('../src/bot/chat.js');
 
-    // 1. The customer's "budget 50rb" filed in the order is no source for amounts.
     let prompt = '';
     const fetchImpl = async (url, options) => {
         prompt = JSON.parse(options.body).messages[0].content;
@@ -429,16 +407,13 @@ test('audit 2026-10-24: amounts only from the shop data, whole numbers, real ans
     await assert.rejects(withAi(() => askChat({ text: 'oke', order: { produk: 'kaos', jawaban: { budget: 'budget 70rb' } }, focus: [] }, { media, fetchImpl })), /nominal/);
     assert.match(prompt, /budget 70rb/, 'the AI still sees the answer');
 
-    // 2. Whole numbers: the prompt's rule numbers or "30" in the data do not let "3 hari" through.
     assert.match(checkReply('Bisa jadi 3 hari kak', 'Cotton Combed 30s. Minimal 6 pcs.'), /angka "3"/);
     assert.equal(checkReply('Minimal 6 pcs kak', 'Cotton Combed 30s. Minimal 6 pcs.'), null);
 
-    // 3. "belum ada desain" and "nanti diambil sendiri" are answers, not data to come.
     updateProduct('kaos', { info: { tanya: 'desain\npengiriman' } });
     const done = { produk: 'kaos', jawaban: { desain: 'belum ada desain, minta dibuatin', pengiriman: 'nanti diambil sendiri' } };
     assert.equal(orderStatus(done).complete, true);
 
-    // 4. A list that was to come later is filed when it arrives, even if the AI writes nothing down.
     const step = async (conv, text, over = {}) => {
         const r = await withAi(() => chatTurn(conv, { text, who: 'a4' }, { media, ask: async () => answer(over) }));
         return { ...r, conv: { ...conv, ...r.patch } };
@@ -449,17 +424,13 @@ test('audit 2026-10-24: amounts only from the shop data, whole numbers, real ans
     r = await step(r.conv, 'dikirim ke Kebumen');
     assert.equal(readOrder(r.conv).jawaban.pengiriman, 'dikirim ke Kebumen');
 
-    // 5. A handover marks the step (Coba bot kept answering after one).
     assert.equal(r.conv.step, 'handed_over');
     const human = await withAi(() => chatTurn({ step: 'chat' }, { text: 'mau ngobrol sama admin', who: 'a5' }, { media, ask: async () => answer() }));
     assert.equal(human.patch.step, 'handed_over');
 
-    // 6. A first message that greets and asks: the AI answers after the greeting.
     const first = await withAi(() => chatTurn({ step: 'new' }, { text: 'halo kak bisa bikin sepatu custom?', who: 'a6' }, { media, ask: async () => answer({ reply: 'Untuk sepatu belum ada kak' }) }));
     assert.deepEqual(texts(first.actions), [replies.greetUnknown(), 'Untuk sepatu belum ada kak']);
 
-    // 7. Switching product keeps what was answered; the AI alone cannot move a known order.
-    // (Three items: two answered keeps the order open, so the chat is not handed over.)
     updateProduct('kaos', { info: { tanya: 'jumlah\nwarna\nrincian ukuran' } });
     r = await step({ step: 'chat', order_info: JSON.stringify({ produk: 'kaos', jawaban: { jumlah: '40', warna: 'navy' } }) }, 'oke', { product: 'kaos-raglan' });
     assert.equal(readOrder(r.conv).produk, 'kaos', 'the AI guess did not move the order');
@@ -470,7 +441,6 @@ test('audit 2026-10-24: amounts only from the shop data, whole numbers, real ans
     r = await step(r.conv, 'eh balik kaos aja deh');
     assert.deepEqual(readOrder(r.conv).jawaban, { jumlah: '40', warna: 'navy' }, 'back to kaos, its answers come back');
 
-    // 8. A new conversation does not take the product from the previous one's lines.
     const fresh = await withAi(() => chatTurn({ step: 'new' }, { text: 'halo kak mau tanya dong', history: [{ who: 'pelanggan', text: 'mau bikin almet' }], who: 'a8' }, { media, ask: async () => answer() }));
     assert.equal(readOrder({ ...fresh.patch }).produk ?? null, null);
 
@@ -493,7 +463,6 @@ test('the AI thinks before it writes: "pikir" comes first, is never sent, and th
     assert.match(r.thought, /maksud: tanya bahan kaos · fakta: Cotton Combed 24s dan 30s · langkah: jawab lalu tanya jumlah/);
     assert.equal(thoughtOf(null), '');
 
-    // The examples are the team's to edit; empty goes back to the owner's.
     const { updateAiSettings, aiSettings } = await import('../src/ai-settings.js');
     updateAiSettings({ chatExamples: 'Pelanggan: halo\n{bot}: Halo juga, Kak!' });
     await withAi(() => chatTurn({ step: 'chat' }, { text: 'bahan kaos apa aja?', who: 'p2' }, { media, fetchImpl }));
@@ -508,17 +477,13 @@ test('last touch (2026-10-27): the AI knows the time and when CS is back; no rep
     const before = { ...config.bot };
     Object.assign(config.bot, { timezone: 'Asia/Jakarta', activeFrom: '17:30', activeUntil: '07:30', forceMode: '', holidays: [] });
     try {
-        // Saturday 2026-10-24 21:30 WIB: on guard all Sunday; CS is back Monday, at the shop's CS hours (not the bot's 07.30).
         const sat = timeBlock(new Date('2026-10-24T14:30:00Z'));
         assert.match(sat, /WAKTU SEKARANG: Sabtu, pukul 21\.30 WIB/);
         assert.match(sat, /CS Anggun sedang tidak online; CS membalas lagi Senin \(Senin\), pada jam kerja CS/);
         assert.doesNotMatch(sat, /07\.30/);
-        // Tuesday 2026-10-27 20:00 WIB: back tomorrow.
         assert.match(timeBlock(new Date('2026-10-27T13:00:00Z')), /lagi besok \(Rabu\)/);
-        // Office hours: no "not online" line.
         assert.doesNotMatch(timeBlock(new Date('2026-10-27T03:00:00Z')), /tidak online/);
 
-        // The times are facts, so a reply may quote them.
         let prompt = '';
         const fetchImpl = async (url, options) => {
             prompt = JSON.parse(options.body).messages[0].content;
@@ -546,17 +511,14 @@ test('"halo" again mid-chat (2026-10-28): the greeting is returned whole, not cu
     };
     const conv = { step: 'chat', name: 'Haikal', order_info: JSON.stringify({ produk: 'jas-almamater', jawaban: {} }) };
 
-    // Mid-chat, nothing sent before this reply: the rule against greeting must not apply.
     const mid = await withAi(() => chatTurn(conv, { text: 'Halo', who: 'g1' }, { media, fetchImpl }));
     assert.deepEqual(texts(mid.actions), ['Halo lagi, Kak! Mau lanjut soal jas almamaternya?'], 'the hello is kept whole');
     assert.doesNotMatch(system, /JANGAN menyapa lagi/);
     assert.match(system, /menyapa lagi di tengah obrolan[\s\S]*mau melanjutkan/);
 
-    // Right after the fixed greeting (first message with a question): no second hello.
     await withAi(() => chatTurn({ step: 'new' }, { text: 'halo kak bisa bikin kaos?', who: 'g2' }, { media, fetchImpl }));
     assert.match(system, /JANGAN menyapa lagi/);
 
-    // The WhatsApp Business Salam went out mid-chat: it greeted, so the AI does not greet again.
     const salam = await withAi(() => chatTurn(conv, { text: 'Halo', who: 'g3', autoGreeted: true }, { media, fetchImpl }));
     assert.deepEqual(texts(salam.actions), ['Mau lanjut soal jas almamaternya?'], 'after a greeting the extra hello goes whole');
 

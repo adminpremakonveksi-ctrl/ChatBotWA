@@ -51,7 +51,6 @@ test('catalog slots take WhatsApp catalog links only; other slots any https link
 
     assert.throws(() => m.setLink('katalog', 'https://bit.ly/promo'), /link katalog WhatsApp/);
 
-    // A size chart as a link: replaces the picture, and is used for the variant asked.
     const drive = 'https://drive.google.com/file/d/abc/view';
     assert.equal(m.setLink('size-chart:kaos:reguler', 'drive.google.com/file/d/abc/view'), drive);
     assert.ok(m.has('size-chart', 'kaos', 'reguler'));
@@ -82,11 +81,9 @@ test('the bot says its text first, then sends the catalog link instead of pictur
         sent.map((a) => (a.type === 'text' ? a.text.slice(0, 12) : a.type)),
         [replies.greetKnown('Budi').slice(0, 12), replies.catalogLink(SHOP, 'produk').slice(0, 12), replies.askQuantityCatalog().slice(0, 12)],
     );
-    // The shop-wide link is the shop's catalog, not "katalog Jersey" (2026-10-19: "katalog Jas Almamater" was the whole shop).
     assert.equal(sent[1].text, replies.catalogLink(SHOP, 'produk'), 'a lead-in, then the link');
     assert.ok(!sent.some((a) => a.type === 'file'), 'no pictures when a catalog link applies');
 
-    // A link of the product's own is named after the product.
     const OWN = 'https://wa.me/p/123456/6281999911895';
     m.setLink('katalog:jersey', OWN);
     sent.length = 0;

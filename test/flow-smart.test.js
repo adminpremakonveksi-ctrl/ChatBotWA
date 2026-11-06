@@ -39,7 +39,6 @@ test('"ok" and "makasih" never hand over in the middle of the flow', () => {
         assert.equal(r.conv.step, s);
     }
 
-    // After the quantity question it closes the flow politely: [7] + [8].
     const done = step({ step: 'awaiting_quantity', product: 'kaos' }, 'nggih matur nuwun');
     assert.deepEqual(texts(done.actions), [replies.waitForCs(), replies.socials(), replies.handoverNotice()]);
 });

@@ -1,17 +1,3 @@
-/**
- * Recent errors and warnings, raw, for the console's error pop-up: the client
- * photographs it and the developer reads exactly what failed. Filled by the
- * logger (every warn/error line) and by the HTTP error handler.
- *
- * Every entry also carries a guide for the person at the PC: whether anything
- * has to be done at all, what it means, and what to do, step by step. The raw
- * text stays as logged, beside it. An error nobody wrote a guide for still gets
- * the fallback guide, and test/error-guides.test.js fails when a warn/error in
- * src/ has no guide of its own, so a new error cannot ship without one.
- *
- * In memory only (the full history is in logs/bot.log). No imports, so the
- * logger can use it without a cycle.
- */
 
 const MAX = 100;
 const feed = [];
@@ -19,7 +5,6 @@ let lastId = 0;
 
 const stamp = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
 
-/** Plain-JSON copy of whatever was logged, Error objects included (message + stack). */
 function plain(value, depth = 0) {
     if (value instanceof Error) return { name: value.name, message: value.message, code: value.code, stack: value.stack };
     if (!value || typeof value !== 'object' || depth > 3) return value;
@@ -28,12 +13,6 @@ function plain(value, depth = 0) {
     return Object.fromEntries(Object.entries(value).slice(0, 30).map(([k, v]) => [k, plain(v, depth + 1)]));
 }
 
-/**
- * level: 'info'   = nothing to do, the bot repairs itself;
- *        'cek'    = look only if it keeps coming back;
- *        'tindak' = something must be done now.
- * todo: numbered steps in plain words, using the names on screen.
- */
 export const LEVELS = ['info', 'cek', 'tindak'];
 
 const MULAI = 'tutup jendela bot, lalu klik "Mulai ChatBot Prema"';
@@ -41,23 +20,19 @@ const TIDAK = 'Tidak perlu melakukan apa-apa.';
 const KIRIM = 'Kalau terus berulang, tekan "Salin teks" dan kirim ke developer.';
 const DISK = 'Windows menolak menulis ke disk. 1) Cek ruang disk PC (kosongkan file besar dan Recycle Bin). 2) Pastikan folder bot tidak dibuka program lain. 3) Lalu ' + MULAI + '.';
 
-// First match wins. Each pattern is tried against the message alone first, then against the
-// message plus its details, so a detail cannot take over an error that names itself.
-// The order is the order of importance: our own alerts, then WhatsApp, AI, the PC, the rest.
 export const GUIDE = [
-    // --- our own alerts (message-healing.js, update-check.js) ---
     { match: /belum versi terbaru/i, level: 'tindak',
         meaning: 'Ada versi bot yang lebih baru di GitHub.',
         todo: `1) ${MULAI[0].toUpperCase()}${MULAI.slice(1)}. 2) Pembaruan terpasang otomatis; data dan chat tidak hilang.` },
     { match: /perangkat bot ini sendiri/i, level: 'tindak',
-        meaning: 'Ada salinan bot lain yang memakai kunci tautan WhatsApp yang sama (biasanya folder bot yang disalin ke tempat lain). Dua bot dengan kunci sama saling merusak enkripsi.',
-        todo: '1) Tutup semua salinan bot lain, di PC ini dan PC lain. 2) Klik "Mulai ChatBot Prema": salinan dari folder lain dimatikan otomatis. 3) Di kartu WhatsApp klik "Scan ulang (kunci baru)", lalu scan dari HP toko. Chat dan pengaturan tidak hilang.' },
+        meaning: 'Pesan atas nama perangkat bot belum bisa dibuka. Pesan kiriman ulang atau konflik sesi perlu diperiksa; ini belum membuktikan ada bot ganda.',
+        todo: '1) Simpan detail pengirim dan ID pesan untuk developer. 2) Jangan lepas perangkat admin atau scan ulang hanya berdasarkan peringatan ini.' },
     { match: /perangkat tertaut lain/i, level: 'info',
-        meaning: 'Ada perangkat lain di nomor ini (misalnya WhatsApp Web atau Desktop yang dipakai CS) yang pesannya belum bisa dibuka bot. Bot tetap melayani pelanggan; yang tidak terbaca hanya balasan CS dari perangkat itu.',
-        todo: 'Tidak perlu melakukan apa-apa, dan JANGAN melepas perangkat yang dipakai CS. Kalau diminta developer, tekan "Salin teks" dan kirim. Perangkat yang tidak dikenal boleh dilepas lewat HP toko (WhatsApp Business > titik tiga > Perangkat tertaut); jangan lepas "ChatBot Prema".' },
-    { match: /kunci enkripsi bot dan HP sudah tidak cocok/i, level: 'tindak',
+        meaning: 'Pesan dari salah satu perangkat toko belum terbaca. Chat terkait ditahan lalu diserahkan ke CS jika belum pulih; chat lain tetap berjalan.',
+        todo: '1) Jangan lepas perangkat pemilik atau admin. 2) Periksa dan tangani chat terkait lewat WhatsApp. 3) Salin detail perangkat dan ID pesan untuk developer jika berulang.' },
+    { match: /pemulihan sesi HP utama belum berhasil|kunci enkripsi bot dan HP sudah tidak cocok/i, level: 'tindak',
         meaning: 'Bot tidak bisa membuka pesan yang dikirim dari HP toko, dan perbaikan otomatis selama 30 menit belum berhasil.',
-        todo: '1) Pastikan hanya satu bot yang jalan (tutup bot di folder atau PC lain). 2) Di kartu WhatsApp klik "Scan ulang (kunci baru)", lalu scan dari HP toko. Chat dan pengaturan tidak hilang.' },
+        todo: '1) Pastikan HP utama online dan buka WhatsApp Business. 2) Periksa detail perangkat bersama developer; jangan lepas perangkat admin. 3) Scan ulang menjadi pilihan terakhir setelah pemeriksaan.' },
     { match: /dilepas dari pemulihan/i, level: 'cek',
         meaning: 'Beberapa pesan WhatsApp tidak pernah bisa dibuka, jadi dilepas dari antrean pemulihan.',
         todo: '1) Lihat Detail: kalau "customerChats" berisi chat pelanggan, buka chat itu di WhatsApp Business di HP toko dan balas manual kalau perlu. 2) Kalau "customerChats" kosong, pesannya dari perangkat CS dan tidak ada yang perlu dilakukan. 3) Kalau diminta developer, tekan "Salin teks" dan kirim.' },
@@ -74,7 +49,6 @@ export const GUIDE = [
         meaning: 'Nomor ini dipakai bot lain yang memakai kunci WhatsApp yang sama (PC lain atau jendela bot kedua). Bot ini berhenti supaya tidak saling merusak.',
         todo: '1) Matikan bot lain yang memakai nomor ini; satu nomor hanya boleh satu bot. 2) Klik "Mulai ChatBot Prema" (salinan dari folder lain dimatikan otomatis). 3) Di kartu WhatsApp klik "Scan ulang (kunci baru)" dan scan dari HP toko.' },
 
-    // --- the connection to WhatsApp (messages from Baileys and from session.js) ---
     { match: /spoofed self-only protocolMessage/i, level: 'info',
         meaning: 'Pesan sinkronisasi internal akun WhatsApp diabaikan. Ini normal.',
         todo: TIDAK },
@@ -94,12 +68,10 @@ export const GUIDE = [
         meaning: 'PC ini tidak bisa menjangkau internet (Wi-Fi atau kabel LAN putus, modem mati, atau kuota habis).',
         todo: '1) Cek Wi-Fi atau kabel LAN, modem, dan kuota. 2) Bot jalan lagi sendiri begitu internet kembali; tidak perlu menyalakan ulang.' },
 
-    // --- messages that cannot be opened (WhatsApp encryption) ---
     { match: /failed to decrypt message|Bad MAC|No session|No matching sessions|Key used already|Invalid PreKey/i, level: 'cek',
         meaning: 'Satu pesan tidak bisa dibuka (kunci enkripsi pengirim belum cocok). WhatsApp biasanya mengirim ulang sendiri, dan bot memperbaikinya otomatis.',
         todo: '1) Tidak perlu apa-apa dulu. 2) Kalau tidak pulih, bot memberi peringatan sendiri setelah 5 menit dengan langkah yang tepat. 3) Kalau muncul terus untuk banyak pesan dan tidak ada peringatan lain, ' + KIRIM.toLowerCase() },
 
-    // --- the AI ---
     { match: /mode AI aktif tetapi AI belum diatur/i, level: 'tindak',
         meaning: 'Mode AI menyala tetapi kunci AI belum diisi, jadi bot diam setelah sapaan.',
         todo: '1) Buka Pengaturan > AI. 2) Isi kunci Ollama. 3) Simpan.' },
@@ -125,7 +97,6 @@ export const GUIDE = [
         meaning: 'AI terlalu lama menjawab, jadi pesan itu tidak dibalas. Biasanya internet lambat atau server AI sibuk.',
         todo: '1) Tidak perlu apa-apa kalau jarang. 2) Kalau sering, naikkan "Batas waktu jawaban AI" di Pengaturan > AI.' },
 
-    // --- customers waiting ---
     { match: /pesan tertunda perlu ditindaklanjuti CS|balasan tertunda terlalu lama/i, level: 'tindak',
         meaning: 'Ada pelanggan yang belum menerima balasan dari bot.',
         todo: '1) Buka Ringkasan > "Perlu ditindaklanjuti CS". 2) Balas pelanggan itu lewat WhatsApp Business di HP.' },
@@ -136,7 +107,6 @@ export const GUIDE = [
         meaning: 'Satu pesan gagal diproses. Pesannya tersimpan dan dicoba lagi otomatis; bot tetap jalan.',
         todo: `Tidak perlu apa-apa kalau tidak berulang. ${KIRIM}` },
 
-    // --- the PC itself (disk, database, files, port) ---
     { match: /SQLITE_FULL|ENOSPC|no space left|disk full/i, level: 'tindak',
         meaning: 'Disk PC penuh, jadi bot tidak bisa menyimpan data.',
         todo: '1) Kosongkan ruang disk (hapus file besar, kosongkan Recycle Bin). 2) Lalu ' + MULAI + '.' },
@@ -181,7 +151,6 @@ export const GUIDE = [
         meaning: 'Terjadi kesalahan tak terduga di dalam bot. Bot menyalakan ulang dirinya sendiri supaya tidak setengah rusak.',
         todo: `1) Tunggu satu menit; bot menyala sendiri. 2) Kalau status di dashboard belum hijau setelah 2 menit, ${MULAI}. 3) ${KIRIM}` },
 
-    // --- the dashboard ---
     { match: /Tidak bisa menghubungi bot/i, level: 'tindak',
         meaning: 'Halaman ini tidak bisa menghubungi bot: bot belum jalan atau jendelanya tertutup.',
         todo: '1) Klik "Mulai ChatBot Prema". 2) Tunggu 20 detik, lalu muat ulang halaman (F5).' },
@@ -197,7 +166,6 @@ export const FALLBACK = {
 };
 
 const detailText = (detail) => {
-    // Stacks are left out: their file and function names ("decryptMessage") would match anything.
     try {
         return JSON.stringify(detail ?? {}, (k, v) => (k === 'stack' ? undefined : v instanceof Error ? v.message : v)).slice(0, 2000);
     } catch {
@@ -211,7 +179,6 @@ const find = (message, detail) => {
     return GUIDE.find((g) => g.match.test(text)) ?? GUIDE.find((g) => g.match.test(`${text} ${detailText(detail)}`)) ?? null;
 };
 
-/** What to tell the person at the PC: { level, meaning, todo, known }; never empty. */
 export const guideOf = (message, detail = {}) => {
     const found = find(message, detail);
 
@@ -220,7 +187,6 @@ export const guideOf = (message, detail = {}) => {
         : { ...FALLBACK, known: false };
 };
 
-/** Just the meaning, or null when no guide of its own matches. */
 export const meaningOf = (message, detail = {}) => find(message, detail)?.meaning ?? null;
 
 export function recordError({ level = 'error', source = 'bot', message, detail = {} }) {
@@ -229,7 +195,6 @@ export function recordError({ level = 'error', source = 'bot', message, detail =
     if (feed.length > MAX) feed.shift();
 }
 
-/** Entries after a given id (the console keeps the last one it showed). */
 export const errorsSince = (id = 0) => feed.filter((e) => e.id > Number(id || 0));
 
 export const latestErrorId = () => lastId;

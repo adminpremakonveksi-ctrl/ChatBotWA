@@ -2,14 +2,6 @@ import { AUTO_MESSAGES_KEY, SEED_ADDITIONS, SEED_AI_SCENARIOS, SEED_KEYWORDS, SE
 import { cleanPhrase, setDictionary, textRulesVersion } from './text.js';
 import { PREMA_FAQ, PREMA_NEW_PRODUCTS, PREMA_PRODUCTS, PREMA_SCENARIOS, PREMA_TOPICS } from './seeds-prema.js';
 
-/**
- * Numbered schema migrations with their seeders. Each runs once per database
- * and is recorded in `migrations`; a client database that already exists
- * gets only the ones it is missing, in order, each in a transaction.
- *
- * Rules: never edit a migration that has shipped (clients already ran it):
- * add a new one. Seeders must keep what the team already changed.
- */
 
 const stamp = () => new Date().toISOString().slice(0, 19).replace('T', ' ');
 
@@ -52,7 +44,6 @@ CREATE TABLE IF NOT EXISTS wa_auth_keys (
     PRIMARY KEY (wa_session_id, category, key_id)
 );
 
--- Where each customer is in the reply flow, per bot number.
 CREATE TABLE IF NOT EXISTS conversations (
     session_key TEXT NOT NULL,
     jid TEXT NOT NULL,
@@ -69,7 +60,6 @@ CREATE TABLE IF NOT EXISTS conversations (
     PRIMARY KEY (session_key, jid)
 );
 
--- Every message in and out, plus handover and step markers. Doubles as the volume counter.
 CREATE TABLE IF NOT EXISTS message_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_key TEXT NOT NULL,
@@ -81,7 +71,6 @@ CREATE TABLE IF NOT EXISTS message_log (
     created_at TEXT NOT NULL
 );
 
--- Small key/value store: settings, when each daily job last ran, etc.
 CREATE TABLE IF NOT EXISTS settings (
     "key" TEXT PRIMARY KEY,
     value TEXT,
@@ -123,7 +112,6 @@ CREATE INDEX IF NOT EXISTS message_log_wa_id ON message_log (wa_message_id);
 CREATE INDEX IF NOT EXISTS message_log_created ON message_log (created_at);
 `);
 
-            // Pattern tables from before the date window existed.
             for (const column of ['starts_on', 'ends_on']) {
                 if (!hasColumn(db, 'patterns', column)) db.exec(`ALTER TABLE patterns ADD COLUMN ${column} TEXT`);
             }
@@ -160,8 +148,6 @@ CREATE TABLE IF NOT EXISTS products (
                 db.exec(`ALTER TABLE custom_keywords ADD COLUMN source TEXT NOT NULL DEFAULT 'tim'`);
             }
 
-            // Team keywords saved before shorthand expansion ("blm ada"): store them
-            // the way messages are now compared ("belum ada"); drop exact duplicates.
             for (const row of db.prepare('SELECT id, phrase FROM custom_keywords').all()) {
                 const clean = cleanPhrase(row.phrase);
                 if (clean === row.phrase) continue;
@@ -183,7 +169,6 @@ CREATE TABLE IF NOT EXISTS products (
                 for (const phrase of p.keywords) insert.run(phrase, 'product', p.key, 'bawaan', stamp());
             }
 
-            // A fresh install gets a few examples; an existing one already had its own.
             const seeded = db.prepare(`SELECT 1 FROM settings WHERE "key" = 'keywords:seeded'`).get();
             if (!seeded) {
                 for (const k of SEED_STARTER_KEYWORDS) insert.run(cleanPhrase(k.phrase), k.intent, k.product ?? null, 'tim', stamp());
@@ -202,11 +187,9 @@ CREATE TABLE IF NOT EXISTS products (
             for (const seed of SEED_PATTERNS) {
                 if (db.prepare('SELECT 1 FROM patterns WHERE builtin = ?').get(seed.builtin)) continue;
 
-                // Keywords the team taught to this answer before it became a pattern come along.
                 const taught = db.prepare('SELECT phrase FROM custom_keywords WHERE intent = ?').all(seed.builtin).map((r) => r.phrase);
                 db.prepare('DELETE FROM custom_keywords WHERE intent = ?').run(seed.builtin);
 
-                // So do the team's edits of its templates (Template balasan).
                 const bubbles = seed.bubbles.map((bubble, i) => {
                     const edited = seed.templates[i] ? setting(`reply:${seed.templates[i]}`) : null;
                     if (!edited) return bubble;
@@ -223,8 +206,6 @@ CREATE TABLE IF NOT EXISTS products (
     },
 
     {
-        // More ways customers say things, three new intents (ask_first, ack, price),
-        // and a memory of what the team deleted so later seeds never bring it back.
         id: '005_smarter_seeds',
         up(db) {
             db.exec(`CREATE TABLE IF NOT EXISTS seed_removed (kind TEXT NOT NULL, value TEXT NOT NULL, removed_at TEXT, PRIMARY KEY (kind, value))`);
@@ -234,8 +215,6 @@ CREATE TABLE IF NOT EXISTS products (
     },
 
     {
-        // Follow-up questions per product ("kemeja apa? ukuran apa?"), and what
-        // the customer answered plus the quantity they named, kept for CS.
         id: '006_order_details',
         up(db) {
             if (!hasColumn(db, 'products', 'questions')) db.exec(`ALTER TABLE products ADD COLUMN questions TEXT NOT NULL DEFAULT '[]'`);
@@ -255,7 +234,6 @@ CREATE TABLE IF NOT EXISTS products (
                 for (const phrase of p.keywords) insertKeyword.run(cleanPhrase(phrase), p.key, stamp());
             }
 
-            // Seeded products get their questions; one the team made itself starts with none.
             for (const row of db.prepare(`SELECT "key", size_chart FROM products WHERE builtin = 1 AND questions = '[]'`).all()) {
                 db.prepare('UPDATE products SET questions = ? WHERE "key" = ?').run(JSON.stringify(seedQuestions({ key: row.key, sizeChart: Boolean(row.size_chart) })), row.key);
             }
@@ -263,29 +241,22 @@ CREATE TABLE IF NOT EXISTS products (
     },
 
     {
-        // More ways of saying the same things (see SEED_ADDITIONS in seeds.js).
         id: '007_more_variations',
         up(db) {
-            // How many messages in a row the bot did not understand (it asks again before handing over).
             if (!hasColumn(db, 'conversations', 'misses')) db.exec('ALTER TABLE conversations ADD COLUMN misses INTEGER NOT NULL DEFAULT 0');
             syncSeeds(db, '007_more_variations');
         },
     },
 
     {
-        // From testing odd messages: anger and "call me" go to CS, "kamu bot?" is
-        // answered, and two seeded phrases that caught the wrong thing are removed.
         id: '008_odd_messages',
         up(db) {
-            // Questions only CS can answer ("bisa DP?"), noted for CS while the bot carries on.
             if (!hasColumn(db, 'conversations', 'notes')) db.exec('ALTER TABLE conversations ADD COLUMN notes TEXT');
             syncSeeds(db, '008_odd_messages');
         },
     },
 
     {
-        // Every word list the bot reads (dictionary, fillers, cities, units, ...)
-        // in the database, editable in the console (Latih bot > Kamus).
         id: '009_word_lists',
         up(db) {
             db.exec(`
@@ -310,9 +281,6 @@ CREATE TABLE IF NOT EXISTS word_lists (
     },
 
     {
-        // What happened, in order: pages opened and changes made in the console,
-        // what the bot did with each message, notes the team writes for the
-        // developer. The Log page shows it; a photo of it explains a request.
         id: '010_activity_log',
         up(db) {
             db.exec(`
@@ -329,10 +297,6 @@ CREATE INDEX IF NOT EXISTS activity_log_at ON activity_log (at);`);
     },
 
     {
-        // WhatsApp addresses people by LID (a hidden id) as well as by phone
-        // number. Which LID is which number, learnt from the messages, so a
-        // chat is one conversation whatever the address, and a message whose
-        // encryption session was made under the number can still be read.
         id: '011_lid_map',
         up(db) {
             db.exec(`
@@ -345,8 +309,6 @@ CREATE TABLE IF NOT EXISTS lid_map (
     },
 
     {
-        // The AI may answer a question the bot has no text for; when it does not
-        // know, it offers to hand over to CS. Remembered until the next message.
         id: '012_offer_cs',
         up(db) {
             if (!hasColumn(db, 'conversations', 'offered_cs')) db.exec('ALTER TABLE conversations ADD COLUMN offered_cs INTEGER NOT NULL DEFAULT 0');
@@ -354,24 +316,18 @@ CREATE TABLE IF NOT EXISTS lid_map (
         },
     },
     {
-        // The shop's WhatsApp Business "Pesan tidak di tempat" was not in the
-        // list of automatic messages, so it was read as CS typing and muted the bot.
         id: '013_away_message',
         up(db) {
             addAwayMessage(db);
         },
     },
     {
-        // "nama ku haikal" was the name "Ku Haikal": more words around a name.
         id: '014_name_words',
         up(db) {
             syncSeeds(db, '014_name_words');
         },
     },
     {
-        // A list saved from the console is also kept as the setting text
-        // (cfg:autoMessages), which rewrites the list on every boot: 013's
-        // addition was lost there. Both get the away message.
         id: '015_away_message_setting',
         up(db) {
             addAwayMessage(db);
@@ -391,17 +347,12 @@ CREATE TABLE IF NOT EXISTS lid_map (
         },
     },
     {
-        // "ok makasih sih", "halo malam dong hehe": the words chats add that say nothing.
         id: '016_chat_extras',
         up(db) {
             syncSeeds(db, '016_chat_extras');
         },
     },
     {
-        // AI chat mode: what the bot knows, filled in by the team. Products get
-        // their details (bahan, teknik, ...), the shop its topics and Q&A.
-        // Everything starts empty except the topic titles; the old free-text
-        // "Pengetahuan toko" becomes the first topic.
         id: '017_knowledge',
         up(db) {
             if (!hasColumn(db, 'products', 'info')) db.exec(`ALTER TABLE products ADD COLUMN info TEXT NOT NULL DEFAULT '{}'`);
@@ -433,7 +384,6 @@ CREATE TABLE IF NOT EXISTS faq (
                 try {
                     text = old ? String(JSON.parse(old.value) ?? '').trim() : '';
                 } catch {
-                    /* unreadable: nothing to carry over */
                 }
                 if (text) insert.run('Catatan umum', text, position++, stamp(), stamp());
 
@@ -444,9 +394,6 @@ CREATE TABLE IF NOT EXISTS faq (
         },
     },
     {
-        // AI chat: what the customer already answered per product (order_info),
-        // the AI replies the guard refused (ai_log), and the team's test
-        // scenarios (ai_scenarios, seeded once).
         id: '018_order_and_ai_checks',
         up(db) {
             if (!hasColumn(db, 'conversations', 'order_info')) db.exec('ALTER TABLE conversations ADD COLUMN order_info TEXT');
@@ -480,10 +427,6 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
         },
     },
     {
-        // The owner's answers (seeds-prema.js) as a one-time start for what the
-        // team edits in the console: new products, empty topics and empty
-        // product details filled, Q&A added. Anything the team already wrote is
-        // kept; what it deletes later stays deleted (this runs once).
         id: '019_prema_knowledge',
         up(db) {
             const removed = (value) => Boolean(db.prepare(`SELECT 1 FROM seed_removed WHERE kind = 'product' AND value = ?`).get(value));
@@ -512,7 +455,6 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
                 try {
                     info = JSON.parse(row.info || '{}') ?? {};
                 } catch {
-                    /* unreadable: start from the seed */
                 }
                 for (const [field, value] of Object.entries(seed)) if (empty(info[field])) info[field] = value;
                 db.prepare('UPDATE products SET info = ?, updated_at = ? WHERE "key" = ?').run(JSON.stringify(info), stamp(), key);
@@ -536,9 +478,6 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
         },
     },
     {
-        // .env.example shipped OLLAMA_TIMEOUT_MS=20000 and the client's .env is a copy of it:
-        // too short for a reply with thinking and the shop's data (2026-10-28). The console
-        // setting beats .env, so it gets 60 s unless the team already chose a value.
         id: '020_ai_timeout_60s',
         up(db) {
             db.prepare(`INSERT INTO settings ("key", value, updated_at) VALUES ('ai:timeout_s', '60', ?) ON CONFLICT("key") DO NOTHING`).run(stamp());
@@ -583,8 +522,6 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
                 created_at TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )`);
-            // Preserve approved text as ordinary knowledge. Pattern triggers,
-            // bubble delivery and handover instructions no longer drive AI.
             let position = (db.prepare('SELECT MAX(position) AS n FROM faq').get()?.n ?? -1) + 1;
             for (const p of db.prepare('SELECT * FROM patterns WHERE enabled = 1 ORDER BY id').all()) {
                 if (!JSON.parse(p.keywords || '[]').length) continue;
@@ -602,7 +539,7 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
             let promo = editedPromo?.value;
             if (!editedPromo) {
                 const oldPromo = db.prepare(`SELECT value FROM settings WHERE "key" = 'cfg:jerseyPromo'`).get();
-                try { promo = oldPromo ? JSON.parse(oldPromo.value) : process.env.JERSEY_PROMO_TEXT; } catch { /* invalid legacy value */ }
+                try { promo = oldPromo ? JSON.parse(oldPromo.value) : process.env.JERSEY_PROMO_TEXT; } catch {                            }
             }
             if (typeof promo === 'string' && promo.trim() && db.prepare('SELECT 1 FROM products WHERE "key" = ?').get('jersey')) {
                 db.prepare(`INSERT INTO promotions (title, content, product, enabled, created_at, updated_at) VALUES ('Promo Jersey', ?, 'jersey', 1, ?, ?)`).run(promo.trim(), stamp(), stamp());
@@ -630,9 +567,6 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
         },
     },
     {
-        // Ids of messages that arrived readable. WhatsApp sends its unacknowledged queue again after
-        // every reconnect; a second copy of a message already read fails ("Key used already") and
-        // used to count as an unreadable message once the bot had restarted (client PC, 2026-11-02).
         id: '024_seen_messages',
         up(db) {
             db.exec(`CREATE TABLE seen_messages (
@@ -646,7 +580,6 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
     },
 ];
 
-/** Adds the away message to a list the team already saved, once; a fresh install gets it as the default. */
 export function addAwayMessage(db) {
     const row = db.prepare(`SELECT value FROM settings WHERE "key" = ?`).get(AUTO_MESSAGES_KEY);
     if (!row) return;
@@ -662,7 +595,6 @@ export function addAwayMessage(db) {
     db.prepare(`UPDATE settings SET value = ? WHERE "key" = ?`).run(JSON.stringify([...list, SEED_AWAY_MESSAGE].slice(0, 10)), AUTO_MESSAGES_KEY);
 }
 
-/** Reads the dictionary lists from the database into normalise() (once the table exists). */
 export function loadDictionary(db) {
     const exists = db.prepare(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'word_lists'`).get();
     if (!exists) return false;
@@ -673,11 +605,6 @@ export function loadDictionary(db) {
     return true;
 }
 
-/**
- * Keywords are stored the way messages are compared. When the comparison
- * rules change (a dictionary edit, an update), re-store them, so keywords
- * never stop matching.
- */
 export function syncTextRules(db) {
     const version = textRulesVersion();
     const saved = db.prepare(`SELECT value FROM settings WHERE "key" = 'text:rules'`).get()?.value;
@@ -691,7 +618,6 @@ export function syncTextRules(db) {
     return true;
 }
 
-/** Re-stores keywords the way messages are now compared; drops the duplicates that makes. */
 function renormaliseKeywords(db) {
     for (const row of db.prepare('SELECT id, phrase FROM custom_keywords').all()) {
         const clean = cleanPhrase(row.phrase);
@@ -709,19 +635,11 @@ function renormaliseKeywords(db) {
     }
 }
 
-/**
- * Brings one SEED_ADDITIONS entry to this database without undoing the team:
- * - a phrase the team deleted or renamed (seed_removed) is not added again;
- * - a phrase already in use, for any intent or product, keeps its meaning;
- * - a product or built-in pattern the team deleted gets nothing;
- * - pattern keywords are appended, the team's own stay.
- */
 export function syncSeeds(db, migration) {
     for (const add of SEED_ADDITIONS.filter((a) => a.migration === migration)) applySeed(db, add);
 }
 
 function applySeed(db, add) {
-    // Word lists (Kamus): new words, unless the team deleted them.
     for (const [list, entries] of Object.entries(add.words ?? {})) {
         for (const entry of entries) {
             const [word, value] = Array.isArray(entry) ? entry : [entry, null];
@@ -742,9 +660,6 @@ function applySeed(db, add) {
         }
     }
 
-    // A built-in product keyword that belongs to another product ("pdh" was PDL;
-    // it is Kemeja PDH): taken off before the additions give it its new owner.
-    // Only the seeded one: a phrase the team put there itself is theirs.
     for (const [key, phrases] of Object.entries(add.remove?.products ?? {})) {
         for (const phrase of phrases.map(cleanPhrase)) {
             db.prepare(`DELETE FROM custom_keywords WHERE intent = 'product' AND product = ? AND phrase = ? AND source = 'bawaan'`).run(key, phrase);
@@ -770,7 +685,6 @@ function applySeed(db, add) {
         }
     }
 
-    // Seeded phrases that proved to catch the wrong thing ("kantore" -> Lokasi).
     for (const [builtin, phrases] of Object.entries(add.remove?.patterns ?? {})) {
         const row = db.prepare('SELECT id, keywords FROM patterns WHERE builtin = ?').get(builtin);
         if (!row) continue;
@@ -782,12 +696,10 @@ function applySeed(db, add) {
     }
 }
 
-/** Remembers that the team removed a built-in seed, so no later migration re-adds it. */
 export function rememberRemoved(db, kind, value) {
     db.prepare(`INSERT OR IGNORE INTO seed_removed (kind, value, removed_at) VALUES (?, ?, ?)`).run(kind, value, stamp());
 }
 
-/** Applies every migration this database has not had yet. Returns the ids applied now. */
 export function runMigrations(db) {
     db.exec(`CREATE TABLE IF NOT EXISTS migrations (id TEXT PRIMARY KEY, applied_at TEXT NOT NULL)`);
 
@@ -805,7 +717,6 @@ export function runMigrations(db) {
         applied.push(migration.id);
     }
 
-    // The dictionary the team edited, then keywords re-stored if it changed.
     loadDictionary(db);
     syncTextRules(db);
 

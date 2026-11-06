@@ -41,7 +41,7 @@ test('restart during debounce retains the exact input, attachment and quoted con
     const f = setup(t);
     const original = f.make(async () => assert.fail('original process never reaches AI'));
     original.onIncoming(KEY, f.transport, { jid: JID, id: 'restart-input', text: 'desain ini ya', hasImage: true, attachment: { kind: 'gambar', note: 'referensi' }, quoted: 'Pesan yang dibalas' });
-    for (const buffer of original.buffers.values()) clearTimeout(buffer.timer); // Simulate abrupt process exit.
+    for (const buffer of original.buffers.values()) clearTimeout(buffer.timer);
     assert.equal(incomingRows(KEY).length, 1);
     const restarted = f.make(async (conv, input) => {
         assert.equal(input.text, 'desain ini ya');
@@ -276,7 +276,7 @@ test('fault soak: 100 inputs survive AI failures, network drops and repeated pro
     } };
     let bot = f.make(model);
     for (let i = 0; i < 100; i++) bot.onIncoming(KEY, transport, { jid: '628900' + i + '@s.whatsapp.net', id: 'soak-input-' + i, text: 'request-' + i });
-    for (const b of bot.buffers.values()) clearTimeout(b.timer); // Initial process disappears before debounce.
+    for (const b of bot.buffers.values()) clearTimeout(b.timer);
     for (let sweep = 0; sweep < 100 && (incomingRows(KEY).length || pendingDeliveries(KEY).length); sweep++) {
         if (sweep % 4 === 0) bot = f.make(model);
         due();
@@ -344,7 +344,7 @@ test('committed inbox, outbox and conversation state recover from a real abruptl
         "database.prepare(\"INSERT INTO outgoing_queue (id, session_key, jid, action, created_at) VALUES ('out-1', 'crash', 'customer@lid', '{}', '2026-01-01')\").run();",
         "database.prepare(\"INSERT INTO conversations (session_key, jid, step, product) VALUES ('crash', 'customer@lid', 'chat', 'kaos')\").run();",
         "})();",
-        "process.kill(process.pid, 'SIGKILL');", // No database.close(), simulates abrupt process termination.
+        "process.kill(process.pid, 'SIGKILL');",
     ].join('\n');
     let reopened;
     try {

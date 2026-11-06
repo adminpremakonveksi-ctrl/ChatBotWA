@@ -9,7 +9,6 @@ import * as store from '../src/bot/store.js';
 import { run } from '../src/db.js';
 import { conversationJid, learnFromKey, pnJidOf, rememberLid, withLidFallback } from '../src/lid.js';
 
-// From the client PC (2026-10-19): the bot's own LID, its phone (device 0), a customer's LID.
 const OWN_LID = '28067997159547:12@lid';
 const OWN_PN = '6281999911895:12@s.whatsapp.net';
 const CUSTOMER_LID = '247768274698362@lid';
@@ -19,7 +18,6 @@ test('a message from our own phone addressed by LID is decrypted with the sessio
     run('DELETE FROM lid_map');
     rememberLid(OWN_LID, OWN_PN);
 
-    // Sessions as Baileys 6.7 holds them: our phone under its number only.
     const sessions = new Set(['6281999911895.0']);
     const tried = [];
     const repository = {
@@ -38,7 +36,6 @@ test('a message from our own phone addressed by LID is decrypted with the sessio
     assert.equal(String(out), 'plain:abc');
     assert.deepEqual(tried, ['28067997159547.0', '6281999911895.0'], 'LID first, then the number of the same device');
 
-    // Another failure, or a LID we do not know, is passed on unchanged.
     await assert.rejects(repository.decryptMessage({ jid: '99999:0@lid', type: 'msg', ciphertext: 'x' }), /No matching sessions/);
 });
 
@@ -62,13 +59,11 @@ test('CS replying on the phone to a LID chat silences the bot for that customer 
     const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: { links: () => [], files: () => [], has: () => false }, isActive: () => true, debounceMs: 5 });
     const wa = { newMessageId: () => `L${sent.length}`, send: async (jid, action) => sent.push({ jid, text: action.text }) };
 
-    // The customer writes by number; later the chat is addressed by LID.
     learnFromKey({ remoteJid: CUSTOMER_LID, senderPn: CUSTOMER_PN });
     bot.onIncoming('utama', wa, { jid: conversationJid(CUSTOMER_PN), id: 'c1', text: 'halo kak saya Budi dari Jogja' });
     await new Promise((r) => setTimeout(r, 20));
     await bot.drain();
 
-    // CS types on the phone; WhatsApp addresses that chat by LID.
     bot.onOwnMessage('utama', { jid: conversationJid(CUSTOMER_LID), id: 'cs-1', text: 'Halo kak Budi, saya bantu ya' });
     assert.equal(store.loadConversation('utama', CUSTOMER_PN).step, 'handed_over');
 
@@ -84,9 +79,7 @@ test('messages we sent never teach a mapping (their sender ids are ours)', async
     run('DELETE FROM lid_map');
     setOwnIdentity({ lid: OWN_LID, id: OWN_PN });
 
-    // CS types on the phone in a chat addressed by number: senderLid is OUR LID.
     learnFromKey({ remoteJid: CUSTOMER_PN, fromMe: true, senderLid: '28067997159547:0@lid' });
-    // CS types in a chat addressed by LID: senderPn is OUR number.
     learnFromKey({ remoteJid: CUSTOMER_LID, fromMe: true, senderPn: '6281999911895:0@s.whatsapp.net' });
 
     assert.equal(pnOfLid(OWN_LID), '6281999911895', 'our own mapping is intact');
@@ -146,7 +139,6 @@ test('a failing catalog read never takes the bot down', async () => {
     session.state = 'connected';
     session.socket = { user: { id: '628:1@s.whatsapp.net' }, getCatalog: async () => { throw new Error('item-not-found'); } };
 
-    // Resolves (no unhandled rejection) and reports the reason.
     await assert.doesNotReject(session.syncCatalogWithRetry());
     const { getSetting } = await import('../src/db.js');
     assert.match(String(getSetting('catalog:error')), /item-not-found/);
@@ -157,18 +149,14 @@ test('our own LID is learnt when WhatsApp sends it after connecting, and is used
     const { run } = await import('../src/db.js');
     const fs = await import('node:fs');
 
-    // At connect creds.me has only the number: nothing to learn yet.
     setOwnIdentity({ id: '6281999911895:49@s.whatsapp.net' });
-    // creds.update brings the LID (session.js listens for it).
     const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
     assert.match(source, /ev\.on\('creds\.update', \(update\) => \{\s*if \(update\?\.me\) this\.#learnOwnLid/);
     setOwnIdentity({ id: '6281999911895:49@s.whatsapp.net', lid: '28067997159547:49@lid' });
 
-    // Even with the table empty (a write lost, a fresh database), our phone's LID is our number.
     run('DELETE FROM lid_map');
     assert.equal(pnJidOf('28067997159547:0@lid'), '6281999911895:0@s.whatsapp.net');
 
-    // A message from our phone by LID that fails ("Bad MAC") is read with the number's session.
     const tried = [];
     const repository = {
         decryptMessage: async ({ jid }) => {

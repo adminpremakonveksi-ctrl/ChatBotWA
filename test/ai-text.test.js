@@ -37,7 +37,6 @@ test('the opening line goes before the fixed reply, never instead of it', async 
 });
 
 test('a question with no fixed text: answered from the shop facts, or "belum tahu" + offer CS', async () => {
-    // The shop's facts are Pengetahuan now (2026-10-21), the same the AI chat mode uses.
     const topic = saveTopic({ title: 'Bahan', content: 'Bahan kaos: cotton combed. Sablon: plastisol dan DTF.' });
     assert.match(storeFacts(), /cotton combed/);
 
@@ -66,7 +65,6 @@ test('"belum tahu": the bot offers CS; "iya" hands over, anything else carries o
     assert.equal(no.patch.step, 'awaiting_design', 'carries on with the flow');
     assert.equal(no.patch.offered_cs, 0);
 
-    // "saya" is not "ya".
     const saya = decide({ step: 'awaiting_product', offered_cs: 1 }, { intent: 'other', extras: [], patterns: [], text: 'saya bingung' }, media);
     assert.notEqual(saya.patch.step, 'handed_over');
 });

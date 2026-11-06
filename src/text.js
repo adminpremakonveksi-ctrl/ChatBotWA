@@ -1,27 +1,11 @@
 import { SEED_WORDS } from './seeds.js';
 
-/**
- * The one shape text is compared in: customer messages, built-in keywords,
- * team keywords and pattern keywords all go through normalise(), so a phrase
- * stored as "belum ada" matches a customer typing "blm ada".
- *
- * The dictionary (chat shorthand "brp" -> "berapa", Javanese/Sundanese
- * "pinten" -> "berapa", phrases "matur nuwun" -> "makasih") is data: it
- * starts from src/seeds.js and is replaced by the database copy the team
- * edits in the console (src/bot/words.js calls setDictionary).
- *
- * Imports only the seeds: the migrations use this before anything else loads.
- */
 
 let words = new Map();
 let phrases = [];
 
 const pairsOf = (list) => (SEED_WORDS[list]?.words ?? []).map(([word, value]) => ({ word, value }));
 
-/**
- * Sets the dictionary. `shorthand` entries win over `regional` ones for the
- * same word; phrases are [{ word: 'matur nuwun', value: 'makasih' }].
- */
 export function setDictionary({ shorthand = [], regional = [], phrase = [] } = {}) {
     words = new Map();
     for (const { word, value } of [...regional, ...shorthand]) {
@@ -33,17 +17,10 @@ export function setDictionary({ shorthand = [], regional = [], phrase = [] } = {
         .map((p) => [` ${String(p.word).toLowerCase().trim()} `, ` ${String(p.value).toLowerCase().trim()} `]);
 }
 
-// The seeds until the database copy is loaded.
 setDictionary({ shorthand: pairsOf('singkatan'), regional: pairsOf('bahasa_daerah'), phrase: pairsOf('frasa') });
 
-/** What a single word is read as ("brp" -> "berapa"), or the word itself. */
 export const expandWord = (word) => words.get(word) ?? word;
 
-/**
- * Changes whenever the dictionary changes. Keywords are stored normalised,
- * so they are re-stored when this differs from the value saved in the
- * database (see migrations.js).
- */
 export function textRulesVersion() {
     const source = JSON.stringify([[...words.entries()].sort(), phrases, 'reduplication-1', 'doubles-2']);
     let hash = 5381;
@@ -52,12 +29,6 @@ export function textRulesVersion() {
     return hash.toString(36);
 }
 
-/**
- * One word as people stretch it: "kakkk" -> "kak", and a doubled last letter
- * "sayaa", "okk", "kaoss" -> "saya", "ok", "kaos". Keywords are stored through
- * the same rule, so "all size" still matches "all size" (both read "al size").
- * Laughter is one word: "wkwkwk" -> "wkwk", "hahaha" -> "haha".
- */
 export function squashWord(word) {
     const w = String(word).toLowerCase().replace(/(\p{L})\1{2,}/gu, '$1');
 
@@ -68,7 +39,6 @@ export function squashWord(word) {
     return w;
 }
 
-/** Lowercase, strip punctuation, squash "kakkk" -> "kak", expand shorthand; padded with spaces for word matching. */
 export function normalise(text) {
     const joined = String(text ?? '')
         .toLowerCase()
@@ -76,7 +46,6 @@ export function normalise(text) {
         .split(/\s+/)
         .filter(Boolean)
         .map((word) => (words.has(word) ? word : squashWord(word)))
-        // "nanya2", "takon-takon" -> "nanya nanya", "takon takon" (reduplication).
         .flatMap((word) => {
             if (/^\p{L}{2,}2$/u.test(word) && !words.has(word)) return [word.slice(0, -1), word.slice(0, -1)];
 
@@ -86,8 +55,6 @@ export function normalise(text) {
         })
         .join(' ');
 
-    // Phrases before the word lists ("matur nuwun", not "matur makasih"), and
-    // after them for the ones the lists produce ("ten pundi" -> "di mana").
     const replacePhrases = (value) => {
         let out = ` ${value} `;
         for (const [from, to] of phrases) {
@@ -102,10 +69,8 @@ export function normalise(text) {
     return replacePhrases(mapped.join(' '));
 }
 
-/** A keyword as it is stored: normalised, without the padding. */
 export const cleanPhrase = (phrase) => normalise(phrase).trim();
 
-/** "Kaos Polo Anak" -> "kaos-polo-anak": a stable key for a product the team adds. */
 export const slugify = (text) =>
     String(text ?? '')
         .toLowerCase()

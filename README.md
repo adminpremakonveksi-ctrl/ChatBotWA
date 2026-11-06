@@ -123,11 +123,21 @@ ada di Log teknis; popup ditunda selama pemulihan otomatis. Jika belum berhasil
 setelah 5 menit, muncul peringatan, maksimal sekali per 10 menit. Antrean dan
 batas percobaan disimpan di SQLite agar restart tidak mengulang rentetan popup.
 
-Balasan ke pelanggan ditahan sementara ketika ada pesan dari HP sendiri yang
-belum terbaca, agar bot tidak menimpa kemungkinan balasan CS. Setelah pesan
-pulih, penanganan CS atau balasan bot dilanjutkan sesuai isi pesan tersebut.
+Balasan ke pelanggan ditahan ketika ada pesan dari perangkat toko yang belum
+terbaca, agar bot tidak menimpa kemungkinan balasan pemilik atau admin. Jika
+belum pulih setelah tiga menit, antrean chat itu dibatalkan dan diserahkan ke
+CS. Chat pelanggan lain tetap berjalan. Pembatalan diperiksa kembali setelah
+jeda mengetik, tepat sebelum pesan dikirim.
 Pemulihan tidak menghapus tautan perangkat. Jika HP utama offline, kirim ulang
 bisa menunggu sampai HP kembali online; logout resmi tetap memerlukan QR baru.
+
+Pemilik dan dua admin boleh tetap memakai perangkat tertaut bersama bot.
+Pengirim yang tidak diketahui tidak dianggap HP utama. Sesi admin diperbarui
+pada alamat perangkatnya dengan jeda minimal sepuluh menit; kegagalan admin
+tidak memicu reconnect seluruh akun. Pesan duplikat yang sudah terbaca diabaikan,
+termasuk setelah restart. Error penghitung pesan saja tidak membuktikan bot
+ganda atau pairing rusak. Scan ulang menjadi pilihan terakhir setelah pemulihan
+HP utama gagal, bukan tindakan otomatis untuk setiap error perangkat admin.
 
 - Rekap pelanggan ke WhatsApp CS: 07.30 Senin–Sabtu secara bawaan.
 - Backup dan pembersihan chat: 03.00.

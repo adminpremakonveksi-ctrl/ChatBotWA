@@ -33,7 +33,6 @@ test('the dictionary is edited from the console: a new shorthand works at once, 
 });
 
 test('changing a Javanese word re-stores the keywords that used it', () => {
-    // "pinten" is read as "berapa"; a keyword written "pinten regane" is stored as "berapa harga".
     const pinten = wordRows('bahasa_daerah').find((r) => r.word === 'pinten');
     updateWord(pinten.id, { value: 'brapakah' });
     assert.equal(normalise('pinten').trim(), 'brapakah');
@@ -59,7 +58,6 @@ test('a built-in word the team deleted is not seeded back', () => {
     removeWord(row.id);
     assert.ok(!wordSet('kota').has('jakarta'));
 
-    // A later update that lists jakarta (and a new city) again: jakarta stays out, the new one comes in.
     SEED_ADDITIONS.push({ migration: 'test_words', words: { kota: ['jakarta', 'sukamakmur'] } });
     syncSeeds(db, 'test_words');
     SEED_ADDITIONS.pop();

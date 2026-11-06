@@ -13,17 +13,6 @@ import { root } from '../src/config.js';
 import { SEED_ADDITIONS, SEED_KEYWORDS, SEED_NEW_PRODUCTS, SEED_PATTERNS, SEED_PRODUCTS } from '../src/seeds.js';
 import { cleanPhrase } from '../src/text.js';
 
-/**
- * Guards against mistakes that have happened while developing this bot, so
- * `npm test` catches them before a client gets a broken update:
- * - scripted edits writing invisible control characters (\x08) into regexes,
- *   or a real line break inside a '...' string;
- * - a file the tests never import (index.js, session.js) that does not parse;
- * - the console's script not parsing (the whole dashboard goes blank);
- * - non-ASCII in the PowerShell launcher (Windows PowerShell 5.1 misreads it);
- * - a template using a placeholder that is never filled;
- * - one seed phrase given two meanings (which one wins depends on insert order).
- */
 
 const files = (dir, ext) =>
     fs.readdirSync(path.join(root, dir), { recursive: true })
@@ -37,7 +26,6 @@ test('no invisible control characters in the code', () => {
 
     for (const file of sources) {
         fs.readFileSync(file, 'utf8').split('\n').forEach((line, i) => {
-            // eslint-disable-next-line no-control-regex
             if (/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/.test(line)) bad.push(`${path.relative(root, file)}:${i + 1}`);
         });
     }
@@ -94,7 +82,6 @@ test('no seed phrase has two meanings', () => {
     for (const [intent, list] of Object.entries(SEED_KEYWORDS)) list.forEach((p) => claim(p, `maksud ${intent}`));
     for (const p of [...SEED_PRODUCTS, ...SEED_NEW_PRODUCTS]) p.keywords.forEach((k) => claim(k, `produk ${p.key}`));
     for (const add of SEED_ADDITIONS) {
-        // A phrase an addition takes off a product (remove.products) is free for its new owner, as in the migration.
         for (const [key, list] of Object.entries(add.remove?.products ?? {})) {
             for (const k of list) if (owner.get(cleanPhrase(k)) === `produk ${key}`) owner.delete(cleanPhrase(k));
         }
@@ -106,8 +93,6 @@ test('no seed phrase has two meanings', () => {
 });
 
 test('no word lists are hard-coded in the logic: vocabulary lives in the database (Kamus)', () => {
-    // The files that read customer text. A list of 8+ quoted words there is
-    // vocabulary that belongs in SEED_WORDS (seeds.js) and the table word_lists.
     const logic = ['src/text.js', 'src/bot/classify-rules.js', 'src/bot/engine.js', 'src/bot/store.js', 'src/bot/intents.js', 'src/bot/ai-text.js', 'src/bot/classify.js', 'src/bot/chat.js', 'src/bot/knowledge.js'];
     const found = [];
 
@@ -118,7 +103,6 @@ test('no word lists are hard-coded in the logic: vocabulary lives in the databas
             const items = [...match[1].matchAll(/'([^']*)'/g)].map((m) => m[1]);
             const before = code.split('\n').slice(Math.max(0, line - 2), line).join('\n');
 
-            // Intent labels and database columns are the bot's structure, not vocabulary.
             if (/export const INTENTS|const COLUMNS/.test(before)) continue;
             if (items.every((item) => INTENTS.includes(item))) continue;
 

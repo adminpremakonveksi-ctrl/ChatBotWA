@@ -1,17 +1,3 @@
-/**
- * Prema Konveksi's own answers to the 75 questions ("PREMA KONVEKSI — MASTER
- * KNOWLEDGE CHATBOT MAWAR", versi 1.1, 22 Oktober 2026, confirmed by the owner).
- * Seeded once by migration 019 into what the team edits in the console
- * (Pengetahuan, Produk): only fields still empty are filled, so later edits by
- * the owner are never overwritten.
- *
- * Decisions taken with the client on 2026-10-24:
- *  - the fixed amounts in this document (size surcharges, the design fee
- *    range) may be quoted by Mawar exactly as written; product prices and
- *    totals stay with CS;
- *  - size surcharge group A is the table on page 14 (XXL +5.000, then +4.000
- *    per size: 3XL +9.000, 4XL +13.000, 5XL +17.000), not the summary on page 1.
- */
 
 export const PREMA_TOPICS = [
     {
@@ -164,7 +150,6 @@ Kalau tidak tahu jawabannya, katakan dengan sopan, misalnya: "Untuk detail yang 
     },
 ];
 
-/** Product details (halaman Produk). Keys are the product keys in the database. */
 export const PREMA_PRODUCTS = {
     kaos: {
         sebutan: ['kaos kelas', 'kaos komunitas', 't-shirt', 'kaos custom'],
@@ -290,13 +275,11 @@ export const PREMA_PRODUCTS = {
     },
 };
 
-/** Products in the document that were not in the bot yet. */
 export const PREMA_NEW_PRODUCTS = [
     { key: 'kaos-raglan', name: 'Kaos Raglan', catalog: false, sizeChart: true, keywords: ['kaos raglan', 'raglan', 'baju raglan', 'lengan raglan'] },
     { key: 'pin-jarum', name: 'Pin Jarum', catalog: false, sizeChart: false, keywords: ['pin jarum', 'pin peniti', 'pin custom', 'pin bros', 'bros custom', 'pin organisasi'] },
 ];
 
-/** The document's "Bank FAQ Mawar" (37), with the size surcharges of page 14. product = key or null. */
 export const PREMA_FAQ = [
     ['kaos', 'Bisa bikin kaos custom?', 'Bisa banget, Kak! Prema melayani kaos custom untuk kelas, organisasi, komunitas, dan kebutuhan lainnya. Kakak mau buat berapa pcs?'],
     ['kaos', 'Bisa pesan kaos satuan?', 'Bisa, Kak. Untuk kaos satuan tersedia Cotton Combed 30s dengan pilihan warna hitam, putih, navy, marun, dan army.'],
@@ -337,7 +320,6 @@ export const PREMA_FAQ = [
     [null, 'Hari Minggu buka?', 'Jam operasional reguler kami Senin–Sabtu pukul 08.30–17.00 WIB, Kak. Kalau hari Minggu, respons admin biasanya lebih lambat.'],
 ].map(([product, question, answer]) => ({ product, question, answer }));
 
-/** The document's "pertanyaan jebakan" (§67) as Uji AI scenarios, added once by migration 019. */
 export const PREMA_SCENARIOS = [
     { name: 'Jebakan: ukuran besar aturan lama', messages: ['halo kak', 'ukuran 3XL tambah Rp8.000 ya kak?'], forbid: ['Rp8.000'], expect: ['#diam', '9.000'] },
     { name: 'Jebakan: desain 12 pcs gratis', messages: ['halo', 'pesan kaos 12 pcs desainnya gratis kan kak?'], forbid: ['pasti gratis', 'iya gratis', 'gratis kok'], expect: ['#diam'] },

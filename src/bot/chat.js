@@ -15,35 +15,13 @@ import { wordSet } from './words.js';
 import { isSizeQuestion, sizeChartActions } from './media-plan.js';
 import { promotionKnowledge } from './promotions.js';
 
-/**
- * AI chat mode (agreed with the client, 2026-10-21): after the fixed greeting
- * the AI writes the replies, like a usual chatbot, from what the shop wrote
- * in the console (knowledge.js). The guards stay where they were:
- *
- *  - code, not the AI, decides the greeting, a request for a person and a
- *    voice note (fixed templates);
- *  - the AI answers only from the shop's data and is told the rules;
- *  - every reply is checked before it is sent (checkReply): no price words,
- *    no number or link that is not in the shop's data or the customer's own
- *    words, nothing from Kamus "Kata terlarang di balasan AI". A reply that
- *    fails is sent back once with the reason; if it fails again, or the AI
- *    is down, the bot stays silent and the error shows in the console
- *    (client's choice: silent, CS answers in the morning);
- *  - handing over to CS ends with the fixed [7] (and [8] when the order is
- *    complete), and the AI's summary for CS is kept on the conversation.
- *
- * Returns the same { actions, patch } as engine.decide, so bot.js sends it
- * the same way (anti-repeat, logging before sending, handover).
- */
 
-// From the owner's answers (§69-73): Mawar is the first-line information service, not a sales closer.
 export const DEFAULT_CHAT_PROMPT = `Kamu adalah {bot}, asisten WhatsApp Prema Konveksi (konveksi di Purworejo) yang melayani informasi dan membantu mengumpulkan kebutuhan pelanggan selama CS {cs} belum online. Kamu bukan sales closer: penawaran dan closing dilakukan CS.
 Pelanggan kebanyakan pelajar dan mahasiswa (Gen Z) yang memesan untuk kelompok atau organisasi; pahami konteks itu saat bertanya lanjutan.
 Gaya: bahasa Indonesia santai, sopan, ramah dan natural. Panggil pelanggan "Kak". Jangan terlalu formal atau kaku, jangan pakai lo/gue. Emoji secukupnya. Jawaban singkat untuk pertanyaan sederhana. Lebih formal kalau pelanggan berbicara sebagai instansi atau perusahaan.
 Kalau pelanggan memakai bahasa Jawa, boleh membalas bahasa Jawa yang sopan hanya kalau yakin tepat; kalau ragu, pakai bahasa Indonesia yang ramah.
 Kalau tidak tahu, katakan dengan sopan dan arahkan ke CS, misalnya: "Untuk detail yang ini aku bantu teruskan ke admin Prema, ya, Kak, supaya informasinya benar dan sesuai ketentuan yang berlaku 😊". Jangan menebak.`;
 
-// The owner's own example chats (§68), as a style anchor. Editable in Pengaturan > AI.
 export const DEFAULT_CHAT_EXAMPLES = `Pelanggan: Kak, mau buat PDL buat organisasi sekolah, 30 pcs bisa?
 {bot}: Bisa banget, Kak! Untuk PDL minimalnya 6 pcs, jadi 30 pcs sudah memenuhi, ya 😊 Kakak sudah punya referensi model PDL-nya?
 Pelanggan: Sudah, bahan Nagata Drill bisa?
@@ -64,9 +42,6 @@ const REASON_TEXT = {
     lainnya: 'diserahkan oleh AI',
 };
 
-// The thinking comes first in the JSON, so the model writes it before the reply
-// (a small model answers better when it reasons first). Never sent; shown to
-// the team in Coba bot and Uji AI.
 const schema = () =>
     z.object({
         pikir: z.object({
@@ -87,14 +62,7 @@ const schema = () =>
 
 const fill = (template) => template.replaceAll('{bot}', config.bot.botName).replaceAll('{cs}', config.bot.csName);
 
-/* ------------------------------------------------------------- the order --- */
 
-/**
- * What the customer already told about the product being discussed:
- * { produk, jawaban: { "<hal from the product's list>": "<what they said>" } }.
- * Kept on the conversation (order_info). The questions and their order are the
- * team's ("Yang perlu ditanyakan" on halaman Produk); code picks the next one.
- */
 export function readOrder(conv) {
     try {
         const o = JSON.parse(conv?.order_info ?? 'null');
@@ -108,18 +76,11 @@ export function readOrder(conv) {
             };
         }
     } catch {
-        /* unreadable: start over */
     }
 
     return { produk: conv?.product ?? null, jawaban: {}, ditanya: null, lain: {}, media_sent: {} };
 }
 
-/**
- * Another product is being discussed. What was answered for the one before
- * is kept under `lain` (and comes back if they return to it), so neither the
- * order nor CS's summary loses it (audit 2026-10-24). Answers given before any
- * product was known go with the first product named.
- */
 function newOrder(produk, before) {
     const lain = { ...(before.lain ?? {}) };
     if (before.produk && Object.keys(before.jawaban).length) lain[before.produk] = before.jawaban;
@@ -129,12 +90,6 @@ function newOrder(produk, before) {
     return { produk, jawaban, ditanya: null, lain, media_sent: before.media_sent ?? {} };
 }
 
-/**
- * When the AI did not write down the answer to the item it was asking (open
- * models often leave "terjawab" empty), code does: a reply that is not a
- * question goes under that item; a picture is "dikirim (gambar)", and "nanti
- * saya kirim" (Kamus jawaban_menyusul) is "menyusul".
- */
 function answerAsked(order, r, input) {
     const item = order.ditanya;
     if (!item || String(order.jawaban[item] ?? '').trim() && !later(order.jawaban[item])) return order;
@@ -142,7 +97,6 @@ function answerAsked(order, r, input) {
 
     const text = String(input.text ?? '').trim();
     const words = ` ${norm(text)} `;
-    // "Nanti saya kabari ya" reads as a thank-you too: it is checked first.
     const toCome = [...wordSet('jawaban_menyusul')].some((w) => words.includes(` ${w} `)) && !/\d/.test(text);
     if (!toCome && ['greeting', 'ack', 'human', 'voice', 'ask_first'].includes(r.intent)) return order;
 
@@ -153,12 +107,9 @@ function answerAsked(order, r, input) {
 }
 
 const asksOf = (key) => getProduct(key)?.info?.tanya ?? [];
-// Only the marker code and the AI write: "belum ada desain, minta dibuatin" or
-// "nanti diambil sendiri" are real answers, not data to come (audit 2026-10-24).
 const later = (value) => /^\s*menyusul\b/i.test(String(value ?? ''));
 const norm = (value) => lower(value).replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
 
-/** Where the order stands: what is still to ask (in the team's order), and what will come later. */
 export function orderStatus(order) {
     const asks = order.produk ? asksOf(order.produk) : [];
     const open = asks.filter((h) => !String(order.jawaban[h] ?? '').trim());
@@ -167,7 +118,6 @@ export function orderStatus(order) {
     return { asks, open, waiting, complete: Boolean(order.produk && asks.length && !open.length && !waiting.length) };
 }
 
-/** The AI's "terjawab" put under the team's own wording of each item. */
 function applyAnswers(order, answered) {
     const asks = order.produk ? asksOf(order.produk) : [];
     const jawaban = { ...order.jawaban };
@@ -184,11 +134,9 @@ function applyAnswers(order, answered) {
     return { ...order, jawaban };
 }
 
-/** The summary CS reads in Percakapan and the morning recap, built by code from what was answered. */
 export function orderSummary(order) {
     if (!order.produk) return '';
     const parts = (jawaban) => Object.entries(jawaban).map(([hal, isi]) => ` · ${hal}: ${isi}`).join('');
-    // Products asked about before this one, with what was answered for them.
     const also = Object.entries(order.lain ?? {}).map(([key, jawaban]) => ` | juga ${productName(key)}${parts(jawaban)}`).join('');
 
     return `Pesanan ${productName(order.produk)}${parts(order.jawaban)}${also}`;
@@ -287,13 +235,11 @@ function userTurn({ text, history = [], attachments = [], quoted = null, name = 
         .join('\n');
 }
 
-/* -------------------------------------------------------- reply checking --- */
 
 const lower = (value) => String(value ?? '').toLowerCase();
 const LINK = /\bhttps?:\/\/[^\s)]+|\bwww\.[^\s)]+|\b[\w-]+\.(?:com|id|co|me|net|org|io|ly)(?:\/[^\s)]*)?/gi;
 const NUMBER = /\d+(?:[.,]\d+)*/g;
 
-/** Share of words two texts have in common (0-1). */
 function similar(a, b) {
     const words = (t) => new Set(norm(t).split(' ').filter((w) => w.length > 2));
     const x = words(a);
@@ -308,11 +254,6 @@ function similar(a, b) {
 const DAY_NAMES = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const hhmm = (minutes) => `${String(Math.floor(minutes / 60)).padStart(2, '0')}.${String(minutes % 60).padStart(2, '0')}`;
 
-/**
- * Now, and when CS answers again, from the bot's own schedule (Pengaturan >
- * jam bot menjawab): while the bot is on guard, CS is away; the next switch is
- * when CS is back. Written as facts, so the times may be quoted.
- */
 export function timeBlock(now = new Date()) {
     const tz = config.bot.timezone;
     const at = localClock(now, tz);
@@ -324,7 +265,6 @@ export function timeBlock(now = new Date()) {
             const b = localClock(back, tz);
             const days = Math.round((Date.parse(localDateString(back, tz)) - Date.parse(localDateString(now, tz))) / 86400000);
             const when = days === 0 ? 'hari ini' : days === 1 ? 'besok' : DAY_NAMES[b.day];
-            // The day only: when the bot stops (07.30) is not when CS starts (the shop's "Jam kerja CS").
             lines.push(`CS ${config.bot.csName} sedang tidak online; CS membalas lagi ${when} (${DAY_NAMES[b.day]}), pada jam kerja CS (lihat topik "Jam kerja CS"). Sebutkan ini kalau pelanggan menanyakan kapan dibalas admin, tanpa menjanjikan respons secepatnya.`);
         }
     }
@@ -334,13 +274,10 @@ export function timeBlock(now = new Date()) {
 
 const MONEY_ANY =/\brp\.?\s*\d[\d.,]*|\d[\d.,]*\s*(?:rb|ribu|k|jt|juta)\b/gi;
 
-/** "Rp5.000", "5rb", "25 ribu", "1,5 juta" -> 5000, 5000, 25000, 1500000. */
 function amountOf(mention) {
     const m = lower(mention);
     const unit = /juta|jt/.test(m) ? 1e6 : /ribu|rb|\dk\b|\sk\b/.test(m) ? 1e3 : 1;
-    // A full stop or comma after the amount ends the sentence, not the number ("+Rp9.000.").
     const digits = (m.match(/\d[\d.,]*/)?.[0] ?? '').replace(/[.,]+$/, '');
-    // Dots and commas before three digits group thousands; one otherwise is a decimal ("1,5 juta").
     const plain = /^\d{1,3}([.,]\d{3})+$/.test(digits) ? digits.replace(/[.,]/g, '') : digits.replace(',', '.');
 
     return Math.round(Number(plain) * unit);
@@ -348,24 +285,14 @@ function amountOf(mention) {
 
 const amountsIn = (text) => new Set((String(text ?? '').match(MONEY_ANY) ?? []).map(amountOf));
 
-/**
- * Why a reply may not be sent, or null when it may. `allowed` is the text
- * numbers and links may come from: the shop's data and the customer's words.
- * `money` is the text amounts may come from: the shop's data only (the
- * client's decision, 2026-10-24: fixed amounts the owner wrote, like the size
- * surcharges, may be quoted exactly; nothing else, and never from what the
- * customer typed).
- */
 export function checkReply(reply, allowed, { money = '', previous = '', promotions = '' } = {}) {
     let text = String(reply ?? '').trim();
     if (!text) return 'balasan kosong';
     if (text.length > 1200) return 'balasan terlalu panjang (maksimal 1200 huruf)';
 
-    // Emoji now and then, not a row of them.
     const emoji = text.match(/\p{Extended_Pictographic}/gu) ?? [];
     if (emoji.length > 3) return `terlalu banyak emoji (${emoji.length}, maksimal 3)`;
 
-    // The same reply as last time reads like a broken bot.
     if (previous && similar(text, previous) >= 0.8 && text.length > 40) return 'hampir sama dengan balasanmu sebelumnya; tulis tanggapan baru untuk pesan ini';
 
     const amounts = amountsIn(money);
@@ -373,13 +300,11 @@ export function checkReply(reply, allowed, { money = '', previous = '', promotio
     if (mentions.some((m) => !amounts.has(amountOf(m)))) {
         return amounts.size ? 'menyebut nominal uang yang tidak tertulis di data toko' : 'menyebut nominal uang';
     }
-    // An amount of the shop's used as a product price ("harganya Rp50.000") is not one of its fixed amounts.
     if (mentions.length) {
         const priceWords = [...wordSet('kata_harga')];
         const sentence = String(reply).split(/[.!?\n]+(?=\s|$)/).find((s) => (s.match(MONEY_ANY) ?? []).length && priceWords.some((w) => ` ${norm(s)} `.includes(` ${norm(w)} `)));
         if (sentence) return 'nominal dipakai sebagai harga produk';
     }
-    // The shop's own amounts are checked; their "Rp"/"ribu" is not a forbidden word.
     for (const m of mentions) text = text.replace(m, ' ');
 
     const words = ` ${lower(text).replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `;
@@ -395,7 +320,6 @@ export function checkReply(reply, allowed, { money = '', previous = '', promotio
     const link = (text.match(LINK) ?? []).find((l) => !source.includes(lower(l).replace(/[.,!?]+$/, '')));
     if (link) return `link "${link}" tidak ada di data toko`;
 
-    // Whole numbers only: "3" is not allowed because the data says "30" or "3XL" (audit 2026-10-24).
     const known = new Set(source.match(NUMBER) ?? []);
     const number = (text.match(NUMBER) ?? []).find((n) => !known.has(n));
     if (number) return `angka "${number}" tidak ada di data toko atau pesan pelanggan`;
@@ -403,7 +327,6 @@ export function checkReply(reply, allowed, { money = '', previous = '', promotio
     return null;
 }
 
-/** The AI's thinking as one line for the team ("maksud: … · fakta: …"), or ''. */
 export function thoughtOf(pikir) {
     if (typeof pikir === 'string') return pikir.trim().slice(0, 1200);
     if (!pikir || typeof pikir !== 'object') return '';
@@ -415,7 +338,6 @@ export function thoughtOf(pikir) {
         .slice(0, 1200);
 }
 
-/** The reply the model wrote, also when it renamed the key (open models do). */
 function replyOf(answer) {
     if (typeof answer?.balasan === 'string') return answer.balasan;
     const strings = Object.entries(answer ?? {}).filter(([k, v]) => typeof v === 'string' && !['alasan', 'catatan_cs', 'nama_pelanggan', 'produk'].includes(k));
@@ -423,21 +345,11 @@ function replyOf(answer) {
     return strings.length === 1 ? strings[0][1] : '';
 }
 
-/**
- * One AI turn: { reply, send, handover, reason, note, name, product, answered }
- * or throws (AI down, or the reply failed the check twice: the message names
- * why). `input.order` is what the customer already answered; `input.focus`
- * the products to give in full. A refused reply is logged (Uji AI).
- */
 export async function askChat(input, { media, fetchImpl } = {}) {
     const order = input.order ?? { produk: null, jawaban: {} };
-    // The time is part of the facts: "adminnya kapan bales?" is answered from the schedule, not guessed.
     const knowledge = `${timeBlock(input.now)}\n\n${knowledgeBlock(media, { focus: input.focus ?? [], at: input.now ?? new Date() })}`;
     const system = systemPrompt(order, knowledge, { greeted: Boolean(input.greeted) });
     const user = userTurn(input);
-    // Numbers and links may come from the shop's data or the customer's words; never from
-    // the prompt's own rule numbers. Amounts only from the shop's data (audit 2026-10-24:
-    // the order block repeats the customer's answers, so it is no source for amounts).
     const allowed = `${knowledge}\n${user}`;
     const deps = fetchImpl ? { fetchImpl } : {};
     let messages = [{ role: 'user', content: user }];
@@ -459,10 +371,7 @@ export async function askChat(input, { media, fetchImpl } = {}) {
             ];
             continue;
         }
-        // A second "Halo" only right after a greeting; mid-chat it is the customer's hello
-        // returned ("Halo juga" cut to "Juga Kak ..." was the bug, 2026-10-28).
         const reply = (input.greeted ? dropGreeting(replyOf(answer), input.name) : String(replyOf(answer) ?? '')).trim();
-        // Amounts only from the shop's data (the system prompt), never from the customer's lines.
         const previous = [...(input.history ?? [])].reverse().find((h) => h.who === 'bot')?.text ?? '';
         const problem = checkReply(reply, allowed, { money: knowledge, previous, promotions: promotionKnowledge({ focus: input.focus ?? [], at: input.now ?? new Date() }) });
 
@@ -495,33 +404,20 @@ export async function askChat(input, { media, fetchImpl } = {}) {
     return null;
 }
 
-/* -------------------------------------------------------------- one turn --- */
 
 const isName = (value) => /^[\p{L}' .-]{2,40}$/u.test(value);
 const validProduct = (key) => (key && productKeys().includes(key) ? key : null);
 
-/**
- * The bot's turn in AI chat mode, as { actions, patch } like engine.decide.
- * `input`: { text, hasImage, hasAudio, attachments, history, who, autoGreeted }.
- *
- * Code holds the order: which product is being discussed (named in this
- * message, or before), what of its "Yang perlu ditanyakan" is answered, the
- * next item to ask, and when it is complete. Complete = handed to CS with a
- * summary built from the answers; an item the customer will send later
- * ("menyusul", e.g. the size list) keeps the chat open (detailWaitDays).
- */
 export async function chatTurn(conversation, input, { media, ask = askChat, fetchImpl } = {}) {
     const conv = { step: 'new', name: null, ...conversation };
     const actions = [];
     const patch = { step: 'chat' };
     const say = (text) => text && actions.push({ type: 'text', text });
-    // The step too, like engine.decide: "Coba bot" keeps it; bot.js stores handovers itself.
     const handover = (reason) => {
         actions.push({ type: 'handover', reason });
         patch.step = 'handed_over';
     };
 
-    // With CS: the bot says nothing (bot.js checks too; "Coba bot" relies on this).
     if (conv.step === 'handed_over') return { actions, patch: {}, silent: 'sudah diserahkan ke CS' };
 
     const r = classifyWithRules({ text: input.text, step: conv.step === 'chat' ? 'awaiting_product' : conv.step, hasImage: input.hasImage, hasAudio: input.hasAudio, attachments: input.attachments, usePatterns: false });
@@ -531,7 +427,6 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
         if (r.origin) patch.origin = r.origin;
     }
 
-    // A person was asked for: no AI, straight to CS (fixed text).
     if (r.intent === 'human') {
         say(replies.waitForCs());
         handover('minta bicara dengan CS');
@@ -542,36 +437,27 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
     const first = conv.step === 'new';
     if (first && !input.autoGreeted) say(name ? replies.greetKnown(name) : replies.greetUnknown());
 
-    // Only a hello or a name: the greeting already answered it.
-    // ...unless it also asks something ("halo kak bisa bikin sepatu?"): the AI answers it after the greeting.
     if (first && ['greeting', 'introduction', 'ack'].includes(r.intent) && !r.isQuestion) return { actions, patch };
     if (first && input.autoGreeted && ['greeting', 'ack'].includes(r.intent)) return { actions, patch };
 
-    // A voice note the bot cannot listen to (fixed text).
     if (r.intent === 'voice') {
         say(replies.voiceNote());
 
         return { actions, patch };
     }
 
-    // The product being discussed: named in this message (keywords), else the one before.
     let order = readOrder(conv);
     const named = validProduct(r.product);
     if (named && named !== order.produk) order = newOrder(named, order);
-    // Not named now nor before: the customer may have named it in an earlier line ("mau bikin almet ...").
-    // A new conversation (first ever, or started over) does not dig into the previous one's lines.
     if (!order.produk && conv.step !== 'new') {
         const earlier =[...(input.history ?? [])].reverse().filter((h) => h.who === 'pelanggan').map((h) => validProduct(classifyWithRules({ text: h.text, step: 'awaiting_product', usePatterns: false }).product)).find(Boolean);
         if (earlier) order = newOrder(earlier, order);
     }
-    // Kept even if the AI fails below, so the product is not lost with the reply.
     if (order.produk) {
         patch.order_info = JSON.stringify(order);
         patch.product = order.produk;
     }
 
-    // Files requested by the customer are deterministic, even when AI is down
-    // or forgets its `kirim` field. Do not guess which product's chart to send.
     const sizeIntent = r.intent === 'size_chart' || (r.extras ?? []).includes('size_chart');
     const explicitlyAsks = r.isQuestion || [...wordSet('minta_size_chart')].some((w) => String(input.text ?? '').toLowerCase().includes(w));
     const wantsChart = (sizeIntent && explicitlyAsks) || conv.step === 'awaiting_size_chart_product';
@@ -605,7 +491,6 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
     let answer;
     try {
         answer = await ask(
-            // greeted: our greeting, or the Salam (also mid-chat: WhatsApp sends it on its own schedule), was just sent.
             { text: input.text, history: input.history ?? [], attachments: input.attachments ?? [], quoted: input.quoted, name, who: input.who, order, focus: order.produk ? [order.produk] : [], greeted: first || Boolean(input.autoGreeted), now: input.now },
             { media, fetchImpl },
         );
@@ -617,9 +502,7 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
         return { actions, patch, silent: error.message, retryable };
     }
 
-    // The AI may recognise a product the keywords missed ("almet", a typo).
     const told = validProduct(answer.product);
-    // Only when the keywords found none: the AI's guess never moves a known order to another product.
     if (told && !order.produk) order = newOrder(told, order);
     const recognisedCatalog = `katalog:${order.produk}`;
     if (order.produk && !order.media_sent[recognisedCatalog] && media?.has?.('katalog', order.produk)) {
@@ -631,32 +514,24 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
     if (JSON.stringify(order.jawaban) === before) order = answerAsked(order, r, input);
 
     const status = orderStatus(order);
-    // What the AI is asking now (told: the first open item), so the next reply can be put under it.
-    // Nothing open: the reply still expected is one that was to come later (the size list days later).
     order.ditanya = status.open[0] ?? status.waiting[0] ?? null;
     patch.order_info = JSON.stringify(order);
     if (order.produk) patch.product = order.produk;
 
-    // Send the chart BEFORE the size question, not only when the model happens
-    // to request an attachment. Fixed guidance matches the team's example.
     const sizeKey = `size-chart:${order.produk}:reguler`;
     if (order.produk && isSizeQuestion(status.open[0]) && !order.media_sent[sizeKey]) {
         const chart = sizeChartActions(media, order.produk);
         actions.push(...chart);
         if (chart.some((a) => a.type === 'media')) order.media_sent[sizeKey] = true;
-        // Preserve answers to other questions, remove premature size requests.
         answer.reply = String(answer.reply ?? '').split(/(?<=[.!?])\s+|\n+/)
             .filter((line) => !(isSizeQuestion(line) && /\?|rincian|list|daftar|berapa|kirim|ukuran(nya)? apa/i.test(line))).join(' ');
         patch.order_info = JSON.stringify(order);
     }
 
-    // Marked as the AI's (Uji AI checks 'harus ada' on these, not on fixed templates).
     if (answer.reply) actions.push({ type: 'text', text: answer.reply, ai: true });
 
     for (const item of answer.send ?? []) {
         const product = validProduct(item.produk);
-        // The model cannot attach another product's catalog or measurements.
-        // Product selection comes from the customer's context above.
         if (!product || product !== order.produk) continue;
         if (item.jenis === 'katalog' && media?.has?.('katalog', product) && !actions.some((a) => a.type === 'media' && a.kind === 'katalog' && a.product === product)) actions.push({ type: 'media', kind: 'katalog', product, variant: null });
         if (item.jenis === 'size_chart' && product) {
@@ -672,13 +547,10 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
 
     if (!conv.name && !patch.name && isName(answer.name)) patch.name = answer.name;
 
-    // For CS: the answers as code wrote them down, then the AI's own note.
     const summary = orderSummary(order);
     const notes = [summary, answer.note && answer.note !== summary ? answer.note : null].filter(Boolean);
     if (notes.length) patch.notes = JSON.stringify(notes);
 
-    // Code decides "complete": every item of the product's list answered, none to come later.
-    // The AI's "complete" counts only for a product the team gave no list.
     const complete = status.complete || Boolean(answer.handover && answer.reason === 'pesanan_lengkap' && order.produk && !status.asks.length);
     const otherHandover = answer.handover && answer.reason !== 'pesanan_lengkap';
 
@@ -688,6 +560,5 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
         handover(complete ? REASON_TEXT.pesanan_lengkap : REASON_TEXT[answer.reason] ?? REASON_TEXT.lainnya);
     }
 
-    // How the AI got there, for the team (Coba bot, Uji AI); never sent to the customer.
     return { actions, patch, thought: answer.thought ?? '' };
 }

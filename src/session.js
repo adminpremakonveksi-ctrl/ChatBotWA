@@ -17,7 +17,7 @@ import makeWASocket, {
 
 import { useSqliteAuthState } from './auth-state.js';
 import { recordSyncError, syncCatalog } from './bot/catalog.js';
-import { markSeen, wasSeen } from './bot/store.js';
+import { markHandover, markSeen, wasSeen } from './bot/store.js';
 import { fixMexNotifications, makePlaceholderCache, sessionHandledLog } from './baileys-fixes.js';
 import { conversationJid, learnFromKey, setOwnIdentity, userOf, withLidFallback } from './lid.js';
 import { MIME } from './bot/media.js';
@@ -31,11 +31,9 @@ import { pendingDeliveries, rememberRetryMessage, retryMessage } from './deliver
 
 const MAX_BACKOFF_MS = 60000;
 const RECONNECTS_BEFORE_ALERT = 3;
-// The catalog is read a minute after connecting, then retried on a time-out.
 const CATALOG_FIRST_DELAY_MS = 60000;
 const CATALOG_RETRY_MS = [3 * 60000, 10 * 60000];
 
-// Message types that carry nothing for the bot to answer.
 const IGNORED_TYPES = new Set([
     'protocolMessage',
     'reactionMessage',
@@ -49,18 +47,14 @@ const IGNORED_TYPES = new Set([
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Chats the bot never reads, so Baileys does not decrypt them: statuses, broadcasts, channels, groups unless allowed. */
 export const ignoredJid = (jid) =>
     Boolean(isJidBroadcast(jid) || isJidNewsletter(jid) || (!config.allowGroups && isJidGroup(jid)));
 
-// Sent within the last two minutes (messageTimestamp is seconds, maybe a Long).
 const isRecent = (message) => Date.now() / 1000 - Number(message.messageTimestamp ?? 0) < 120;
 
-// A customer message delivered late (the bot was reconnecting or restarting): still answered within this window.
 const CATCH_UP_SECONDS = 15 * 60;
 export const isRecentCatchUp = (message, now = Date.now()) => now / 1000 - Number(message?.messageTimestamp ?? 0) < CATCH_UP_SECONDS;
 
-/** One WhatsApp number: its socket, its pairing state and its reconnect loop. */
 export class Session {
     constructor(row, bot, deps = {}) {
         this.makeSocket = deps.makeSocket ?? makeWASocket;
@@ -88,11 +82,13 @@ export class Session {
         this.decryptCache = makePlaceholderCache(15 * 60000);
         this.log = logger.child({ session: row.key });
         this.healing = new MessageHealing({
+            onUnresolvedOwn: (key) => {
+                if (!this.bot.isBotMessage(key.id)) markHandover(this.key, conversationJid(key.remoteJid), 'pesan perangkat toko belum terbaca');
+            },
             socket: () => this.state === 'connected' ? this.socket : null,
             reconnect: (socket) => {
                 if (socket === this.socket && !this.stopping) socket.end(new Error('Pemulihan enkripsi: menyambung ulang tanpa menghapus sesi'));
             },
-            // Our own device number ("628...:66@s.whatsapp.net" -> 66), to tell our own messages from another device's.
             wasSeen: (id) => wasSeen(this.key, id),
             markSeen: (id) => markSeen(this.key, id),
             ownDevice: () => {
@@ -106,8 +102,6 @@ export class Session {
             },
             write: (state) => setSetting('healing:' + this.key, JSON.stringify(state)),
         });
-        // Baileys is chatty at info (pairing blobs, handshakes); keep its warnings only.
-        // Its connection errors that this session handles go to the log file, not the pop-up (baileys-fixes.js).
         this.baileysLog = sessionHandledLog(logger.child({ session: row.key }, { level: 'warn' }), this.log);
     }
 
@@ -147,18 +141,14 @@ export class Session {
         const { state, saveCreds, clear } = await this.authState(this.id);
         this.clearCredentials = clear;
 
-        // This HTTP request used to wait indefinitely when internet disappeared.
-        // Baileys falls back to its bundled version on failure.
         const { version } = await this.fetchVersion({ timeout: 10000 });
         if (this.stopping || generation !== this.generation) return;
 
         const connectionLog = sessionHandledLog(this.baileysLog, this.log, () => {
             if (this.socket === socket && !this.stopping) {
-                // A ping query can fail without Baileys closing its websocket.
-                // Closing explicitly drives the same reconnect path as a drop.
                 socket.end(new Error('Koneksi WhatsApp tidak merespons; menyambung ulang'));
             }
-            return true; // A stale socket has already been replaced or stopped.
+            return true;
         }, (detail) => {
             if (this.stopping || generation !== this.generation || this.socket !== socket) return true;
             try { return this.healing.failed(detail); }
@@ -177,28 +167,11 @@ export class Session {
             browser: ['ChatBot Prema', 'Chrome', '1.0.0'],
             markOnlineOnConnect: false,
             syncFullHistory: false,
-            // No history sync at all. Baileys holds every event back (messages
-            // included) while it syncs history, until the phone's app-state key
-            // arrives; when that key's message could not be decrypted, the hold
-            // never ended and no customer message reached the bot for a week
-            // (2026-10-20..27), with no error. The bot never uses chat history.
             shouldSyncHistoryMessage: () => false,
-            // Without this the socket dies silently behind some NATs.
             keepAliveIntervalMs: 25000,
-            // The start-up queries (account props, block list, privacy settings)
-            // timed out on a client PC ("unexpected error in 'init queries'"),
-            // and the bot uses none of them: Baileys fetches privacy settings on
-            // demand itself when sending read receipts, which the bot never does.
-            // Not asking is the fix.
             fireInitQueries: false,
-            // A slow line answers slowly; 60 s (the default) ran out there.
             defaultQueryTimeoutMs: 120000,
-            // Statuses, channels (and groups unless allowed) are never read by the
-            // bot. Baileys still decrypted them, and a contact's Status without
-            // its sender key failed ("No session found to decrypt message",
-            // status@broadcast). Ignored, Baileys only acknowledges them.
             shouldIgnoreJid: (jid) => ignoredJid(jid),
-            // Baileys' own cache throws on an empty key from our phone (baileys-fixes.js).
             placeholderResendCache: makePlaceholderCache(),
             msgRetryCounterCache: this.retryCounterCache,
             getMessage: async (key) => retryMessage(this.key, key),
@@ -214,9 +187,6 @@ export class Session {
         }, 120000);
         this.connectionTimer.unref?.();
 
-        // Our phone sends by LID while its encryption session was made under the
-        // number: read those messages with that session (see lid.js). Without it
-        // a reply CS typed on the phone could not be decrypted and went unseen.
         withLidFallback(socket.signalRepository, undefined, this.decryptCache, async (jid) => {
             const address = socket.signalRepository.jidToSignalProtocolAddress(jid);
             const { [address]: record } = await state.keys.get('session', [address]);
@@ -224,17 +194,12 @@ export class Session {
             return record;
         });
         this.#learnOwnLid(state.creds.me);
-        // Linked-profile "mex" notifications are not channel ones (baileys-fixes.js).
         fixMexNotifications(socket);
 
         socket.ev.on('creds.update', () => {
             if (this.stopping || generation !== this.generation || this.socket !== socket) return;
             saveCreds().catch((error) => this.log.error({ err: error.message }, 'gagal menyimpan sesi WhatsApp'));
         });
-        // WhatsApp sends our own LID after the connection opens (creds.me has
-        // only the number until then), so the pair is learnt when it arrives.
-        // Without it, our phone's messages by LID were never retried with the
-        // number's session: "Bad MAC" / "No matching sessions" on every one.
         socket.ev.on('creds.update', (update) => {
             if (update?.me) this.#learnOwnLid({ ...state.creds.me, ...update.me });
         });
@@ -255,7 +220,6 @@ export class Session {
         if (qr) {
             clearTimeout(this.connectionTimer);
             this.qr = await QRCode.toDataURL(qr, { margin: 1, width: 360 });
-            // WhatsApp rotates the pairing code roughly every 20 seconds.
             this.qrExpiresAt = Date.now() + 20000;
             await this.#setState('qr');
 
@@ -304,9 +268,6 @@ export class Session {
             this.inboxTimer.unref?.();
             this.#learnOwnLid(this.socket?.user);
 
-            // Read the WhatsApp Business catalog once the connection has settled
-            // (right after connecting WhatsApp is busy with its own start-up
-            // queries and a catalog query times out), then every 6 hours.
             clearInterval(this.catalogTimer);
             clearTimeout(this.catalogRetry);
             this.catalogRetry = setTimeout(() => this.syncCatalogWithRetry(), CATALOG_FIRST_DELAY_MS);
@@ -315,7 +276,6 @@ export class Session {
 
         if (connection === 'close') {
             clearTimeout(this.connectionTimer);
-            // A catalog read waiting for its retry belongs to this connection; the next one schedules its own.
             clearTimeout(this.catalogRetry);
             clearInterval(this.catalogTimer);
             clearInterval(this.deliveryTimer);
@@ -330,8 +290,6 @@ export class Session {
 
             if (loggedOut) {
                 this.healing.stop();
-                // The stored credentials are dead; drop them so the next
-                // connect produces a fresh QR instead of failing forever.
                 await this.clearCredentials?.();
                 this.healing.reset();
                 await this.#setState('logged_out', { last_error: 'Perangkat dilepas dari HP. Scan QR lagi.' });
@@ -340,11 +298,6 @@ export class Session {
                 return;
             }
 
-            // "Stream Errored (conflict)": another program connected with these
-            // same keys (a copied data folder, a second bot) took the connection.
-            // Reconnecting would take it back, the other would retake it, and the
-            // two would fight forever, wrecking the encryption sessions ("Bad MAC").
-            // Stop here and say so; the team chooses in the console.
             if (statusCode === DisconnectReason.connectionReplaced) {
                 this.healing.stop();
                 await this.#setState('replaced', { last_error: this.lastError });
@@ -371,8 +324,6 @@ export class Session {
         clearTimeout(this.reconnectTimer);
         const delay = Math.min(MAX_BACKOFF_MS, 2000 * 2 ** Math.min(this.attempts++, 6));
         this.log.info({ delay, statusCode, error: this.lastError }, 'menyambung ulang');
-        // One drop is normal (WhatsApp's 515 after connecting, a network blip) and is
-        // retried quietly; still down after a few tries needs a person: said once, raw.
         if (this.attempts === RECONNECTS_BEFORE_ALERT) {
             this.log.error(
                 { statusCode, error: this.lastError, attempts: this.attempts },
@@ -392,8 +343,6 @@ export class Session {
             if (message.messageStubType === proto.WebMessageInfo.StubType.CIPHERTEXT) continue;
             if (message.message) this.healing.received(message.key);
             if (message.key?.fromMe && this.bot.isBotMessage(message.key.id)) rememberRetryMessage(this.key, message);
-            // Which LID is which number (WhatsApp sends both); then one customer
-            // is one conversation, whether a message came by number or by LID.
             learnFromKey(message.key);
             const jid = conversationJid(message.key.remoteJid ?? '');
 
@@ -413,24 +362,14 @@ export class Session {
                 content?.documentMessage?.caption ??
                 '';
 
-            // "Message yourself" on the bot's own number is a test chat: what the
-            // team types there is answered as if a customer wrote it.
             const selfTest = Boolean(message.key.fromMe && this.#isSelfChat(jid));
 
             if (selfTest) {
-                // The bot's own replies echo back here too; and an old self-chat
-                // message from a history sync is not a new test.
                 if (this.bot.isBotMessage(message.key.id) || !isRecent(message)) continue;
             } else if (message.key.fromMe) {
-                // Typed by CS on the phone, the echo of a bot reply, or a WhatsApp
-                // Business automatic message (Salam, Pesan tidak di tempat).
                 this.bot.onOwnMessage(this.key, { jid, id: message.key.id, text });
                 continue;
             } else if (type !== 'notify') {
-                // A message that came while the bot was reconnecting arrives as a
-                // catch-up ("append"); a recent one is a customer waiting, not
-                // history. These were dropped without a trace (2026-10-27: no chat
-                // reached the bot for a week while the line kept timing out).
                 if (!isRecentCatchUp(message)) {
                     const timestamp = Number(message.messageTimestamp ?? 0) * 1000;
                     if (timestamp >= Date.now() - 24 * 3600000 && isBotActive(new Date(timestamp))) {
@@ -442,13 +381,10 @@ export class Session {
                 this.log.info({ from: jid, type }, 'pesan tertunda saat menyambung ulang, tetap dibalas');
             }
 
-            // What came with (or instead of) words. A sticker is a reaction, not a design.
             const attachment = Session.attachmentOf(contentType, content);
             const hasImage = ['gambar', 'video', 'file'].includes(attachment?.kind);
-            // A voice note: the bot cannot listen, it asks them to type.
             const hasAudio = attachment?.kind === 'suara';
 
-            // The message they replied to (WhatsApp "reply"), so the AI knows what "yang ini" means.
             const quoted = Session.quotedText(content);
 
             this.log.info({ from: jid, type: contentType, text, selfTest }, selfTest ? 'pesan uji dari nomor sendiri' : 'pesan masuk');
@@ -457,26 +393,22 @@ export class Session {
         }
     }
 
-    /** The bot's own LID is its own number (creds.me / socket.user carry both). */
     #learnOwnLid(me) {
         setOwnIdentity(me ?? {});
     }
 
-    /** The chat with the bot's own number, by phone jid or by LID. */
     #isSelfChat(jid) {
         const own = [this.socket?.user?.id, this.socket?.user?.lid].filter(Boolean).map(userOf);
 
         return own.includes(userOf(jid)) && !jid.endsWith('@g.us');
     }
 
-    /* ---------------------------------------------- transport for the bot --- */
 
     newMessageId() {
         return generateMessageIDV2(this.socket?.user?.id);
     }
 
-    /** Sends one bot bubble, showing "typing..." first so replies do not land in a burst. */
-    async send(jid, action, messageId) {
+    async send(jid, action, messageId, canSend = () => true) {
         if (this.healing.waitingForOwn(jid, conversationJid, (id) => this.bot.isBotMessage(id))) {
             throw Object.assign(new Error('Menunggu pemulihan pesan dari HP agar bot tidak menimpa balasan CS'), { code: 'RECOVERY_PENDING' });
         }
@@ -490,12 +422,14 @@ export class Session {
             await sleep(config.bot.typingMs);
             await withDeadline(() => socket.sendPresenceUpdate('paused', jid), 2500, 'paused presence');
         } catch {
-            /* presence is cosmetic */
         }
 
         if (this.socket !== socket || this.state !== 'connected') throw new Error('Connection Closed');
+        if (this.healing.waitingForOwn(jid, conversationJid, (id) => this.bot.isBotMessage(id))) {
+            throw Object.assign(new Error('Menunggu pemulihan pesan dari perangkat toko'), { code: 'RECOVERY_PENDING' });
+        }
         try {
-            const result = await withDeadline(() => socket.sendMessage(jid, Session.content(action), { messageId }), 120000, 'WhatsApp send');
+            const result = await withDeadline(() => canSend() ? socket.sendMessage(jid, Session.content(action), { messageId }) : undefined, 120000, 'WhatsApp send');
             rememberRetryMessage(this.key, result);
         } catch (error) {
             if (this.socket === socket && /connection closed|timed? ?out|econnreset|enotfound/i.test(error.message)) socket.end(error);
@@ -503,11 +437,6 @@ export class Session {
         }
     }
 
-    /**
-     * What a message carries besides text, in the words the console and the
-     * reply use: { kind: 'gambar' | 'video' | 'file' | 'suara' | 'stiker' | 'lokasi' | 'kontak', note }.
-     * `note` is what CS needs to see (a maps link for a shared location).
-     */
     static attachmentOf(contentType, content) {
         switch (contentType) {
             case 'imageMessage':
@@ -536,7 +465,6 @@ export class Session {
         }
     }
 
-    /** Text of the message they replied to, if any (first 300 characters). */
     static quotedText(content) {
         const quoted = Object.values(content ?? {}).find((part) => part?.contextInfo?.quotedMessage)?.contextInfo?.quotedMessage;
         if (!quoted) return null;
@@ -561,11 +489,6 @@ export class Session {
         return { image: { url: action.file }, mimetype };
     }
 
-    /**
-     * The scheduled catalog read: a time-out is tried again later (3, then 10
-     * minutes); only when every try failed is it a warning (the console
-     * pop-up). Meanwhile the bot keeps sending the shop's catalog link.
-     */
     async syncCatalogWithRetry(attempt = 0) {
         const socket = this.socket;
         if (this.catalogSyncing === socket) return;
@@ -588,8 +511,6 @@ export class Session {
 
             this.#catalogFailed(error, attempt + 1);
             if (/timed? ?out|connection closed|econnreset|enotfound/i.test(error.message)) {
-                // Keep the last good catalog and uploaded files usable while
-                // WhatsApp's catalog service is unavailable. Do not give up for 6h.
                 clearTimeout(this.catalogRetry);
                 this.catalogRetry = setTimeout(() => this.syncCatalogWithRetry(), 30 * 60000);
                 this.catalogRetry.unref?.();
@@ -599,7 +520,6 @@ export class Session {
         }
     }
 
-    /** Copies this number's WhatsApp Business catalog into the bot ("Sinkronkan sekarang"). */
     async syncCatalog() {
         if (this.state !== 'connected' || !this.socket) {
             throw Object.assign(new Error('WhatsApp belum tersambung'), { statusCode: 409 });
@@ -613,11 +533,6 @@ export class Session {
         }
     }
 
-    /**
-     * Remembers why the catalog could not be read (a personal number has none)
-     * and says so: the console pop-up and Media > Katalog show it. Never throws,
-     * so a failing database write here cannot take the bot down.
-     */
     #catalogFailed(error, attempts) {
         try {
             recordSyncError(error);
@@ -642,7 +557,6 @@ export class Session {
         try {
             this.socket?.end(undefined);
         } catch {
-            /* already gone */
         }
 
         this.socket = null;
@@ -650,7 +564,6 @@ export class Session {
         await this.#setState('disconnected');
     }
 
-    /** Unlinks the device on the phone and clears the stored pairing. */
     async logout() {
         clearInterval(this.inboxTimer);
         this.healing.stop();
@@ -687,7 +600,6 @@ export class Session {
             label: this.label,
             state: this.state,
             connected: this.state === 'connected',
-            // Between two connections (a drop, or a deliberate reconnect): the dashboard says so instead of a red "terputus".
             reconnecting: ['disconnected', 'connecting'].includes(this.state) && !this.stopping && Boolean(this.reconnectTimer || this.starting),
             phoneNumber: this.phoneNumber,
             pushName: this.me?.name ?? null,

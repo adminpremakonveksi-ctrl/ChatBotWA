@@ -7,10 +7,8 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 
-// The launcher is PowerShell for Windows client PCs. Its "other copies" block is run for real,
-// against made-up folders and a made-up process list, so nothing is stopped.
 const launcher = fs.readFileSync(new URL('../scripts/launcher.ps1', import.meta.url), 'utf8');
-const block = launcher.slice(launcher.indexOf('# BEGIN other-copies'), launcher.indexOf('# END other-copies'));
+const block = launcher.slice(launcher.indexOf('function Get-ProjectName'), launcher.indexOf('function Test-PortBusy'));
 
 const folder = (base, ...parts) => {
     const dir = path.join(base, ...parts);
@@ -34,15 +32,15 @@ test('Mulai finds a second copy of THIS bot in another folder, and nothing else 
 
     const node = 'C:\\Program Files\\nodejs\\node.exe';
     const processes = [
-        { ProcessId: 101, Name: 'node.exe', CommandLine: `"${node}" "${path.join(mine, 'src', 'index.js')}"` }, // this copy
-        { ProcessId: 102, Name: 'node.exe', CommandLine: `"${node}" "${path.join(old, 'src', 'index.js')}"` }, // the old copy
-        { ProcessId: 103, Name: 'powershell.exe', CommandLine: `powershell -NoProfile -File "${path.join(old, 'scripts', 'launcher.ps1')}" -Action service` }, // its auto-start wrapper
-        { ProcessId: 104, Name: 'node.exe', CommandLine: `${node} ${path.join(spaced, 'src', 'index.js')}` }, // unquoted path with spaces
-        { ProcessId: 105, Name: 'node.exe', CommandLine: `"${node}" "${path.join(other, 'src', 'index.js')}"` }, // another project that also has src\index.js
-        { ProcessId: 106, Name: 'node.exe', CommandLine: `"${node}" "${path.join(base, 'gone', 'src', 'index.js')}"` }, // folder does not exist
-        { ProcessId: 107, Name: 'node.exe', CommandLine: `"${node}" --watch src/server.ts` }, // unrelated Node program
-        { ProcessId: 108, Name: 'powershell.exe', CommandLine: `powershell -File "${path.join(mine, 'scripts', 'launcher.ps1')}" -Action service` }, // this copy's wrapper
-        { ProcessId: 109, Name: 'node.exe', CommandLine: null }, // no access to its command line
+        { ProcessId: 101, Name: 'node.exe', CommandLine: `"${node}" "${path.join(mine, 'src', 'index.js')}"` },
+        { ProcessId: 102, Name: 'node.exe', CommandLine: `"${node}" "${path.join(old, 'src', 'index.js')}"` },
+        { ProcessId: 103, Name: 'powershell.exe', CommandLine: `powershell -NoProfile -File "${path.join(old, 'scripts', 'launcher.ps1')}" -Action service` },
+        { ProcessId: 104, Name: 'node.exe', CommandLine: `${node} ${path.join(spaced, 'src', 'index.js')}` },
+        { ProcessId: 105, Name: 'node.exe', CommandLine: `"${node}" "${path.join(other, 'src', 'index.js')}"` },
+        { ProcessId: 106, Name: 'node.exe', CommandLine: `"${node}" "${path.join(base, 'gone', 'src', 'index.js')}"` },
+        { ProcessId: 107, Name: 'node.exe', CommandLine: `"${node}" --watch src/server.ts` },
+        { ProcessId: 108, Name: 'powershell.exe', CommandLine: `powershell -File "${path.join(mine, 'scripts', 'launcher.ps1')}" -Action service` },
+        { ProcessId: 109, Name: 'node.exe', CommandLine: null },
     ];
 
     const script = [

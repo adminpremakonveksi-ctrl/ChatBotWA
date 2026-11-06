@@ -14,7 +14,6 @@ import { errorsSince, latestErrorId, meaningOf, recordError } from '../src/error
 import { startupChecks } from '../src/startup-check.js';
 import { checkUpdate, readRepo } from '../src/update-check.js';
 
-/** A client install: data/versi.txt and scripts/repo.txt, no .git. */
 const install = (sha) => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatbot-install-'));
     fs.mkdirSync(path.join(dir, 'data'));
@@ -38,7 +37,6 @@ test('client PC errors get a plain meaning above the raw text, which stays as lo
     assert.match(meaningOf('stream errored out', { node: { attrs: { code: '515' } } }), /kode 515/);
     assert.match(meaningOf('dropping spoofed self-only protocolMessage from non-self origin'), /sinkronisasi internal/);
     assert.equal(meaningOf('sesuatu yang belum dikenal'), null);
-    // A stack naming decryptMessage must not turn an unrelated error into "pesan tidak bisa dibuka".
     assert.equal(meaningOf('gagal', { stack: 'at decryptMessage (x.js:1)' }), null);
 
     const before = latestErrorId();
@@ -86,7 +84,6 @@ test('a newer commit on GitHub says "not the latest bot", once per new version',
     r = await checkUpdate({ dir, fetchImpl: github('aaaaaaa1111') });
     assert.equal(r.available, false, 'same commit: up to date');
 
-    // No internet keeps the last answer, without a pop-up.
     const quiet = latestErrorId();
     r = await checkUpdate({ dir, fetchImpl: async () => { throw new Error('fetch failed'); } });
     assert.equal(r.error, 'fetch failed');
@@ -131,29 +128,28 @@ test('Siap mulai: no internet, wrong PC clock and a lost WhatsApp each say what 
     assert.equal(r.checks.find((c) => c.key === 'wa').ok, true);
 });
 
-test('Siap mulai: connected but the phone\'s messages unreadable says to run one bot and scan a new QR', async () => {
+test('Siap mulai: failed phone recovery keeps admin devices linked and makes QR a last resort', async () => {
     const manager = { list: () => [{ state: 'connected', connected: true, phoneNumber: '62812', healing: { ownSessionBroken: true, needsRelink: true } }] };
     const r = await startupChecks({ manager, fresh: true, fetchImpl: async () => ({ ok: true, status: 200, headers: new Headers() }) });
     const wa = r.checks.find((c) => c.key === 'wa');
     assert.equal(wa.ok, false);
-    assert.match(wa.fix, /SATU bot[\s\S]*Scan ulang \(kunci baru\)/);
+    assert.match(wa.fix, /Jangan lepas perangkat admin[\s\S]*Scan ulang \(kunci baru\)[\s\S]*pilihan terakhir/);
 });
 
 test('Siap mulai: unreadable messages from another linked device are a note, never a request to unlink it', async () => {
-    // The client's 3 other devices are the CS team's and must stay linked (2026-11-02).
     const manager = { list: () => [{ state: 'connected', connected: true, phoneNumber: '62812', healing: { otherDevices: { 47: 3 } } }] };
     const r = await startupChecks({ manager, fresh: true, fetchImpl: async () => ({ ok: true, status: 200, headers: new Headers() }) });
     const wa = r.checks.find((c) => c.key === 'wa');
     assert.equal(wa.ok, true, 'not a failure: it does not turn the card red');
-    assert.match(wa.detail, /nomor perangkat 47[\s\S]*dipakai CS/);
+    assert.match(wa.detail, /nomor perangkat 47[\s\S]*Pertahankan perangkat CS/);
     assert.doesNotMatch(`${wa.detail} ${wa.fix}`, /lepas/i, 'never tells anyone to unlink');
 });
 
-test('Siap mulai: messages sent as the bot\'s own device number say a second copy shares the link', async () => {
+test('Siap mulai: the bot device number alone does not prove a second copy exists', async () => {
     const manager = { list: () => [{ state: 'connected', connected: true, phoneNumber: '62812', healing: { selfCopies: 9, otherDevices: {} } }] };
     const r = await startupChecks({ manager, fresh: true, fetchImpl: async () => ({ ok: true, status: 200, headers: new Headers() }) });
     const wa = r.checks.find((c) => c.key === 'wa');
     assert.equal(wa.ok, false);
     assert.match(wa.detail, /9 pesan[\s\S]*perangkat bot ini sendiri/);
-    assert.match(wa.fix, /kunci tautan yang sama[\s\S]*Mulai ChatBot Prema[\s\S]*Scan ulang \(kunci baru\)/);
+    assert.match(wa.fix, /belum membuktikan ada salinan bot lain/);
 });

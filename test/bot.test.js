@@ -11,7 +11,6 @@ import { run } from '../src/db.js';
 
 let counter = 0;
 
-/** Stands in for a WhatsApp session. */
 function fakeTransport() {
     const sent = [];
 
@@ -104,7 +103,6 @@ test('CS typing from the phone stops the bot for that customer', async () => {
     bot.onIncoming(SESSION, wa, { jid, id: 'c1', text: 'halo kak saya Andi dari Kebumen' });
     await bot.drain();
 
-    // WhatsApp echoes the bot's own replies back as fromMe; those are not CS.
     for (const { id } of wa.sent) bot.onOwnMessage(SESSION, { jid, id });
     assert.equal(store.loadConversation(SESSION, jid).step, 'awaiting_product');
 

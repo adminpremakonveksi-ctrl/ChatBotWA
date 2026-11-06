@@ -25,7 +25,6 @@ test('a fresh install is seeded: products, keywords, answer patterns, examples',
     assert.ok(customKeywords().filter((k) => k.source === 'bawaan').length > 200);
     assert.deepEqual(activePatterns().filter((p) => p.builtin).map((p) => p.name).sort(), ['Lokasi', 'Minimal order', 'Pengiriman', 'Ragu / takut ditipu']);
 
-    // Examples so "Latih bot" is not empty, and they work.
     assert.equal(c('ada contoh foto?').intent, 'design_reference');
     assert.equal(c('mau bikin kaos kelas').product, 'kaos');
     assert.equal(c('bisa pakai rekber ga kak').pattern.name, 'Ragu / takut ditipu');
@@ -33,7 +32,6 @@ test('a fresh install is seeded: products, keywords, answer patterns, examples',
 });
 
 test('keywords are stored the way messages are compared, so shorthand matches', () => {
-    // The seed list had "blm ada"; it is stored as "belum ada" and matches both spellings.
     assert.ok(customKeywords().some((k) => k.phrase === 'belum ada' && k.intent === 'no_reference'));
     assert.ok(!customKeywords().some((k) => k.phrase === 'blm ada'));
     assert.equal(c('blm ada kak', 'awaiting_design').intent, 'no_reference');
@@ -41,7 +39,6 @@ test('keywords are stored the way messages are compared, so shorthand matches', 
 });
 
 test('built-in keywords can be edited and deleted like the team ones', () => {
-    // A multi-word phrase with no look-alike in the list (single words also match typos of each other).
     const kw = customKeywords().find((k) => k.phrase === 'hasil produksi');
     assert.equal(kw.source, 'bawaan');
     assert.equal(c('boleh lihat hasil produksi').intent, 'design_reference');
@@ -67,7 +64,6 @@ test('products: add, edit, and delete (jersey included)', () => {
     assert.equal(taken.length, 1, '"jersey" belongs to another product and is not taken');
     assert.deepEqual(productKeywords('kaos-polo-anak'), ['polo anak']);
 
-    // Jersey: deletable now. Its keywords go with it; the bot stops recognising it.
     assert.equal(c('mau bikin jersey').product, 'jersey');
     deleteProduct('jersey');
     assert.ok(!listProducts().some((p) => p.key === 'jersey'));
@@ -96,8 +92,6 @@ test('seeded patterns: edit, put back to the original, delete, restore', () => {
 });
 
 test('upgrading an existing client database keeps everything the team changed', () => {
-    // A database as an earlier version left it: no products table, keywords without
-    // "source", an edited location template, keywords taught to old built-in answers.
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'chatbot-old-')), 'old.sqlite');
     const old = new Database(file);
     old.exec(`
@@ -132,7 +126,6 @@ test('upgrading an existing client database keeps everything the team changed', 
     assert.equal(old.prepare('SELECT COUNT(*) AS n FROM products').get().n, SEED_PRODUCTS.length + SEED_NEW_PRODUCTS.length + PREMA_NEW_PRODUCTS.length);
     assert.equal(old.prepare(`SELECT COUNT(*) AS n FROM custom_keywords WHERE "phrase" = 'contoh foto'`).get().n, 0, 'no fresh-install examples on an existing install');
 
-    // Running again does nothing: each migration runs once.
     assert.deepEqual(runMigrations(old), []);
     assert.equal(old.prepare('SELECT COUNT(*) AS n FROM patterns WHERE builtin IS NOT NULL').get().n, SEED_PATTERNS.length);
     old.close();
@@ -155,7 +148,6 @@ test('a later seed update never brings back what the team deleted', async () => 
     assert.ok(!customKeywords().some((k) => k.phrase === 'mau tanya'), 'deleted keyword stays deleted');
     assert.ok(!listPatterns().find((p) => p.builtin === 'location').keywords.includes('patokan'), 'removed pattern keyword stays removed');
 
-    // "Kembalikan ke bawaan" is explicit: the original keywords come back.
     resetPattern(lokasi.id);
     assert.ok(listPatterns().find((p) => p.builtin === 'location').keywords.includes('patokan'));
 });

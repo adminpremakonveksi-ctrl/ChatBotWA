@@ -3,8 +3,6 @@ import { lastOllamaCall, ollamaEnabled } from './bot/classify-ollama.js';
 import { meaningOf } from './errors.js';
 import { updateStatus } from './update-check.js';
 
-// "Siap mulai" on Ringkasan: what this PC needs before the bot can work, checked
-// live, each with what to do in plain words. Raw errors are kept beside them.
 
 const NET_TIMEOUT_MS = 8000;
 const CLOCK_SKEW_MS = 2 * 60 * 1000;
@@ -14,7 +12,6 @@ let cached = null;
 
 const check = (key, title, ok, detail, fix = '', raw = '') => ({ key, title, ok, detail, fix, raw });
 
-/** Reaches WhatsApp's servers; their Date header also tells whether the PC clock is right. */
 async function internet(fetchImpl) {
     const started = Date.now();
     try {
@@ -31,19 +28,18 @@ function whatsapp(main) {
     if (!main) return check('wa', 'Nomor WhatsApp tersambung', false, 'Belum ada nomor.', 'Tambahkan nomor dan scan QR di kartu WhatsApp.');
     if (main.connected && main.healing?.needsRelink) {
         return check('wa', 'Nomor WhatsApp tersambung', false,
-            `Tersambung (+${main.phoneNumber ?? ''}), tapi pesan dari HP toko tidak bisa dibuka bot: kunci enkripsinya sudah tidak cocok.`,
-            'Pastikan hanya SATU bot yang jalan (tutup/hapus folder bot lain di PC ini atau PC lain). Lalu klik "Scan ulang (kunci baru)" di kartu WhatsApp dan scan dari HP toko. Data chat dan pengaturan tidak hilang.');
+            `Tersambung (+${main.phoneNumber ?? ''}), tapi pemulihan pesan HP utama belum berhasil.`,
+            'Periksa koneksi HP dan detail perangkat. Jangan lepas perangkat admin. Scan ulang (kunci baru) menjadi pilihan terakhir setelah pemeriksaan.');
     }
     if (main.connected && main.healing?.selfCopies) {
         return check('wa', 'Nomor WhatsApp tersambung', false,
             `Tersambung (+${main.phoneNumber ?? ''}), tapi ada ${main.healing.selfCopies} pesan yang dikirim atas nama perangkat bot ini sendiri dan tidak bisa dibuka.`,
-            'Ada salinan bot lain yang memakai kunci tautan yang sama (folder bot yang disalin). Tutup semua salinan lain: klik "Mulai ChatBot Prema" (salinan dari folder lain dimatikan otomatis). Lalu klik "Scan ulang (kunci baru)" di kartu WhatsApp dan scan dari HP toko.');
+            'Periksa apakah ini pesan kiriman ulang atau konflik sesi. Nomor perangkat yang sama belum membuktikan ada salinan bot lain; jangan langsung scan ulang.');
     }
     const others = Object.keys(main.healing?.otherDevices ?? {});
     if (main.connected && others.length) {
-        // A note, not a failure: the shop's own CS devices are legitimate and must stay linked.
         return check('wa', 'Nomor WhatsApp tersambung', true,
-            `+${main.phoneNumber ?? ''} · pesan dari perangkat tertaut lain (nomor perangkat ${others.join(', ')}) belum bisa dibuka bot. Wajar kalau perangkat itu dipakai CS; bot tetap melayani pelanggan.`);
+            `+${main.phoneNumber ?? ''} · pesan dari perangkat tertaut lain (nomor perangkat ${others.join(', ')}) belum bisa dibuka bot. Pertahankan perangkat CS; chat terkait ditahan untuk mencegah balasan tumpang tindih.`);
     }
     if (main.connected && main.healing?.selfHealing) {
         return check('wa', 'Nomor WhatsApp tersambung', true, `+${main.phoneNumber ?? ''} · memperbaiki sendiri sambungan enkripsi dengan HP toko (tidak perlu apa-apa)`);
@@ -93,7 +89,6 @@ function version() {
     return check('versi', 'Bot versi terbaru', true, up.latest ? `versi ${up.installed}` : up.error ? `belum bisa dicek (${up.error})` : 'dicek otomatis tiap beberapa jam');
 }
 
-/** All checks; cached a minute so opening Ringkasan repeatedly does not hammer the network. */
 export async function startupChecks({ manager, fresh = false, fetchImpl = fetch, now = Date.now } = {}) {
     if (!fresh && cached && now() - cached.at < CACHE_MS) return cached.result;
 

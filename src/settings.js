@@ -6,11 +6,6 @@ import { config, root } from './config.js';
 import { all, setSetting } from './db.js';
 import { autoMessages, releaseAutoHandovers, setAutoMessages } from './bot/auto-messages.js';
 
-/**
- * Settings the team changes from the console, so nobody has to edit .env.
- * Stored in the bot's own database and applied to the running config at once;
- * .env only supplies the first defaults.
- */
 
 const fail = (message) => {
     throw Object.assign(new Error(message), { statusCode: 422 });
@@ -32,7 +27,6 @@ const name = (label) => (value) => {
     return clean;
 };
 
-/** "0812-3456 7890", "+62 812..." -> "6281234567890". */
 export function normalisePhone(value) {
     let digits = String(value ?? '').replace(/\D/g, '');
 
@@ -60,7 +54,6 @@ const folder = (value) => {
     if (!dir) return path.join(root, 'data', 'backups');
     if (!path.isAbsolute(dir)) fail('Folder backup harus lengkap, mis. G:\\My Drive\\Backup Bot');
 
-    // Prove it is writable now, not at 03.00 when nobody is watching.
     try {
         fs.mkdirSync(dir, { recursive: true });
         const probe = path.join(dir, '.chatbot-test');
@@ -73,10 +66,6 @@ const folder = (value) => {
     return path.resolve(dir);
 };
 
-/**
- * "2027-03-08 - 2027-03-14 Lebaran", "2026-12-25 Natal", one per line.
- * A range may also be written with "s/d" or "sampai".
- */
 export function parseHolidays(value) {
     const lines = Array.isArray(value) ? value.map((h) => (typeof h === 'string' ? h : `${h.from} - ${h.to} ${h.label ?? ''}`)) : String(value ?? '').split('\n');
     const holidays = [];
@@ -98,7 +87,6 @@ export function parseHolidays(value) {
     return holidays.sort((a, b) => a.from.localeCompare(b.from)).slice(0, 50);
 }
 
-/** key -> how to validate it and where it lives in config. */
 const FIELDS = {
     botName: { validate: name('Nama bot'), get: () => config.bot.botName, set: (v) => (config.bot.botName = v) },
     csName: { validate: name('Nama CS'), get: () => config.bot.csName, set: (v) => (config.bot.csName = v) },
@@ -159,7 +147,6 @@ const FIELDS = {
         },
     },
     backupDir: { validate: folder, get: () => config.maintenance.backupDir, set: (v) => (config.maintenance.backupDir = v) },
-    // WhatsApp Business automatic messages (Salam, Pesan tidak di tempat), blocks separated by ---.
     autoMessages: {
         validate: (v) => {
             const text = String(v ?? '').replace(/\r\n/g, '\n');
@@ -169,13 +156,11 @@ const FIELDS = {
         get: () => autoMessages().join('\n---\n'),
         set: (v) => {
             setAutoMessages(v);
-            // Chats muted by a text that is now in the list go back to the bot.
             releaseAutoHandovers();
         },
     },
 };
 
-/** Applies stored settings on boot. A stored value that no longer validates is skipped, not fatal. */
 export function loadSettings() {
     for (const row of all(`SELECT "key", value FROM settings WHERE "key" LIKE 'cfg:%'`)) {
         const field = FIELDS[row.key.slice(4)];
@@ -185,11 +170,9 @@ export function loadSettings() {
         try {
             field.set(JSON.parse(row.value));
         } catch {
-            /* keep the .env default */
         }
     }
 
-    // A recap time left empty follows the end of the night window.
     if (!config.recap.atSetting) config.recap.at = config.bot.activeUntil;
 }
 
@@ -197,7 +180,6 @@ export function currentSettings() {
     return Object.fromEntries(Object.entries(FIELDS).map(([key, field]) => [key, field.get()]));
 }
 
-/** Validates everything first, then applies: a bad field leaves nothing half-saved. */
 export function updateSettings(values) {
     const validated = {};
 
@@ -216,11 +198,6 @@ export function updateSettings(values) {
     return currentSettings();
 }
 
-/**
- * Folders that leave this PC on their own: Google Drive and OneDrive sync
- * folders, and removable drives. The service runs as SYSTEM, so every user's
- * profile is searched, not only the current one.
- */
 export function backupSuggestions() {
     const found = [];
     const add = (dir, label) => {
@@ -229,7 +206,6 @@ export function backupSuggestions() {
                 found.push({ dir: path.join(dir, 'Backup ChatBot Prema'), label });
             }
         } catch {
-            /* unreadable: skip */
         }
     };
 
@@ -258,7 +234,6 @@ export function backupSuggestions() {
             }
         }
 
-        // Google Drive for desktop mounts a drive letter with "My Drive" / "Drive Saya".
         for (const letter of 'DEFGHIJKLMNOPQRSTUVWXYZ') {
             for (const sub of ['My Drive', 'Drive Saya']) add(`${letter}:\\${sub}`, `Google Drive (${letter}:)`);
         }

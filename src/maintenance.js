@@ -11,15 +11,6 @@ import { db, getSetting, now, setSetting } from './db.js';
 import { logger } from './logger.js';
 import { pruneRetryMessages } from './delivery.js';
 
-/**
- * Daily jobs, run inside the bot process so there is nothing extra to install:
- *  - backup  copy the database to BACKUP_DIR, keep BACKUP_KEEP_DAYS copies
- *  - prune   delete chat text older than LOG_KEEP_DAYS
- *  - recap   morning list of overnight customers for CS (REKAP_KE)
- *
- * A job runs once per local day at or after its time, so a PC that was off at
- * 03.00 still backs up when it comes back.
- */
 
 const log = logger.child({ part: 'maintenance' });
 
@@ -29,11 +20,9 @@ const toMinutes = (hhmm) => {
     return h * 60 + (m || 0);
 };
 
-/** Local calendar date, YYYY-MM-DD, in the shop's timezone. */
 export const localDate = (date = new Date()) =>
     new Intl.DateTimeFormat('en-CA', { timeZone: config.bot.timezone }).format(date);
 
-/* --------------------------------------------------------------- backup --- */
 
 export async function backup(dir = config.maintenance.backupDir, keepDays = config.maintenance.backupKeepDays) {
     fs.mkdirSync(dir, { recursive: true });
@@ -50,13 +39,11 @@ export async function backup(dir = config.maintenance.backupDir, keepDays = conf
 
     for (const name of old) fs.rmSync(path.join(dir, name), { force: true });
 
-    // Shown in the console, for scheduled and "Backup sekarang" runs alike.
     setSetting('backup:last', new Intl.DateTimeFormat('id-ID', { timeZone: config.bot.timezone, dateStyle: 'medium', timeStyle: 'short' }).format(new Date()));
 
     return { file, removed: old.length };
 }
 
-/* ---------------------------------------------------------------- recap --- */
 
 const STEP_LABEL = {
     new: 'baru menyapa',
@@ -76,7 +63,6 @@ const describe = (row) => {
     return 'pertanyaan di luar naskah, perlu CS';
 };
 
-/** Text of the morning recap, or null when nobody chatted. */
 export function buildRecap(since) {
     const rows = listConversations(since).filter((row) => row.handover_reason !== 'CS membalas');
 
@@ -89,21 +75,17 @@ export function buildRecap(since) {
         try {
             answers = JSON.parse(row.details ?? '[]');
         } catch {
-            /* none */
         }
         const details = answers.map((d) => `\n   - ${String(d.a).slice(0, 80)}`).join('');
         let notes = [];
         try {
             notes = JSON.parse(row.notes ?? '[]');
         } catch {
-            /* none */
         }
-        // AI mode: what the customer answered per item, and the AI's note (its first note repeats the answers).
         let order = null;
         try {
             order = JSON.parse(row.order_info ?? 'null');
         } catch {
-            /* none */
         }
         const ordered = order?.jawaban ? Object.entries(order.jawaban).map(([hal, isi]) => `\n   - ${hal}: ${String(isi).slice(0, 80)}`).join('') : '';
         if (order) notes = notes.filter((n) => !String(n).startsWith('Pesanan '));
@@ -117,7 +99,6 @@ export function buildRecap(since) {
     return `Rekap ${config.bot.botName} semalam: ${rows.length} pelanggan perlu ditindaklanjuti\n\n${lines.join('\n\n')}`;
 }
 
-/** Sends a message to every recap number through the default WhatsApp number. */
 async function sendToRecap({ manager, bot }, text) {
     const session = await manager.defaultSession();
 
@@ -126,7 +107,6 @@ async function sendToRecap({ manager, bot }, text) {
     }
 }
 
-/** "Kirim rekap uji" in the console: proves the number and WhatsApp work, without moving the recap window. */
 export async function sendTestRecap({ manager, bot }) {
     if (!config.recap.to.length) throw Object.assign(new Error('Isi dulu nomor penerima rekap'), { statusCode: 422 });
 
@@ -141,10 +121,7 @@ export async function sendTestRecap({ manager, bot }) {
 export async function recap({ manager, bot }) {
     if (!config.recap.to.length) return 'dilewati (nomor rekap kosong)';
 
-    // Everything since the previous recap; the first one covers the last 24 hours.
     const since = getSetting('recap:last_sent') ?? new Date(Date.now() - 86400000).toISOString().slice(0, 19).replace('T', ' ');
-    // Keep the exact snapshot until EVERY recipient has been served. A retry
-    // after reconnect/restart uses the same message ID per recipient.
     let pending = JSON.parse(getSetting('recap:pending') || 'null');
     const text = pending?.text ?? buildRecap(since);
     const sentAt = pending?.sentAt ?? now();
@@ -171,14 +148,11 @@ export async function recap({ manager, bot }) {
     return `terkirim ke ${config.recap.to.length} nomor`;
 }
 
-/* ------------------------------------------------------------ scheduler --- */
 
 export function startMaintenance({ manager, bot }) {
     const jobs = [
-        // Times are read on every tick, so a change in the console applies at once.
         { name: 'backup', at: () => config.maintenance.backupAt, run: () => backup().then((r) => `${r.file} (${r.removed} lama dihapus)`) },
         { name: 'prune', at: () => config.maintenance.backupAt, run: async () => { pruneRetryMessages(); return JSON.stringify({ ...prune(config.maintenance.logKeepDays), aktivitas: pruneActivity(config.maintenance.logKeepDays) }); } },
-        // Sunday is a 24-hour bot day, so Monday's recap covers Saturday night and Sunday.
         { name: 'recap', at: () => config.recap.at, skipSunday: true, run: () => recap({ manager, bot }) },
     ];
 
@@ -201,7 +175,6 @@ export function startMaintenance({ manager, bot }) {
                 setSetting(`job:${job.name}`, today);
                 log.info({ job: job.name, result }, 'tugas harian selesai');
             } catch (error) {
-                // Not marked done: retried on the next tick (e.g. WhatsApp reconnecting).
                 log.warn({ job: job.name, err: error.message }, 'tugas harian gagal, dicoba lagi nanti');
             } finally {
                 running.delete(job.name);
@@ -209,7 +182,6 @@ export function startMaintenance({ manager, bot }) {
         }
     };
 
-    // Give WhatsApp time to connect before the first run.
     const first = setTimeout(tick, 60000);
     const timer = setInterval(tick, 5 * 60000);
 

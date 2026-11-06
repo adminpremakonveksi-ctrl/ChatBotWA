@@ -1,41 +1,13 @@
-<#
-.SYNOPSIS
-    Launcher ChatBot Prema.
-
-.DESCRIPTION
-    Tanpa -Action: tampilkan menu.
-
-    -Action mulai      "Mulai ChatBot Prema.bat": cek versi baru di GitHub (ada: pasang dulu), lalu
-                       buka dashboard; pasang & nyalakan dulu kalau belum jalan
-    -Action update     "Update ChatBot Prema.bat": ambil versi terbaru dari GitHub (scripts\repo.txt);
-                       bot dihentikan dan TIDAK dinyalakan, lalu klik Mulai
-    -Action prepare    siapkan Node.js dan dependensi tanpa menyalakan bot (dipakai Update)
-    -Action start      jalankan bot di jendela ini (untuk scan QR / uji coba)
-    -Action install    pasang auto-start: jalan sebagai SYSTEM sejak PC menyala,
-                       tanpa perlu ada yang login, dan hidup lagi kalau crash
-    -Action stop       hentikan bot (mode mana pun)
-    -Action status     lihat apakah bot jalan dan nomornya tersambung
-    -Action open       buka halaman QR di browser
-    -Action log        ikuti log bot
-    -Action uninstall  copot auto-start
-    -Action service    (dipakai Task Scheduler, bukan untuk dijalankan manual)
-
-    Hanya boleh SATU proses bot per database. Launcher menolak menyalakan bot
-    kedua kalau sudah ada yang jalan.
-
-    File ini sengaja ASCII saja: Windows PowerShell 5.1 salah membaca UTF-8 tanpa BOM.
-#>
-
-#Requires -Version 5.1
 [CmdletBinding()]
 param(
     [ValidateSet('menu', 'mulai', 'update', 'prepare', 'start', 'install', 'stop', 'status', 'open', 'log', 'uninstall', 'service')]
     [string]$Action = 'menu',
-    # Used when Update runs the new install step: no "press Enter" in between.
+
     [switch]$NoPause
 )
 
 $ErrorActionPreference = 'Stop'
+if ($PSVersionTable.PSVersion -lt [Version]'5.1') { throw 'PowerShell 5.1 or newer is required.' }
 $root = Split-Path -Parent $PSScriptRoot
 $entry = Join-Path $root 'src\index.js'
 $logDir = Join-Path $root 'logs'
@@ -77,7 +49,6 @@ function Get-Url {
     return $url
 }
 
-# winget puts new programs on the machine PATH, but this session does not see it yet.
 function Update-PathFromRegistry {
     $machine = [Environment]::GetEnvironmentVariable('Path', 'Machine')
     $user = [Environment]::GetEnvironmentVariable('Path', 'User')
@@ -90,8 +61,6 @@ function Get-NodeMajor {
     try { return [int]((& $node.Source -v).TrimStart('v').Split('.')[0]) } catch { return 0 }
 }
 
-# The official Node.js LTS installer, straight from nodejs.org. Fallback for
-# PCs without winget (older Windows 10) or where winget fails.
 function Install-NodeFromNodejsOrg {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
 
@@ -110,7 +79,6 @@ function Install-NodeFromNodejsOrg {
     $p = Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait -PassThru
     Remove-Item $msi -Force -ErrorAction SilentlyContinue
 
-    # 3010 = installed, restart suggested; node works without it.
     if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { throw "Pemasang Node.js gagal (kode $($p.ExitCode))." }
 }
 
@@ -119,7 +87,6 @@ function Get-Node {
 
     $node = Get-Command node -ErrorAction SilentlyContinue
 
-    # Missing, or too old for this bot: install the current LTS.
     if ($InstallIfMissing -and (-not $node -or (Get-NodeMajor $node) -lt 20)) {
         Write-Info $(if ($node) { 'Node.js terlalu lama, memperbarui (butuh internet, beberapa menit)...' } else { 'Node.js belum ada, memasang (butuh internet, beberapa menit)...' })
 
@@ -134,7 +101,6 @@ function Get-Node {
             Update-PathFromRegistry
             $node = Get-Command node -ErrorAction SilentlyContinue
 
-            # The MSI's PATH entry may not be visible yet in this session.
             $default = Join-Path $env:ProgramFiles 'nodejs\node.exe'
             if (-not $node -and (Test-Path $default)) { $node = Get-Command $default }
         }
@@ -150,18 +116,11 @@ function Get-Node {
     return $node.Source
 }
 
-# node.exe processes running THIS bot (matched by the absolute path of index.js).
 function Get-BotProcesses {
     Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" |
         Where-Object { $_.CommandLine -and $_.CommandLine -like "*$entry*" }
 }
 
-# BEGIN other-copies
-# A second copy of this bot (another folder, e.g. "ChatBotWA-main (1)" in Downloads) must not run
-# next to this one: two bots on one number fight over the WhatsApp keys and every message turns
-# into "failed to decrypt". Found by the path of its src\index.js (node) or scripts\launcher.ps1
-# (its auto-start wrapper). Only folders that really are this project (same package name and a
-# launcher) are touched, never other Node programs.
 function Get-ProjectName {
     param([string]$Folder)
     try { return (Get-Content (Join-Path $Folder 'package.json') -Raw | ConvertFrom-Json).name } catch { return $null }
@@ -195,7 +154,6 @@ function Get-OtherBotCopies {
     return $found
 }
 
-# Wrappers first, or their loop starts node again; then node.
 function Stop-OtherBotCopies {
     param($Copies)
 
@@ -204,7 +162,6 @@ function Stop-OtherBotCopies {
     }
     Start-Sleep -Seconds 2
 }
-# END other-copies
 
 function Test-PortBusy {
     return [bool](Get-NetTCPConnection -LocalPort (Get-Port) -State Listen -ErrorAction SilentlyContinue)
@@ -232,14 +189,11 @@ function Wait-Health {
 }
 
 function Initialize-Bot {
-    # Run straight from inside a ZIP, Windows extracts to a temp folder that
-    # vanishes: the bot would lose its database on the next reboot.
+
     if ($root -like "$env:TEMP*" -or $root -match '\.zip') {
         throw 'Folder ini masih di dalam file ZIP. Klik kanan ZIP-nya > Extract All, pindahkan foldernya (mis. ke C:\ChatBot Prema), lalu klik Mulai ChatBot Prema.bat dari sana.'
     }
 
-    # Files from a download carry "came from the internet"; clear it so
-    # Windows does not block the scripts and node modules.
     Get-ChildItem -Path $root -Recurse -File -ErrorAction SilentlyContinue |
         Where-Object { $_.FullName -notlike "*\node_modules\*" -and $_.FullName -notlike "*\data\*" } |
         Unblock-File -ErrorAction SilentlyContinue
@@ -255,8 +209,6 @@ function Initialize-Bot {
         Write-Ok '.env dibuat dari .env.example'
     }
 
-    # Install when node_modules is missing or the dependency list changed. A
-    # hash, not file dates: files from a GitHub download carry the commit's date.
     $lock = Join-Path $root 'package-lock.json'
     if (-not (Test-Path $lock)) { $lock = Join-Path $root 'package.json' }
     $hashFile = Join-Path $root 'node_modules\.chatbot-deps'
@@ -267,8 +219,6 @@ function Initialize-Bot {
         Install-Dependencies $node $lock $hashFile
     }
 
-    # Prove the database library really loads on this PC. A half-finished
-    # install (e.g. from an older launcher) heals itself with one reinstall.
     if (-not (Test-Database $node)) {
         Write-Warn 'database belum bisa dibuka, memasang ulang dependensi...'
         Remove-Item (Join-Path $root 'node_modules') -Recurse -Force -ErrorAction SilentlyContinue
@@ -283,11 +233,6 @@ function Initialize-Bot {
     return $node
 }
 
-# --ignore-scripts: nothing here needs compiling. better-sqlite3 ships a
-# ready Windows binary, but npm would still run node-gyp "just to check",
-# and node-gyp fails on a plain PC without Python and Visual Studio Build
-# Tools. The skipped scripts are only version checks (baileys, protobufjs);
-# this launcher checks the Node.js version itself.
 function Install-Dependencies {
     param($node, $lock, $hashFile)
 
@@ -295,11 +240,10 @@ function Install-Dependencies {
     $npm = Join-Path (Split-Path $node) 'npm.cmd'
     Push-Location $root
     try {
-        # Out-Host: npm's output must reach the screen, not this function's
-        # return value, or callers get "added 202 packages ... node.exe" as the node path.
+
         & $npm install --no-audit --no-fund --ignore-scripts | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'npm install gagal. Periksa koneksi internet lalu coba lagi.' }
-        # npm may rewrite the lock file; remember the hash it ends with.
+
         Set-Content -Path $hashFile -Value (Get-FileHash $lock -Algorithm SHA256).Hash -Encoding ascii
     } finally {
         Pop-Location
@@ -339,8 +283,6 @@ function Assert-NotRunning {
     return $true
 }
 
-# ---------------------------------------------------------------- actions ---
-
 function Invoke-Start {
     if (-not (Assert-NotRunning)) { return }
 
@@ -374,7 +316,6 @@ function Invoke-Install {
         return
     }
 
-    # A bot running in a window would fight the service for the same number.
     $running = Get-BotProcesses
     $task = Get-Task
     if ($running -and -not ($task -and $task.State -eq 'Running')) {
@@ -391,7 +332,7 @@ function Invoke-Install {
         -Argument "-NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$PSCommandPath`" -Action service" `
         -WorkingDirectory $root
     $trigger = New-ScheduledTaskTrigger -AtStartup
-    # SYSTEM: runs with nobody logged in, e.g. after a 3 a.m. power cut.
+
     $principal = New-ScheduledTaskPrincipal -UserId 'SYSTEM' -LogonType ServiceAccount -RunLevel Highest
     $settings = New-ScheduledTaskSettingsSet `
         -AllowStartIfOnBatteries `
@@ -439,8 +380,6 @@ function Invoke-Stop {
         Stop-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
     }
 
-    # The service wrapper first, or its loop would restart node; then node,
-    # because stopping the task does not always take node.exe with it.
     Get-CimInstance Win32_Process -Filter "Name = 'powershell.exe'" |
         Where-Object { $_.CommandLine -like "*$PSCommandPath*-Action service*" } |
         ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
@@ -521,7 +460,6 @@ function Invoke-Uninstall {
     }
 }
 
-# Runs under Task Scheduler. Keeps the bot alive and writes its output to logs\bot.log.
 function Invoke-Service {
     Update-PathFromRegistry
     $node = Get-Node
@@ -554,13 +492,8 @@ function Invoke-Service {
     }
 }
 
-# "Mulai ChatBot Prema.bat". First checks GitHub for a newer version: if there
-# is one, it is installed and the bot started on it. Otherwise: running
-# already, just open the dashboard (no Administrator prompt for the daily
-# click); not running, install and start it. No internet: start what is here.
 function Invoke-Mulai {
-    # Before anything else: with another copy running, the health check below would even
-    # open THAT copy's dashboard, and the two bots would keep breaking each other's keys.
+
     $others = @(Get-OtherBotCopies)
     if ($others.Count) {
         $folders = ($others | ForEach-Object { $_.Folder } | Select-Object -Unique) -join ', '
@@ -596,11 +529,9 @@ function Invoke-Mulai {
         Write-Ok "Ada versi baru ($($latest.Sha.Substring(0, 7))), dipasang dulu."
         Install-UpdateFiles $latest
 
-        # The freshly copied launcher installs and starts the bot, so new install steps apply right away.
         & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -Action install -NoPause
         if ($LASTEXITCODE -ne 0) { throw 'Menyalakan bot setelah update gagal; lihat pesan di atas. Klik Mulai ChatBot Prema lagi setelah masalahnya beres.' }
 
-        # Only now: a failed start must not count as "already up to date".
         Set-InstalledVersion $latest.Sha
         Write-Host ''
         Write-Host "  Diperbarui ke versi $($latest.Sha.Substring(0, 7)) dan bot sudah berjalan." -ForegroundColor Green
@@ -631,7 +562,6 @@ function Set-InstalledVersion {
     if ($Sha) { Set-Content -Path $versionFile -Value $Sha -Encoding ascii }
 }
 
-# The newest commit on GitHub: @{ Src; Sha }, or $null when it cannot be read.
 function Get-LatestVersion {
     try {
         $src = Get-RepoSource
@@ -644,8 +574,6 @@ function Get-LatestVersion {
     return $null
 }
 
-# Stops the bot and puts the new files in place. Never touches data\ (WhatsApp
-# link, chats), media\ (the client's uploads), logs\ or .env. Does not start it.
 function Install-UpdateFiles {
     param($Latest)
 
@@ -653,13 +581,13 @@ function Install-UpdateFiles {
     $headers = @{ 'User-Agent' = 'ChatBot-Prema-Updater' }
 
     if (Test-DevCheckout) {
-        # Developer machine: a real checkout.
+
         Write-Step 'Mengambil pembaruan (git pull)'
         Invoke-Stop -Quiet
         & git -C $root pull --ff-only | Out-Host
         if ($LASTEXITCODE -ne 0) { throw 'git pull gagal. Ada perubahan lokal yang bentrok?' }
     } else {
-        # Client machine: no git needed, the code comes as a ZIP.
+
         Write-Step 'Mengunduh versi terbaru'
         $tmp = Join-Path $env:TEMP "chatbot-update-$(Get-Random)"
         New-Item -ItemType Directory -Path $tmp | Out-Null
@@ -688,8 +616,6 @@ function Install-UpdateFiles {
     Write-Ok 'file terbaru terpasang'
 }
 
-# Where updates come from: first non-comment line of scripts\repo.txt,
-# "https://github.com/<pemilik>/<repo> [branch]".
 function Get-RepoSource {
     $file = Join-Path $PSScriptRoot 'repo.txt'
     $line = if (Test-Path $file) { Get-Content $file | Where-Object { $_.Trim() -and -not $_.Trim().StartsWith('#') } | Select-Object -First 1 } else { $null }
@@ -703,9 +629,6 @@ function Get-RepoSource {
     return @{ Owner = $Matches[1]; Repo = $Matches[2]; Branch = $branch }
 }
 
-# "Update ChatBot Prema.bat": takes the newest version and stops the bot, but
-# does NOT start it (client's choice, 2026-10-27): the team then clicks Mulai.
-# Never touches data\ (WhatsApp link, chats), media\ (uploads), logs\ or .env.
 function Invoke-Update {
     if (-not (Test-Admin)) {
         Write-Info 'Update butuh izin Administrator, membuka ulang...'
@@ -730,7 +653,6 @@ function Invoke-Update {
 
     Install-UpdateFiles $latest
 
-    # The freshly copied launcher prepares Node.js and the dependencies (new install steps apply), without starting.
     & (Join-Path $PSHOME 'powershell.exe') -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath -Action prepare -NoPause
     if ($LASTEXITCODE -ne 0) { throw 'Menyiapkan versi baru gagal; lihat pesan di atas. Klik Update ChatBot Prema lagi setelah masalahnya beres.' }
 
@@ -775,9 +697,6 @@ function Show-Menu {
     }
 }
 
-# A click inside a console window starts "Quick Edit" selection, and Windows
-# then FREEZES the program until Esc is pressed (the title shows "Select ...").
-# Seen on a client PC during an update: turn it off for this window.
 function Disable-QuickEdit {
     try {
         if (-not ('ChatBotConsole' -as [type])) {
@@ -791,11 +710,11 @@ function Disable-QuickEdit {
         $stdin = [ChatBotConsole]::GetStdHandle(-10)
         $mode = 0
         if ([ChatBotConsole]::GetConsoleMode($stdin, [ref]$mode)) {
-            # Clear ENABLE_QUICK_EDIT_MODE (0x40), keep ENABLE_EXTENDED_FLAGS (0x80) so it sticks.
+
             [ChatBotConsole]::SetConsoleMode($stdin, (($mode -band (-bnot 0x40)) -bor 0x80)) | Out-Null
         }
     } catch {
-        # No console (the hidden service) or an old host: nothing to protect.
+
     }
 }
 

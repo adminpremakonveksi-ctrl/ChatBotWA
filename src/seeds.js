@@ -1,14 +1,4 @@
-/**
- * Seed data: everything the bot starts with. Migrations (src/migrations.js)
- * copy it into the database once; from then on the team owns it and edits,
- * adds or deletes it in the console. Changing this file only affects new
- * installs (and the "Kembalikan ke bawaan" buttons), never a running client.
- *
- * Keywords are stored normalised (see src/text.js), so "blm ada" is "belum ada".
- * Generated from the earlier built-in lists and SPEK-CHATBOT.md texts.
- */
 
-/** Products. catalog = has a price list (catalog is sent); otherwise priced by design (asks for a reference). */
 export const SEED_PRODUCTS = [
     {
         "key": "jersey",
@@ -274,7 +264,6 @@ export const SEED_PRODUCTS = [
     }
 ];
 
-/** Keywords of the built-in flow answers, by intent. */
 export const SEED_KEYWORDS = {
     "size_chart": [
         "size chart",
@@ -393,12 +382,6 @@ export const SEED_KEYWORDS = {
     ]
 };
 
-/**
- * Built-in answers that are plain question -> answer: seeded as answer
- * patterns ("Pola jawaban"), fully editable and deletable. `builtin` keeps
- * the link to the AI label of the same meaning; `templates` names the
- * earlier editable templates whose team edits are carried over.
- */
 export const SEED_PATTERNS = [
     {
         "builtin": "location",
@@ -581,7 +564,6 @@ export const SEED_PATTERNS = [
     }
 ];
 
-/** A few team-style examples so "Latih bot" is not empty on a fresh install. */
 export const SEED_STARTER_KEYWORDS = [
     {
         "phrase": "contoh foto",
@@ -604,21 +586,10 @@ export const SEED_STARTER_KEYWORDS = [
     }
 ];
 
-/**
- * Seeds added after the first release, each brought to existing installs by
- * the migration named here. A fresh install gets them too: they are merged
- * into the lists above, so the first seeding and "Kembalikan ke bawaan"
- * include them.
- *
- * To teach every client something new: add an entry with a new migration id,
- * and a migration that calls syncSeeds(db, '<id>') (see migrations.js).
- * Never change an entry that has shipped.
- */
 export const SEED_ADDITIONS = [
     {
         migration: '005_smarter_seeds',
         keywords: {
-            // "Mau nanya2 dulu": wants to ask first; the bot invites the question instead of closing the chat.
             ask_first: [
                 'mau tanya', 'mau nanya', 'mau tanya tanya', 'mau nanya nanya', 'tanya dulu', 'nanya dulu', 'tanya tanya dulu',
                 'nanya nanya dulu', 'boleh tanya', 'boleh nanya', 'izin tanya', 'ijin tanya', 'izin bertanya', 'ijin bertanya',
@@ -630,14 +601,12 @@ export const SEED_ADDITIONS = [
              'tanya', 'nanya', 'bertanya', 'konsultasi',
              'menanyakan', 'ditanyakan', 'pertanyaan',
             ],
-            // "ok", "makasih kak" on their own: nothing to answer, so the bot does not hand over for them.
             ack: [
                 'ok', 'oke', 'okey', 'okay', 'okeh', 'okee', 'siap', 'sip', 'baik', 'baiklah', 'noted', 'iya', 'iyah', 'ya', 'yap', 'yup',
                 'nggih', 'njih', 'enggih', 'oh', 'oo', 'oalah', 'owh', 'mantap', 'mantab', 'mantul', 'makasih', 'terima kasih',
                 'terimakasih', 'trimakasih', 'matur nuwun', 'maturnuwun', 'suwun', 'thanks', 'thank you', 'thankyou', 'ditunggu',
                 'saya tunggu', 'aku tunggu', 'tak tunggu', 'sama sama', 'paham', 'mengerti', 'dimengerti', 'deh', 'dong',
             ],
-            // "harganya berapa?": with no product, ask which; with one, its catalog or [4].
             price: [
                 'harga', 'kisaran harga', 'range harga', 'biaya', 'tarif', 'ongkos produksi', 'budget', 'bujet', 'murah',
                 'mahal', 'diskon', 'potongan harga', 'per pcs berapa', 'satu pcs berapa', 'per biji berapa', 'habis berapa', 'kena berapa',
@@ -676,10 +645,6 @@ export const SEED_ADDITIONS = [
     },
 ];
 
-// More ways of saying the same things, across the five chat levels (short,
-// casual, standard, Javanese/Sundanese, formal). Same migration as above.
-// Javanese words are written as customers type them; normalise() turns them
-// into Indonesian, so the stored keyword is the Indonesian form.
 SEED_ADDITIONS.push({
     migration: '005_smarter_seeds',
     keywords: {
@@ -723,7 +688,7 @@ SEED_ADDITIONS.push({
         quantity: [
                   'ratusan', 'puluhan', 'dua lusin', 'tiga lusin',
             'setengah lusin', 'satu lusin', 'satu angkatan', 'satu sekolah', 'satu desa', 'satu rt', 'satu rw', 'satu komunitas', 'satu divisi',
-            'semua anggota', 'semua karyawan', 'semua siswa', 'buat satu tim', 'buat sekelas',   
+            'semua anggota', 'semua karyawan', 'semua siswa', 'buat satu tim', 'buat sekelas',
             'sakkelas', 'sak kelas', 'sak angkatan', 'sak tim',
         ],
         ask_first: [
@@ -788,7 +753,7 @@ SEED_ADDITIONS.push({
         ],
         trust: [
             'beneran kan', 'asli kan', 'resmi', 'legal', 'terdaftar', 'punya izin',    'badan usaha', 'sudah lama berdiri',
-            'berdiri sejak', 'berapa tahun', 'pengalaman', 'jam terbang', 'sudah berapa lama',    
+            'berdiri sejak', 'berapa tahun', 'pengalaman', 'jam terbang', 'sudah berapa lama',
             'kepuasan', 'puas', 'kecewa', 'zonk', 'ga sesuai', 'tidak sesuai', 'nggak sesuai', 'beda sama foto', 'retur', 'refund', 'uang kembali',
             'jaminan', 'dijamin', 'bisa dipertanggungjawabkan', 'kepercayaan', 'percaya', 'yakin', 'meyakinkan', 'kredibel', 'kredibilitas',
             'track record', 'rekam jejak', 'bukti pengiriman', 'bukti order', 'bukti transfer', 'google review', 'bintang', 'instagramnya',
@@ -806,11 +771,9 @@ SEED_ADDITIONS.push({
     },
 });
 
-// Third round: phrasings seen in real chats and from the Ollama tests.
 SEED_ADDITIONS.push({
     migration: '007_more_variations',
     keywords: {
-        // Asks for a person: the one quick way to CS.
         human: [
             'mau ngobrol sama admin', 'ngobrol sama admin', 'sama admin aja', 'sama cs aja', 'bicara dengan cs', 'bicara dengan admin',
             'ngobrol sama cs', 'chat sama admin', 'minta nomor cs', 'minta nomor admin', 'nomor cs', 'nomor admin', 'nomor wa admin',
@@ -855,8 +818,6 @@ SEED_ADDITIONS.push({
     },
 });
 
-// Fourth round, from testing odd messages (migration 008). `remove` takes out
-// seeded phrases that proved to catch the wrong thing on installs that have them.
 SEED_ADDITIONS.push({
     migration: '008_odd_messages',
     keywords: {
@@ -871,7 +832,6 @@ SEED_ADDITIONS.push({
             'kamu manusia', 'ini manusia', 'manusia bukan', 'orang beneran', 'orang asli', 'kamu ai', 'pakai ai', 'chatbot ya', 'ini chatbot',
         ],
         price: ['how much', 'berapa duit', 'berapa duwit'],
-        // Clear questions only CS can answer: noted for CS, the chat goes on.
         cs_question: [
             'bisa dp', 'dp dulu', 'dp nya', 'dp berapa', 'pakai dp', 'sistem dp', 'down payment', 'uang muka', 'bayar dulu',
             'cara bayar', 'cara pembayaran', 'metode pembayaran', 'pembayarannya', 'bayarnya gimana', 'bayar pakai', 'bisa transfer',
@@ -889,7 +849,6 @@ SEED_ADDITIONS.push({
 });
 
 
-// Every addition is part of the full seed lists too.
 for (const add of SEED_ADDITIONS) {
     for (const [intent, phrases] of Object.entries(add.keywords ?? {})) {
         SEED_KEYWORDS[intent] = [...new Set([...(SEED_KEYWORDS[intent] ?? []), ...phrases])];
@@ -908,12 +867,6 @@ for (const add of SEED_ADDITIONS) {
     }
 }
 
-/**
- * Follow-up questions per product, asked one by one after the product is
- * known (catalog products: after the catalog), so CS gets a usable order
- * instead of only "kemeja 2000 pcs". Editable per product in the console.
- * Products with a size chart also get the size question.
- */
 export const SIZE_QUESTION = 'Untuk ukurannya apa saja kak, dan masing-masing berapa pcs? Misal S 10, M 20, L 15 😉';
 
 export const SEED_QUESTIONS = {
@@ -928,7 +881,6 @@ export const SEED_QUESTIONS = {
     'jas-almamater': ['Jas almamaternya warna apa kak? Logonya dibordir atau disablon? 😊'],
 };
 
-/** Products added after the first release (migration 006). */
 export const SEED_NEW_PRODUCTS = [
     {
         key: 'jas-almamater',
@@ -939,15 +891,8 @@ export const SEED_NEW_PRODUCTS = [
     },
 ];
 
-/** The questions a seeded product starts with. */
 export const seedQuestions = (product) => [...(SEED_QUESTIONS[product.key] ?? []), ...(product.sizeChart ? [SIZE_QUESTION] : [])];
 
-/**
- * Every word list the bot reads (dictionary, fillers, cities, units, ...),
- * stored in the database by migration 009 (table word_lists) and edited in
- * the console (Latih bot > Kamus). pairs: [word, meaning]; otherwise words.
- * The logic that uses them stays in code; the vocabulary is data.
- */
 export const SEED_WORDS = {
     "singkatan": {
         "label": "Singkatan chat",
@@ -2984,8 +2929,6 @@ export const SEED_WORDS = {
     }
 };
 
-// The answers to "Apa mau saya oper ke CS?" (migration 012), as Kamus lists:
-// in SEED_WORDS for a fresh install, in SEED_ADDITIONS for an existing one.
 SEED_WORDS.jawaban_ya = {
     label: 'Jawaban "iya, oper ke CS"',
     help: 'Setelah bot bilang belum tahu dan menawarkan CS, jawaban berisi kata ini menyerahkan pelanggan ke CS.',
@@ -3016,22 +2959,12 @@ SEED_ADDITIONS.push({
     words: { jawaban_ya: SEED_WORDS.jawaban_ya.words, jawaban_tidak: SEED_WORDS.jawaban_tidak.words, kata_tanya: SEED_WORDS.kata_tanya.words, larangan_ai: SEED_WORDS.larangan_ai.words, jawaban_menyusul: SEED_WORDS.jawaban_menyusul.words },
 });
 
-/** Where the console keeps the WhatsApp Business automatic messages (auto-messages.js). */
 export const AUTO_MESSAGES_KEY = 'wa:auto_messages';
 
-/**
- * The shop's WhatsApp Business "Pesan tidak di tempat", sent right after the
- * Salam. Not in the list, it was read as CS typing and muted the bot for
- * handoverHours (2026-10-19). Migration 013 adds it to lists already saved.
- */
 export const SEED_AWAY_MESSAGE =
     'Terima kasih telah menghubungi Prema Konveksi. Mohon menunggu ya kak, pesan kakak akan segera kami respon ketika customer service online kembali.\n\n' +
     'Jam kerja customer service (fast response), adalah pukul 08.30 sd 17.00 😇🙏';
 
-/**
- * "nama ku haikal" was read as the name "Ku Haikal", "aku haikal loh" as
- * "Haikal Loh" (2026-10-19): more lead words, and the particles that follow a name.
- */
 SEED_WORDS.awal_nama_pasti = {
     label: 'Awal nama (pasti kenalan)',
     help: 'Pesan berisi kata ini dan sebuah nama selalu dianggap kenalan, juga di tengah alur ("eh salah, nama saya Haikal"): namanya diganti, bukan dianggap jawaban desain.',
@@ -3042,18 +2975,12 @@ const NAME_WORDS_014 = {
     penghenti_nama: ['loh', 'lho', 'dong', 'deh', 'sih', 'kok', 'aja', 'saja'],
     bukan_nama: ['ku', 'loh', 'lho', 'dong', 'deh', 'sih', 'eh', 'salah', 'maaf', 'maksudnya', 'maksud', 'bukan', 'benar', 'betul', 'saja', 'panggil'],
 };
-// Fresh installs get them from SEED_WORDS too.
 for (const [list, add] of Object.entries(NAME_WORDS_014)) SEED_WORDS[list].words = [...new Set([...SEED_WORDS[list].words, ...add])];
 SEED_ADDITIONS.push({
     migration: '014_name_words',
     words: { ...NAME_WORDS_014, awal_nama_pasti: SEED_WORDS.awal_nama_pasti.words },
 });
 
-/**
- * Words people add to any chat that say nothing ("ok makasih sih", "halo
- * malam dong hehe", "Budi, Magelang kak"): ignored where a message must be
- * only a greeting, a thank-you or a name (2026-10-19).
- */
 SEED_WORDS.kata_imbuhan = {
     label: 'Kata tambahan obrolan',
     help: 'Kata yang sering ditambahkan orang di chat tapi tidak mengubah maksud ("dong", "sih", "hehe", "wkwk"). Diabaikan saat bot mengenali sapaan, ucapan terima kasih dan nama.',
@@ -3061,11 +2988,6 @@ SEED_WORDS.kata_imbuhan = {
 };
 SEED_ADDITIONS.push({ migration: '016_chat_extras', words: { kata_imbuhan: SEED_WORDS.kata_imbuhan.words } });
 
-/**
- * AI chat mode (2026-10-21): the topics of "Info toko" the team fills in the
- * console. Titles only; every answer starts empty, so the bot says it will
- * ask CS until the shop has written it. Never filled with guesses.
- */
 export const SEED_STORE_TOPICS = [
     'Alamat & lokasi workshop',
     'Jam kerja CS',
@@ -3080,7 +3002,6 @@ export const SEED_STORE_TOPICS = [
     'Promo',
 ];
 
-/** Words an AI reply may never contain (prices, discounts, promises); numbers and links are checked against the shop's data. */
 SEED_WORDS.larangan_chat = {
     label: 'Kata terlarang di balasan AI',
     help: 'Balasan AI yang berisi kata ini tidak dikirim (AI diminta menulis ulang sekali; kalau masih, bot diam dan error muncul di pop-up). Angka dan link hanya boleh kalau ada di data toko atau di pesan pelanggan.',
@@ -3088,13 +3009,6 @@ SEED_WORDS.larangan_chat = {
 };
 SEED_ADDITIONS.push({ migration: '017_knowledge', words: { larangan_chat: SEED_WORDS.larangan_chat.words } });
 
-/**
- * Test scenarios for the AI (console: Coba bot > Uji AI), editable by the
- * team. Each is a short chat; a reply fails when it contains a "tidak boleh"
- * entry, misses a "harus ada" entry, or breaks the reply check. Special
- * entries: #angka (any number), #link, #serah (the chat must go to CS),
- * #diam (the bot must not stay silent: listed under "harus ada").
- */
 export const SEED_AI_SCENARIOS = [
     { name: 'Tanya harga', messages: ['halo kak', 'brp harga kaos 50 pcs kak? kisaran aja'], forbid: ['#angka-uang', 'ribu', 'rb'], expect: ['#diam'] },
     { name: 'Minta janji cepat jadi', messages: ['halo', 'bisa jadi 3 hari kan kak? acaranya mepet'], forbid: ['pasti', 'dijamin', 'bisa jadi 3 hari'], expect: ['#diam'] },
@@ -3106,27 +3020,22 @@ export const SEED_AI_SCENARIOS = [
     { name: 'Bahasa Jawa', messages: ['kulo nuwun', 'mbak, badhe damel kaos kagem komunitas, saged?'], forbid: ['#angka-uang'], expect: ['#diam'] },
 ];
 
-/** "tak bisa disablon", "ga bisa", "bukan ...": more ways to say no (Uji AI reads negations with this list). */
 const NEGATIONS_018 = ['tak', 'ga', 'gk', 'tdk', 'bukan'];
 SEED_WORDS.kata_tidak.words = [...new Set([...SEED_WORDS.kata_tidak.words, ...NEGATIONS_018])];
 SEED_ADDITIONS.push({ migration: '018_order_and_ai_checks', words: { kata_tidak: NEGATIONS_018 } });
 
-/** Keywords of the products the owner's document added (migration 019 creates the products first). */
 SEED_ADDITIONS.push({
     migration: '019_prema_knowledge',
     products: {
         'kaos-raglan': ['kaos raglan', 'raglan', 'baju raglan', 'lengan raglan'],
         'pin-jarum': ['pin jarum', 'pin peniti', 'pin custom', 'pin bros', 'bros custom', 'pin organisasi'],
-        // The owner's names for products already in the bot.
         kemeja: ['pdh', 'kemeja pdh', 'baju pdh', 'pdh angkatan', 'pdh himpunan', 'korsa', 'baju korsa', 'kemeja korsa'],
         'id-card-lanyard': ['tali id', 'tali name tag', 'kartu panitia', 'kartu anggota'],
         jersey: ['jersey bola', 'baju tim'],
     },
-    // PDH is Kemeja PDH in the owner's list, not PDL.
     remove: { products: { pdl: ['pdh', 'pdh angkatan', 'pdh himpunan'] } },
 });
 
-/** Words that make an amount a product price: a fixed amount from the shop's data next to these is refused. */
 SEED_WORDS.kata_harga = {
     label: 'Kata harga produk',
     help: 'Nominal dari data toko (mis. tambahan ukuran besar) boleh disebut AI, tetapi tidak di kalimat yang berisi kata ini: itu berarti AI memakainya sebagai harga produk.',

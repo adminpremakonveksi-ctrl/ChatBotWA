@@ -1,4 +1,3 @@
-// Imported first by every test file, before anything reads config.
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -11,6 +10,7 @@ for (const file of ['katalog/jersey.pdf', 'katalog/umum.pdf', 'size-chart/kaos.j
 }
 
 Object.assign(process.env, {
+    DOTENV_CONFIG_PATH: path.join(mediaDir, '.env.test'),
     DB_PATH: ':memory:',
     MEDIA_DIR: mediaDir,
     OLLAMA_API_KEY: '',
@@ -23,13 +23,10 @@ Object.assign(process.env, {
     NODE_ENV: 'production',
 });
 
-// The spec flow tests run without follow-up questions; test/questions.test.js turns them on.
 const { run } = await import('../src/db.js');
 const { forgetProducts } = await import('../src/bot/products.js');
 run(`UPDATE products SET questions = '[]'`);
 forgetProducts();
 
-// The scripted flow's tests run in "naskah" mode (Pengaturan > Mode bot);
-// the AI chat mode, the default on a client PC, has its own (test/chat.test.js).
 const { config } = await import('../src/config.js');
 config.bot.mode = 'naskah';

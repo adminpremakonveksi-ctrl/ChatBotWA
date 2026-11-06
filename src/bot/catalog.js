@@ -4,16 +4,6 @@ import { logger } from '../logger.js';
 import { findProduct, normalise } from './classify-rules.js';
 import { productKeys } from './products.js';
 
-/**
- * The bot number's own WhatsApp Business catalog.
- *
- * Synced from WhatsApp, each item is matched to one of the bot's products by
- * its name and description ("Jersey Basket" -> jersey); the team can correct
- * a match or exclude an item in the console. When a customer asks about a
- * product, the bot sends links to its matching items (wa.me/p/<id>/<phone>)
- * instead of pictures. Prices shown by WhatsApp are the catalog's own fixed
- * prices; the bot never computes one.
- */
 
 db.exec(`
 CREATE TABLE IF NOT EXISTS catalog_items (
@@ -26,7 +16,6 @@ CREATE TABLE IF NOT EXISTS catalog_items (
 );
 `);
 
-// How many catalog items one answer may carry; more reads as spam.
 export const MAX_ITEMS_PER_ANSWER = 3;
 
 const log = logger.child({ part: 'catalog' });
@@ -35,10 +24,8 @@ const phone = () => getSetting('catalog:phone');
 
 export const productLink = (item, number = phone()) => (number ? `https://wa.me/p/${item.id}/${number}` : null);
 
-/** The product an item was matched to from its own words, or null. */
 export const autoProduct = (item) => findProduct(normalise(`${item.name} ${item.description ?? ''}`));
 
-/** Team correction: a product key, 'none' (never send), or null (use the automatic match). */
 const override = (id) => getSetting(`catmap:${id}`);
 
 const effectiveProduct = (item) => {
@@ -49,16 +36,6 @@ const effectiveProduct = (item) => {
     return chosen && productKeys().includes(chosen) ? chosen : autoProduct(item);
 };
 
-/**
- * Reads the whole catalog through a connected Baileys socket and replaces the
- * stored copy. Hidden items are left out. Returns how many items were stored.
- */
-/**
- * Whose catalog to read. The bot's number need not be the shop's WhatsApp
- * Business number that owns the catalog (a client linked 0813..., the
- * catalog lives on 0819...). In order: the number set in the console, the
- * number in the shop catalog link (wa.me/c/<number>), the bot's own number.
- */
 export function catalogOwner(socket = null) {
     if (config.catalog?.phone) return { phone: config.catalog.phone, source: 'pengaturan' };
 
@@ -89,9 +66,12 @@ export async function syncCatalog(socket, { isCurrent = () => true } = {}) {
             cursor = nextPageCursor;
         }
     } catch (error) {
+        const guidance = /timed? ?out/i.test(error.message)
+            ? 'Permintaan katalog melewati batas waktu. Katalog terakhir tetap dipakai; timeout tidak membuktikan katalog kosong atau akun bukan WhatsApp Business.'
+            : 'Periksa nomor pemilik katalog di Media > Katalog WhatsApp Business dan detail error.';
         throw new Error(
             `Katalog nomor +${owner.phone} (${owner.source}) tidak terbaca: ${error.message}. ` +
-            'Pastikan nomor itu WhatsApp Business, katalognya berisi produk, dan nomornya benar (Media > Katalog WhatsApp Business).',
+            guidance,
         );
     }
 
@@ -116,16 +96,13 @@ export async function syncCatalog(socket, { isCurrent = () => true } = {}) {
     return items.length;
 }
 
-/** Remembers why a sync failed, e.g. the number is not a WhatsApp Business account. */
 export function recordSyncError(error) {
     setSetting('catalog:error', String(error?.message ?? error).slice(0, 300));
 }
 
-/** Links for a product's matching catalog items, in catalog order, at most MAX_ITEMS_PER_ANSWER. */
 export function catalogLinksFor(product) {
     if (!product || !phone()) return [];
 
-    // Promos first, so a cap of three never hides the current offer; then catalog order.
     const isPromo = (item) => /\bpromo\b/i.test(item.name);
 
     return all('SELECT * FROM catalog_items ORDER BY position')
@@ -135,7 +112,6 @@ export function catalogLinksFor(product) {
         .map((item) => productLink(item));
 }
 
-/** Everything the console's catalog section shows. */
 export function catalogStatus() {
     const items = all('SELECT * FROM catalog_items ORDER BY position').map((item) => ({
         ...item,

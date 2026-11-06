@@ -5,22 +5,13 @@ import { INTENTS, SIZE_VARIANTS, normaliseResult } from './intents.js';
 import { customKeywords } from './keywords.js';
 import { listProducts, productKeys, productKeywords } from './products.js';
 
-/**
- * AI intent recognition. The model only labels the message; it never writes
- * the reply. Its output is constrained to a schema of enums, and the one
- * free-text field (the customer's name) is sanitised before use, so a message
- * cannot talk the bot into saying anything outside the spec.
- */
 
 const EXTRA_INTENTS = ['size_chart', 'location', 'shipping', 'trust', 'design_reference', 'moq', 'product'];
 
-// Products live in the database and the team can change them, so the schema
-// and the product list are built per call (unchanged products = same prompt = cache hit).
 export const resultSchema = () => {
     const keys = productKeys();
 
     return z.object({
-        // Answer patterns are matched by their own keywords, never guessed by AI.
         intent: z.enum(INTENTS.filter((i) => !['custom', 'image', 'voice'].includes(i))),
         extras: z.array(z.enum(EXTRA_INTENTS)),
         product: keys.length ? z.enum(keys).nullable() : z.null(),
@@ -35,7 +26,6 @@ const productList = () =>
         .map((p) => `- ${p.key}: ${p.name} (contoh kata: ${productKeywords(p.key).slice(0, 6).join(', ')})`)
         .join('\n');
 
-// Kept byte-for-byte stable while products are unchanged, so it can be cached; per-message data goes in the user turn.
 export const systemPrompt = () => `Kamu adalah pengklasifikasi pesan WhatsApp untuk Prema Konveksi, konveksi di Purworejo, Jawa Tengah
 (kaos, jersey, PDH/PDL, kemeja, jaket, hoodie, jas almamater, topi, ID card & lanyard, bendera, dll).
 Tugasmu HANYA memberi label pada pesan pelanggan. Kamu tidak menulis balasan; balasannya naskah tetap.
@@ -132,18 +122,12 @@ Contoh (pesan -> label):
 Daftar produk:
 ${productList()}`;
 
-/**
- * The per-message part of the prompt. Team-taught keywords ride here so the
- * system prompt stays stable (cacheable). Only the team's own: the seeded
- * ones are what the labels already mean.
- */
 export function userTurn({ text, hasImage = false, step = 'new', knownProduct = null, history = [], quoted = null }) {
     const taught = customKeywords()
         .filter((k) => k.source === 'tim')
         .map((k) => `- "${k.phrase}" = ${k.intent}${k.product ? ` (${k.product})` : ''}`)
         .join('\n');
 
-    // Earlier lines are context only (what "itu", "yang tadi" refer to); only <pesan> is labelled.
     const earlier = history
         .map((h) => `${h.who}: ${String(h.text).replace(/[<>]/g, ' ').slice(0, 300)}`)
         .join('\n');
@@ -151,7 +135,6 @@ export function userTurn({ text, hasImage = false, step = 'new', knownProduct = 
     return (
         (taught ? `<kata_kunci_tim>\n${taught}\n</kata_kunci_tim>\n` : '') +
         (earlier ? `<riwayat>\n${earlier}\n</riwayat>\n` : '') +
-        // The message they replied to with WhatsApp "reply" ("yang ini kak").
         (quoted ? `<dibalas>\n${String(quoted).replace(/[<>]/g, ' ').slice(0, 300)}\n</dibalas>\n` : '') +
         `<langkah>${step}</langkah>\n` +
         `<produk_sebelumnya>${knownProduct ?? '-'}</produk_sebelumnya>\n` +

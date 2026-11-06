@@ -13,7 +13,6 @@ import { createMedia } from '../src/bot/media.js';
 import { replies } from '../src/bot/replies.js';
 import { run } from '../src/db.js';
 
-// The client's real catalog item names, in their catalog order.
 const NAMES = [
     'Paket IDCard & Lanyard', 'Jersey Basket', 'Bahan Jersey', 'Opsi Peletakan Logo Apparel', 'Jenis Kerah Jersey',
     'PROMO JERSEY PRINTING (10 slot per bulan)', 'Kaos Kelas Two-Tone', 'Kemeja PDL 2in1', 'Koleksi Kaos Kelas Menyala',
@@ -21,7 +20,6 @@ const NAMES = [
     'Contoh Baju PKS, Paskibra', 'Contoh Baju Kemeja PDL PMR', 'Koleksi Kaos Angkatan Tahun 2024',
 ];
 
-/** A Baileys socket stand-in that serves the catalog in pages of 10. */
 function fakeSocket(names = NAMES, { hidden = [] } = {}) {
     const products = names.map((name, i) => ({ id: String(1000 + i), name, description: '', price: 1, currency: 'IDR', isHidden: hidden.includes(name), imageUrls: { requested: `https://img/${i}.jpg` } }));
 
@@ -51,11 +49,10 @@ test('items are matched to products, promos first, at most three per answer', as
     reset();
     await syncCatalog(fakeSocket());
 
-    // Jersey Basket, Bahan Jersey, Kerah, PROMO: the promo must not be the one cut off.
     assert.deepEqual(catalogLinksFor('jersey'), [
-        'https://wa.me/p/1005/6281999911895', // PROMO JERSEY PRINTING
-        'https://wa.me/p/1001/6281999911895', // Jersey Basket
-        'https://wa.me/p/1002/6281999911895', // Bahan Jersey
+        'https://wa.me/p/1005/6281999911895',
+        'https://wa.me/p/1001/6281999911895',
+        'https://wa.me/p/1002/6281999911895',
     ]);
     assert.equal(catalogLinksFor('seragam-sekolah').length, 3, 'OSIS, Pramuka, PKS/Paskibra');
     assert.equal(catalogLinksFor('id-card-lanyard').length, 2);
@@ -66,13 +63,13 @@ test('the team can move an item to another product or keep it out', async () => 
     reset();
     await syncCatalog(fakeSocket());
 
-    setItemProduct('1003', 'jersey'); // Opsi Peletakan Logo Apparel -> jersey
+    setItemProduct('1003', 'jersey');
     assert.equal(catalogStatus().items.find((i) => i.id === '1003').product, 'jersey');
 
-    setItemProduct('1005', 'none'); // promo excluded
+    setItemProduct('1005', 'none');
     assert.ok(!catalogLinksFor('jersey').includes('https://wa.me/p/1005/6281999911895'));
 
-    setItemProduct('1005', ''); // back to automatic
+    setItemProduct('1005', '');
     assert.ok(catalogLinksFor('jersey').includes('https://wa.me/p/1005/6281999911895'));
 
     assert.throws(() => setItemProduct('9999', 'jersey'), /tidak ditemukan/);
@@ -98,7 +95,6 @@ test('the bot answers with its text, then the matching catalog products', async 
     assert.equal(texts[0], replies.greetKnown('Rina'));
     assert.equal(texts[1], replies.askDesign('Seragam'), 'design-priced product: [4], no catalog');
 
-    // A catalog product: the products replace the pictures, before [5].
     sent.length = 0;
     run('DELETE FROM conversations');
     bot.onIncoming('utama', wa, { jid: '6288888@s.whatsapp.net', id: 'c2', text: 'halo kak saya Budi dari Jogja mau bikin jersey' });

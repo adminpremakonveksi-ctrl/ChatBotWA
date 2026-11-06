@@ -20,24 +20,20 @@ const step = (conv, text) => {
 test('"saya mau pesan Kemeja 2000 PCS": the agreed flow first ([4]), the follow-up questions last, then CS', () => {
     updateProduct('kemeja', { questions: [...SEED_QUESTIONS.kemeja, SIZE_QUESTION] });
 
-    // The flow as agreed: the product gets [4] straight away; the amount is kept.
     let r = step({ step: 'awaiting_product', name: 'Budi' }, 'saya mau pesan Kemeja 2000 PCS');
     assert.equal(r.conv.product, 'kemeja');
     assert.equal(r.conv.quantity, '2000 pcs');
     assert.deepEqual(texts(r.actions), [replies.askDesign('Kemeja')]);
     assert.equal(r.conv.step, 'awaiting_design');
 
-    // The design answer; the amount is known, so no [5]: now the questions, just before the order goes to CS.
     r = step(r.conv, 'logo perusahaan di dada kiri, warna navy');
     assert.deepEqual(texts(r.actions), [SEED_QUESTIONS.kemeja[0]]);
     assert.equal(r.conv.step, 'awaiting_detail');
 
-    // "PDH lengan panjang" names another product (PDL); here it is the answer.
     r = step(r.conv, 'PDH lengan panjang');
     assert.equal(r.conv.product, 'kemeja');
     assert.deepEqual(texts(r.actions), [SIZE_QUESTION]);
 
-    // The size list is the last thing asked; then [7] + [8].
     r = step(r.conv, 'S 500, M 800, L 700');
     assert.deepEqual(texts(r.actions), [replies.waitForCs(), replies.socials(), replies.handoverNotice()]);
     assert.deepEqual(JSON.parse(r.conv.details).map((d) => d.a), ['PDH lengan panjang', 'S 500, M 800, L 700']);

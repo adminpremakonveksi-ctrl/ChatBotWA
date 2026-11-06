@@ -1,5 +1,3 @@
-# Independent of Node's event loop. Runs as a hidden background job of launcher.ps1.
-# ASCII only for Windows PowerShell 5.1.
 param(
     [int]$SupervisorId,
     [long]$SupervisorStartTicks,
@@ -67,8 +65,7 @@ while ($true) {
         $decision = Get-WatchdogAction $healthy $age $failures
         if ($decision -eq 'warmup') { $failures = 0; continue }
         if ($decision -ne 'restart') { continue }
-        # Verify ancestry and exact entry path AGAIN immediately before stopping.
-        # Never stop all node processes or a process owned by another launcher.
+
         $checkBot = Get-CimInstance Win32_Process -Filter "ProcessId = $watchedId"
         $checkWrapper = Get-CimInstance Win32_Process -Filter "ProcessId = $($wrapper.ProcessId)"
         if (-not (Test-OwnedBot $checkBot $checkWrapper $SupervisorId $entryPath)) { continue }
@@ -76,7 +73,7 @@ while ($true) {
         Stop-Process -Id $watchedId -Force
         $watchedId = 0
         $failures = 0
-        # The launcher's existing loop restarts Node after ten seconds.
+
     } catch {
         if (((Get-Date) - $lastDiagnostic).TotalMinutes -ge 10) {
             Add-Content -LiteralPath $LogFile -Value "$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') WATCHDOG: pemeriksaan tertunda: $($_.Exception.Message)" -ErrorAction SilentlyContinue

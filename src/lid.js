@@ -1,22 +1,7 @@
 import { createHash } from 'node:crypto';
 import { all, db, get, now, run } from './db.js';
 
-/**
- * WhatsApp addresses a person either by phone number (628...@s.whatsapp.net,
- * "PN") or by LID (a hidden id, 2806...@lid). The same person, or the bot's
- * own phone, can show up under either. Baileys 6.7 keeps no mapping, which
- * broke two things:
- *  - a message from our own phone addressed by LID could not be decrypted
- *    (the encryption session was made under the number): CS typing on the
- *    phone went unseen and the bot kept answering;
- *  - one customer could be two conversations.
- *
- * The mapping is learnt from customers' incoming messages (WhatsApp sends both
- * ids) and from our own account, and kept in the table lid_map. Messages we
- * sent ourselves never teach anything: their sender ids are ours.
- */
 
-/** "6281:3@s.whatsapp.net" -> "6281". */
 export const userOf = (jid) => String(jid ?? '').split('@')[0].split(':')[0];
 const serverOf = (jid) => String(jid ?? '').split('@')[1] ?? '';
 const deviceOf = (jid) => {
@@ -28,10 +13,8 @@ const deviceOf = (jid) => {
 export const isLid = (jid) => serverOf(jid) === 'lid';
 export const isPn = (jid) => serverOf(jid) === 's.whatsapp.net';
 
-// The bot's own identity (set when the socket is made and when it connects).
 const own = { lid: null, pn: null };
 
-/** The bot's own LID and number: always mapped to each other, never to anyone else. */
 export function setOwnIdentity({ lid, id } = {}) {
     if (!isLid(lid) || !isPn(id)) return;
 
@@ -40,7 +23,6 @@ export function setOwnIdentity({ lid, id } = {}) {
     store(own.lid, own.pn);
 }
 
-/** Stores a pair; when it is new, the LID's conversation joins the number's. */
 function store(lid, pn) {
     const known = get('SELECT pn FROM lid_map WHERE lid = ?', [lid]);
     if (known?.pn === pn) return false;
@@ -57,10 +39,6 @@ function store(lid, pn) {
     return true;
 }
 
-/**
- * Remembers that a customer's LID is this number. Refused when it would tie
- * the bot's own LID or number to someone else.
- */
 export function rememberLid(lid, pn) {
     if (!isLid(lid) || !isPn(pn) || !userOf(lid) || !userOf(pn)) return false;
 
@@ -72,11 +50,6 @@ export function rememberLid(lid, pn) {
     return store(l, p);
 }
 
-/**
- * A conversation (and its messages) kept under the LID moves to the number,
- * so a customer handed to CS stays handed over. When both exist, the one
- * written last is kept.
- */
 function mergeConversations(lid, pn) {
     const lidJid = `${lid}@lid`;
     const pnJid = `${pn}@s.whatsapp.net`;
@@ -97,7 +70,6 @@ function mergeConversations(lid, pn) {
     run('UPDATE incoming_queue SET jid = ? WHERE jid = ?', [pnJid, lidJid]);
 }
 
-/** The phone number user of a LID, or null. Our own from memory: it must work before anything is stored. */
 export function pnOfLid(jid) {
     if (!isLid(jid)) return null;
     if (own.lid && userOf(jid) === own.lid) return own.pn;
@@ -105,7 +77,6 @@ export function pnOfLid(jid) {
     return get('SELECT pn FROM lid_map WHERE lid = ?', [userOf(jid)])?.pn ?? null;
 }
 
-/** A LID jid as the phone-number jid of the same device ("2806:3@lid" -> "6281...:3@s.whatsapp.net"), or null. */
 export function pnJidOf(jid) {
     const pn = pnOfLid(jid);
     if (!pn) return null;
@@ -115,18 +86,12 @@ export function pnJidOf(jid) {
     return `${pn}${device ? `:${device}` : ''}@s.whatsapp.net`;
 }
 
-/** The jid a conversation is kept under: the number when known, so one customer is one chat. */
 export function conversationJid(jid) {
     const pn = pnOfLid(jid);
 
     return pn ? `${pn}@s.whatsapp.net` : jid;
 }
 
-/**
- * Learns the LID/number pair from a customer's incoming message. Baileys 6.7
- * puts the author's ids on the key (sender_lid / sender_pn, participant_* in
- * groups). A message we sent (fromMe) is skipped: those ids are ours.
- */
 export function learnFromKey(key = {}) {
     if (key.fromMe) return;
 
@@ -136,16 +101,9 @@ export function learnFromKey(key = {}) {
     if (isPn(key.remoteJid) && key.senderLid && !key.participant) rememberLid(key.senderLid, key.remoteJid);
 }
 
-/**
- * Wraps a Baileys signal repository so that a message from a LID address whose
- * session was made under the number is read with that session. When that
- * fails too, the original error is reported (it names the real address).
- */
 export function withLidFallback(repository, toPn = pnJidOf, cache = null, hasSession = null) {
     const decrypt = repository.decryptMessage.bind(repository);
 
-    // Who sent it (with the device number) and how it was encrypted: the library's log only
-    // names the chat, so "from the shop phone" and "from another linked device" looked alike.
     const tag = (error, args) => {
         if (error && typeof error === 'object') {
             error.senderJid ??= args?.jid;
@@ -155,14 +113,11 @@ export function withLidFallback(repository, toPn = pnJidOf, cache = null, hasSes
         return error;
     };
 
-    // Which of the sender's addresses has a stored session: { lid: bool, pn: bool }. Signal sessions are
-    // kept per address and Baileys 6.7 does not join the LID and number forms of one device, so this
-    // tells "no session at all" from "a session under the other form" for each failure.
     const records = async (jids) => {
         if (!hasSession) return undefined;
         const found = {};
         for (const jid of jids.filter(Boolean)) {
-            try { found[isLid(jid) ? 'lid' : 'pn'] = Boolean(await hasSession(jid)); } catch { /* diagnosis only */ }
+            try { found[isLid(jid) ? 'lid' : 'pn'] = Boolean(await hasSession(jid)); } catch {                      }
         }
 
         return found;
@@ -189,9 +144,6 @@ export function withLidFallback(repository, toPn = pnJidOf, cache = null, hasSes
 
     repository.decryptMessage = async (args) => {
         if (!cache || !Buffer.isBuffer(args?.ciphertext)) return attempt(args);
-        // A duplicate ciphertext must not consume its Signal key twice. Keep
-        // successful decrypts across reconnects; failures still trigger the
-        // library's normal retry receipt / new-key exchange.
         const key = `${args.jid}|${args.type}|${createHash('sha256').update(args.ciphertext).digest('hex')}`;
         let result = cache.get(key);
         if (!result) {

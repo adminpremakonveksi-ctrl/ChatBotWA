@@ -1,204 +1,97 @@
-# CLAUDE.md
+# ChatBot Prema
 
-## Current production decision (2026-10-31)
+## Working rules
 
-Unattended reliability: incoming_queue (023) journals eligible input atomically
-with its message log, before debounce/AI. Claim attempts BEFORE executing so a
-poison input cannot cause an endless crash/restart cycle. Commit conversation,
-outbox and input completion together. Transient AI failures retry silently with
-backoff; five attempts or fifteen minutes -> internal CS handover, no invented
-customer reply. Non-retryable refused/unconfigured AI input also needs visible
-CS follow-up. Pending IDs, not log position, determine AI history on recovery.
-Do not allow a reset/CS takeover to be overwritten by an old AI result.
+- Customer content uses Indonesian; identifiers use English.
+- Keep all project code free of comments. Document decisions here or in README.md.
+- Use descriptive names and focused functions. Avoid duplicated state and unnecessary abstractions.
+- Never inspect workspace data/, logs/, .env, or production databases to diagnose a client's PC. Use evidence supplied from that PC.
+- Set DB_PATH=:memory: or a temporary path before importing application modules in tests. Simulate WhatsApp and AI. Never connect real accounts in automated tests.
+- Run npm.cmd test after changes. Add regression tests for behavior fixes; do not delete coverage to make tests pass.
+- Never modify node_modules. Apply narrow compatibility wrappers in application code.
+- Add numbered migrations for existing databases and new seeds. Preserve shop edits and deletions; never change shipped seeds to update clients.
 
-Network deadlines and message-healing watchdogs release stuck work. The Windows
-service also starts health-watchdog.ps1 independently of Node: warmup 120 s,
-four health failures, and strict supervisor -> cmd -> node ancestry plus exact
-entry path before killing ONLY its own child. Never use broad node termination.
-SQLite uses synchronous FULL. Tests include real child-process SIGKILL recovery,
-five consecutive poison-input crashes, and a 100-message fault simulation.
+## Product
 
-Self-healing request (2026-10-31): recoverable decrypt and handled network
-errors retain their raw warn/error technical log with quiet=true while the
-automatic repair is running. This explicitly supersedes the old blanket
-"every error pops up" rule below. MessageHealing persists pending IDs and
-cooldowns, refreshes prekeys through Baileys, requests phone resend, and alerts
-only after 5 minutes (at most once per 10 minutes). Never erase pairing keys,
-resurrect consumed prekeys, or trust changed identities automatically. Unknown
-crypto errors remain visible. Hold outgoing customer replies while an unreadable
-fromMe message may be CS typing, but at most 3 minutes (`OWN_HOLD_MS`): a resend
-that never came held customers forever (2026-11-02). Unhealed after 30 minutes →
-released into one hourly report; a full queue releases its oldest, never pop-ups.
-All phone (fromMe) messages unreadable = session with our own phone out of step:
-the bot renews it itself (`assertSessions` forced on our device-0 PN/LID, then
-resend requests carry the new session); "Scan ulang" is asked only after 30
-minutes of failed self-repair. CIPHERTEXT stubs must not count as recovery.
-Every unreadable message records its sender address with device number and e2e type
-(`lid.js` tags the error): device 0 = the shop phone (self-repair above), any other
-device = another linked device (second bot, WhatsApp Web) that only a person can
-unlink on the phone, so `otherDevices` is told apart and named in the alert. Log
-analysis 2026-11-02 (dev PC, 905 messages): 99.9% were fromMe, 77% failed within 2 s
-of a reconnect (WhatsApp redelivers its unacked queue), and "stopped" on 10-29 only
-because the number was unpaired, not fixed. Sender device == OUR OWN device number
-(`ownDevice` from socket.user) means another copy shares this link's keys (`selfCopies`,
-not "other device"); a failure for an id that already arrived readable is a
-re-delivery and is ignored (`seen`, kept in table seen_messages so it survives a restart;
-pkmsg + "Key used already" = a session exists and the counter was used: a duplicate).
-Device numbers grow with every re-link. The client's other linked devices are its CS team
-(3 + the bot = the 4 WhatsApp allows): never tell anyone to unlink them; unreadable messages
-from them are a once-a-day note (`lastOtherAlert`), not an alarm, and not a red Siap mulai.
+ChatBot Prema is Mawar, the WhatsApp Business assistant for Prema Konveksi. It is separate from PREMA OS and shares no API or database with it. Do not add integration without an explicit request.
 
-The user requested AI-only WhatsApp Business operation. This supersedes the
-older two-mode dashboard instructions below. Settings cannot enable naskah;
-the pattern/teaching UI and HTTP routes are removed. Active legacy pattern
-text is migrated once (022) into FAQ or scheduled promotions, and the AI
-does not read patterns or use their triggers. Historical scripted code and
-tests remain only for regression coverage. Never reintroduce pattern menus.
+Production uses AI mode only. Settings cannot reactivate naskah. Historical scripted code and tests remain for regression coverage. Do not restore pattern or teaching HTTP routes or menus.
 
-Sidebar editing: Produk, Pengetahuan, Sapaan & pesan, Promo, Gaya bicara AI.
-Promotions have product scope, enable/disable, and dates in the shop timezone.
-Only current promotions reach the AI. Approved discount wording may be used;
-invented discounts and product prices remain refused. Test API routes via
-the exported Express app; importing index.js must not connect WhatsApp or
-install process-wide crash/signal handlers.
+The shop edits Produk, Pengetahuan, Sapaan & pesan, Promo, Gaya bicara AI, Media, and Pengaturan through the dashboard. Saved changes apply without restart. Clients should not need to edit files.
 
-**ChatBot Prema**: the WhatsApp bot of Prema Konveksi ("Proyek 2"). Node 20+, ESM,
-Baileys 6.7.24 (pinned: `latest` is a 7.0 RC), better-sqlite3. Runs on a physical
-PC that stays on.
+Ollama is the only AI provider. Answers use shop knowledge, product details, and active promotions in the shop timezone. Never invent facts, prices, discounts, totals, delivery promises, or missing knowledge. Prices, negotiations, and final offers go to CS. Owner-approved fixed surcharges/design fees can be quoted exactly under the reply guards. Approved promotion wording is allowed.
 
-It shares **nothing** with PREMA OS (the Laravel admin site): no API, no database.
-That holds only because the bot never computes prices. If a task seems to need
-PREMA OS data, stop and ask.
+Code maintains order answers, follow-up questions, completion, and media. Pending size lists wait for detailWaitDays. Send uploaded size charts and measurement guidance before asking for sizes. Ask which product when unknown.
 
-The spec and decisions live in `D:\Code\Web\ChatBotWA`: `SPEK-CHATBOT.md` (reply
-texts, flow) and `CATATAN-DISKUSI.md`. Read them before changing behaviour.
+Default activity: Monday–Saturday 17:30–07:30 and all Sunday, Asia/Jakarta. Editable windows can cross midnight or run during the day. Bot and CS names are configuration.
 
-Content language is Indonesian. Code and comments are English.
+## Multi-device decisions
 
-## Rules that are easy to break
+The intended deployment is one bot, the owner, and two admins on one account. Their linked devices are legitimate. Never tell the client to unlink all devices except the bot.
 
-- **Two modes** (Pengaturan > Mode bot, `config.bot.mode`, default `ai`; client's
-  decision 2026-10-21):
-  - `ai` (`src/bot/chat.js`): the fixed greeting template, then the AI writes the
-    replies like a usual chatbot, ONLY from the shop's data (`src/bot/knowledge.js`:
-    Info toko topics, Tanya-jawab, product details in `products.info`, Pola jawaban).
-    Code keeps the guards: greeting, "minta CS" and voice notes are fixed templates;
-    every reply passes `checkReply` (no money, Kamus `larangan_chat`, numbers and
-    links only if in the data or the customer's words), refused → retried once with
-    the reason → still refused, AI down or not set up → **silent** (client's choice)
-    with the error in the pop-up. Broken JSON from the model is also asked again once.
-    **Code holds the order** (`conversations.order_info`): the product being discussed
-    (keywords, earlier lines, or the AI), the answers per item of the product's
-    "Yang perlu ditanyakan" (team's list and order), the item being asked (`ditanya`:
-    when the AI leaves `terjawab` empty, code files the reply there; "menyusul" waits).
-    Code, not the AI, decides "complete" → AI reply + [7] + [8] + handover with a
-    summary built from the answers. The AI gets full details only for that product
-    (`knowledgeBlock(media, { focus })`). Refused replies go to `ai_log`; the team's
-    red-team chats are `ai_scenarios` (Coba bot > Uji AI, run against the real AI).
-    Never fill the shop's data with guesses: empty means "ask CS".
-  - `naskah`: the scripted flow (`engine.js`), replies are fixed templates copied
-    word for word from the spec; AI only labels intent, may add one opening line and
-    answer from the same data, all through `safeAiText`. The old tests run in this
-    mode (`test/setup.js`).
-- **Night guard only**: active Mon–Sat 17.30–07.30 and all of Sunday (`schedule.js`).
-  The hours are editable; `inWindow` handles both night (crosses midnight) and day windows.
-- Follow-up questions (size list last) come at the end, just before the order goes to CS.
-  The size list often arrives days later: `awaiting_detail` lives `detailWaitDays`
-  (Pengaturan), and "nanti saya kabari" (Kamus `jawaban_menyusul`) keeps the question open.
-- **No prices** in replies. Catalog files may be sent. Exception (client, 2026-10-24),
-  AI mode only: fixed amounts the owner wrote in the shop's data (size surcharges,
-  the design fee range) may be quoted exactly as written; `checkReply` lets an amount
-  through only if it is in the shop's data (never from the customer's words) and not
-  in a sentence with Kamus `kata_harga` (harga, total, per pcs). Product prices and
-  totals stay with CS. The owner's 75 answers are seeded once (`src/seeds-prema.js`,
-  migration 019) into what the team edits; they fill only empty fields.
-- Bot and CS names are config (`BOT_NAME`, `CS_NAME`), not literals.
-- Unrecognised → ask again ("clarify" template); hand over to CS only after
-  `maxMisses` in a row (Pengaturan, default 3) or when they ask for a person
-  (intent `human`). The client relaxed spec rule 1: closing chats too fast was the complaint.
-- AI is Ollama only (Claude removed at the client's request), asked only when the
-  keywords return `other`; its labels are validated (open models invent labels).
-- WhatsApp Business automatic messages (Salam) arrive as `fromMe`: `auto-messages.js`
-  recognises them so they are not taken for CS typing.
-- Every warn/error log line reaches the console's error pop-up (`src/errors.js`,
-  logger hook). Show errors raw; do not soften or hide them: fix the cause.
-  Every one also carries a guide for the person at the PC (`GUIDE` in errors.js: whether
-  to act, what it means, numbered steps), shown above the raw text. A new warn/error needs
-  a guide entry (or `{ quiet: true }`): test/error-guides.test.js scans src/ and fails
-  without one, and the fallback guide still says what to do for unknown errors.
-- WhatsApp addresses people (and our own phone) by LID or by number. `src/lid.js`
-  learns the mapping (table lid_map), keeps one conversation per customer, and
-  retries a failed LID decrypt with the number's session (CS replies typed on the
-  phone were unreadable without it). Our own LID arrives after connecting
-  (creds.update) and is kept in memory too. One number, one bot: on
-  "conflict" (440) the session stops instead of reconnecting; never copy
-  `data/` between PCs. Library bugs are fixed from our code in
-  `src/baileys-fixes.js`, never by editing node_modules (installs skip scripts).
-- New seeds go in `SEED_ADDITIONS` with a NEW migration id; never edit a shipped one.
+- Device 0 means main phone.
+- The socket's own device number means the sender claims the bot's identity; this alone does not prove another bot exists.
+- Other nonzero device numbers mean other linked devices, including admins.
+- Missing or invalid sender addresses mean unknown, never assumed to be the phone.
 
-## Layout
+fromMe identifies the account, not a physical device. remoteJid identifies the conversation, not necessarily the sender. Preserve device numbers when translating LID addresses to phone addresses.
 
-```
-src/index.js          HTTP API + boot; listens BEFORE WhatsApp so a busy port stops a 2nd bot
-src/console.html      admin console (vanilla JS); escape customer text, it is untrusted
-src/maintenance.js    daily jobs in-process: backup, prune, morning recap to CS
-src/settings.js       console-editable settings (stored in SQLite, applied live); .env is only the first default
-src/session.js        one WhatsApp number: socket, reconnect, transport for the bot
-src/manager.js        all numbers; seeds session "utama" on first run
-src/auth-state.js     Baileys auth store in SQLite (no re-scan after restart)
-src/db.js             schema (created on boot) + helpers
-src/bot/bot.js        debounce, per-customer queue, CS-reply detection, sending
-src/bot/chat.js       AI chat mode: chatTurn(conv, input) -> { actions, patch } like decide; askChat + checkReply
-src/bot/knowledge.js  the shop's data for the AI: Info toko topics, Tanya-jawab (tables store_info, faq) + knowledgeBlock()
-src/bot/ai-log.js     replies the guards stopped (table ai_log, newest 500)
-src/bot/ai-scenarios.js  Uji AI: the team's test chats (table ai_scenarios), run in memory through chatTurn
-src/bot/engine.js     the scripted flow (naskah mode) as a pure function: decide(conv, intent, media)
-src/bot/classify*.js  intent: keywords first, Ollama (optional) for what they miss; returns intent + extras
-src/bot/auto-messages.js  WhatsApp Business Salam/away texts, so they are not read as CS
-src/errors.js         recent warn/error feed for the console's error pop-up
-src/migrations.js     numbered migrations; src/seeds.js holds the built-in data they seed
-src/bot/keywords.js   team-taught keywords (console "Latih bot"), merged into the rules at match time
-src/bot/patterns.js   team answer patterns ("Pola jawaban"): keywords + bubbles; matched before built-in answers
-src/bot/catalog.js    WhatsApp Business catalog sync (Baileys getCatalog), item->product mapping, wa.me/p links
-src/bot/store.js      conversation state, handover expiry, message log
-src/bot/simulator.js  "Coba bot" in the console: real classifier + flow, nothing sent
-media/                files the bot sends; uploaded from the console, type sniffed from bytes
-scripts/launcher.ps1  mulai/update/install (Task Scheduler, SYSTEM, at startup) + admin menu; ASCII only (PS 5.1)
-scripts/repo.txt      GitHub repo that "Update" pulls from (public; ZIP download, no git on client PCs)
-*.bat                 exactly two for clients: Mulai and Update. Do not add more.
-                      Mulai checks GitHub first and installs a newer version before starting
-                      (skipped on a git checkout); Update installs it and stops the bot, does
-                      NOT start it, and tells them to click Mulai (client, 2026-10-27).
-                      Mulai also stops copies of this bot running from OTHER folders (client,
-                      2026-11-02: "ChatBotWA-main (1)" in Downloads next to the real one):
-                      matched by src\index.js / launcher.ps1 path + same package name, wrappers
-                      before node, never other Node programs (launcher.ps1 other-copies block).
-```
+Readable IDs survive restart through seen_messages. Ignore failed re-deliveries of already readable messages. MessageCounterError alone proves neither duplication nor broken pairing. Track unproven messages; do not renew sessions based only on a used counter.
 
-The bot logs each outgoing message id **before** sending: WhatsApp echoes the
-bot's own messages back as `fromMe`, and any `fromMe` id it does not know is
-treated as CS typing on the phone, which hands the customer over.
+Admin session recovery targets the exact sender address with a persisted ten-minute cooldown per device. Admin and unknown-sender failures must not reconnect the entire account, including through the stuck-repair watchdog. Allow a newly renewed phone session time to work before reconnecting.
 
-Clients never edit files: everything they need is in the console. Keep it that way.
-New columns on existing tables need an in-place migration (see patterns.js): client
-databases already exist and `CREATE TABLE IF NOT EXISTS` will not add them.
-Edit regex/escape-heavy code, and any string containing `\n`, with the Edit tool:
-scripted edits (Python/sed through Git Bash) have written invisible control
-characters (\x08) into regexes and turned `\n` into real line breaks inside strings,
-breaking files the tests did not import. `test/integrity.test.js` catches these,
-plus unparseable files, a broken console script, non-ASCII in the launcher,
-unknown template placeholders and seed phrases with two meanings.
-`npm test` must pass before every commit; add a regression test for every bug
-fixed (see `test/review-fixes.test.js`). When a change of behaviour breaks an old
-test (e.g. "unknown -> CS"), update that test on purpose; never delete it to get green.
-Update must never overwrite `data/`, `media/`, `logs/` or `.env` on a client PC.
+Bound each recovery network operation to twenty seconds so an unresponsive admin does not block every other recovery. Persist confirmed phone recovery timestamps so restart cannot turn older pending messages into a fresh phone alarm.
 
-## Commands
+Only completed phone renewals count toward relink escalation. Do not trust legacy success counts. Unknown senders and admins cannot trigger phone relink. Readable admin messages cannot declare the main phone repaired. Scan ulang is a last resort after at least two completed phone renewals and thirty minutes of failed phone recovery, not proof of corrupt pairing.
 
-```bash
-npm start
-npm test        # node:test, in-memory SQLite, no WhatsApp needed
-```
+An unreadable fromMe message may be an admin reply. Hold the affected customer's outgoing replies for three minutes. If still unreadable, cancel that customer's pending work and hand the chat to CS with reason pesan perangkat toko belum terbaca. Other chats continue. Persist the decision across restart; never resume merely because the hold expired.
 
-Kill stray processes on Windows with PowerShell (`pkill` from Git Bash is
-unreliable here) and check `netstat` that port 3001 is free before restarting.
+Recheck cancellation and unreadable own-message holds after typing, immediately before socket.sendMessage. Takeover and reset invalidate old queued replies and late AI results. An already submitted network send cannot be recalled.
+
+Never restore consumed Signal keys, erase pairing for network failures, or trust changed identities automatically. Preserve raw errors during repair. Warnings must describe evidence without asserting bot duplication, database restoration, or corrupt pairing without proof.
+
+Catalog timeouts are independent of decryption. Preserve the last catalog and uploaded files, retry with limits, and never claim a timeout proves an empty catalog or a non-Business account.
+
+## Reliability
+
+SQLite uses WAL and synchronous FULL. One process per account database. Pairing survives restart; official logout clears it. Stop reconnecting on a connection conflict rather than fighting another connection.
+
+Journal input and its log atomically before debounce/AI. Count attempts before execution. Commit conversation state, outgoing messages, and input completion together. Retry transient failures with backoff; after five attempts or fifteen minutes, mark for CS. Never invent fallback replies after AI failure/refusal.
+
+Allocate and log outgoing IDs before sending. Reuse IDs after reconnect/restart. Cancel customer replies older than fifteen minutes. Store original outgoing protobuf messages for seven days, including media keys, for retry requests.
+
+Use separate deadlines for AI, WhatsApp sends, handshake, and recovery. Late work cannot overwrite reset or newer recovery. Keep recap content and per-recipient IDs until all recipients have been served.
+
+Daily backup/cleanup retries missed work at startup. Defaults: fourteen backup copies and ninety days of history. Updates preserve data/, media/, logs/, and .env.
+
+## Architecture
+
+| Location | Responsibility |
+| --- | --- |
+| src/index.js, src/console.html | HTTP API, boot, dashboard; escape untrusted content |
+| src/session.js, src/manager.js | Socket lifecycle, events, transport, sessions |
+| src/auth-state.js | SQLite pairing and atomic key batches |
+| src/message-healing.js | Persistent decryption recovery and device diagnostics |
+| src/lid.js, src/baileys-fixes.js | Address mapping, fallback, compatibility wrappers |
+| src/bot/bot.js, src/bot/chat.js | Per-chat queues, takeover, guarded AI conversation |
+| src/inbox.js, src/delivery.js, src/bot/store.js | Durable work, conversations, history |
+| src/bot/catalog.js, src/bot/media.js | Catalog and uploaded assets |
+| src/db.js, src/migrations.js | Initialization and in-place migrations |
+| src/settings.js, src/ai-settings.js | Editable runtime configuration |
+| src/maintenance.js | Backup, retention, recap |
+| src/errors.js, src/activity.js | Guidance and activity feed |
+| scripts/launcher.ps1, scripts/health-watchdog.ps1 | Windows install, update, startup, owned-process supervision |
+| test/multidevice.test.js | Multi-device recovery and takeover simulations |
+
+Importing index.js must not connect WhatsApp or install process-wide signal/crash handlers. Listen on HTTP before WhatsApp boot so a busy port stops a second instance.
+
+Keep exactly two client batch files: Mulai ChatBot Prema.bat and Update ChatBot Prema.bat. Mulai checks updates except in git checkouts. Update installs and stops, then asks the user to run Mulai. Never kill unrelated Node processes. Watchdog verifies supervisor ancestry and exact entry paths.
+
+## Validation
+
+- npm.cmd test: full suite using isolated storage.
+- node --test test/multidevice.test.js: focused simulations.
+- node --test test/runtime.test.js: HTTP dashboard and connected socket lifecycle using a simulated transport.
+- Integrity checks cover JavaScript/dashboard syntax, control characters, templates, seeds, and launcher encoding.
+- Windows tests exercise launcher/watchdog code against simulated process lists.
+- Simulation proves the tested behavior, not decryption on real client devices. Validate four-device operation on the client PC after installing the update.

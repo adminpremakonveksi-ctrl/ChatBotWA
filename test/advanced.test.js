@@ -62,7 +62,6 @@ test('holiday mode keeps the bot on guard all day', () => {
     assert.equal(holidayOn(noon('2027-03-10'), options).label, 'Lebaran');
     assert.equal(isBotActive(noon('2027-03-15'), options), false, 'Monday after: back to normal');
     assert.equal(isBotActive(noon('2026-12-25'), options), true, 'single day');
-    // Saturday 13 Mar is a holiday, Sunday 14 too, Monday 15 normal: on guard until 07.30 Monday.
     assert.equal(nextChange(noon('2027-03-12'), options).toISOString(), '2027-03-15T00:30:00.000Z');
 
     assert.throws(() => parseHolidays('besok saja'), /tidak dimengerti/);
@@ -108,6 +107,5 @@ test('the funnel counts how far customers got', async () => {
     const funnel = Object.fromEntries(store.analytics(7).funnel.map((f) => [f.stage, f.n]));
     assert.deepEqual(funnel, { Menghubungi: 3, 'Menyebut produk': 2, 'Ditanya jumlah': 1, 'Alur selesai, menunggu CS': 1 });
 
-    // Step records never show up as chat bubbles.
     assert.ok(store.messagesOf('utama', '62801@s.whatsapp.net').every((m) => m.direction !== 'step'));
 });

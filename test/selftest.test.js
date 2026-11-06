@@ -15,7 +15,6 @@ function setup() {
     run('DELETE FROM conversations');
     run('DELETE FROM message_log');
     const sent = [];
-    // Outside the night window: the self-chat test still answers.
     const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: { links: () => [], files: () => [], has: () => false }, isActive: () => false, debounceMs: 5 });
     const wa = { newMessageId: () => `S${sent.length}`, send: async (jid, action) => sent.push(action.text) };
     const say = async (text, id) => {

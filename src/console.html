@@ -38,7 +38,7 @@ button, input, select, textarea { font:inherit; color:inherit }
 code { font:12px ui-monospace,Consolas,monospace; background:var(--panel-2); border:1px solid var(--line); padding:1px 5px; border-radius:5px }
 svg.i { width:18px; height:18px; flex:none; stroke:currentColor; fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round }
 
-/* shell */
+
 .app { display:grid; grid-template-columns:236px 1fr; min-height:100% }
 aside { background:var(--panel); border-right:1px solid var(--line); padding:18px 14px; display:flex; flex-direction:column; gap:4px; position:sticky; top:0; height:100vh }
 .brand { display:flex; align-items:center; gap:10px; padding:4px 8px 18px }
@@ -56,7 +56,7 @@ aside { background:var(--panel); border-right:1px solid var(--line); padding:18p
 .content { padding:22px 28px 48px; max-width:1240px }
 .iconbtn { border:1px solid var(--line); background:var(--panel); border-radius:9px; width:34px; height:34px; display:grid; place-items:center; cursor:pointer; color:var(--ink-2) }
 
-/* atoms */
+
 .card { background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px; box-shadow:var(--shadow) }
 .card h3 { margin:0 0 4px; font-size:14px; font-weight:650 }
 .card .hint { color:var(--ink-3); font-size:12.5px; margin:0 0 12px }
@@ -91,7 +91,7 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .empty { padding:28px; text-align:center; color:var(--ink-3) }
 .hidden { display:none !important }
 
-/* hero */
+
 .hero { display:grid; grid-template-columns:auto 1fr; gap:20px; align-items:center }
 .avatar { width:64px; height:64px; border-radius:20px; display:grid; place-items:center; font-size:28px; background:var(--accent-soft); color:var(--accent); position:relative }
 .avatar .badge { position:absolute; right:-3px; bottom:-3px; width:18px; height:18px; border-radius:50%; border:3px solid var(--panel) }
@@ -102,13 +102,13 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .timeline .ticks { position:relative; height:16px; font-size:11px; color:var(--ink-3) }
 .timeline .ticks span { position:absolute; transform:translateX(-50%) } .timeline .ticks span:first-child { transform:none } .timeline .ticks span:last-child { transform:translateX(-100%) }
 
-/* kpi */
+
 .kpi .label { color:var(--ink-3); font-size:12px; font-weight:550; text-transform:uppercase; letter-spacing:.04em }
 .kpi .value { font-size:28px; font-weight:680; letter-spacing:-.01em; margin-top:4px; font-variant-numeric:tabular-nums }
 .kpi .foot { color:var(--ink-3); font-size:12px }
 .kpi svg { width:100%; height:36px; display:block; margin-top:8px }
 
-/* checklist */
+
 .check { display:flex; gap:10px; padding:9px 0; border-bottom:1px solid var(--line-2) }
 .check:last-child { border-bottom:0 }
 .check .mark { width:22px; height:22px; border-radius:50%; display:grid; place-items:center; flex:none; font-size:12px; font-weight:700 }
@@ -116,7 +116,7 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .progress { height:6px; background:var(--line-2); border-radius:99px; overflow:hidden; margin:6px 0 10px }
 .progress > i { display:block; height:100%; background:var(--accent); border-radius:99px }
 
-/* conversations */
+
 .split { display:grid; grid-template-columns:360px 1fr; gap:0; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel); height:calc(100vh - 150px); min-height:480px; box-shadow:var(--shadow) }
 .list { border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0 }
 .list-head { padding:12px; border-bottom:1px solid var(--line); display:flex; flex-direction:column; gap:10px }
@@ -148,7 +148,7 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .day { align-self:center; font-size:11.5px; background:var(--panel); color:var(--ink-3); padding:3px 10px; border-radius:7px; margin:8px 0 }
 .pane-foot { padding:12px 16px; border-top:1px solid var(--line); display:flex; gap:10px; align-items:center; flex-wrap:wrap }
 
-/* stepper */
+
 .steps { display:flex; align-items:center; gap:0; margin:2px 0 }
 .steps .s { display:flex; align-items:center; gap:6px; font-size:11.5px; color:var(--ink-3); white-space:nowrap }
 .steps .s .c { width:18px; height:18px; border-radius:50%; border:1.5px solid var(--line); display:grid; place-items:center; font-size:10px; font-weight:700; background:var(--panel) }
@@ -156,7 +156,7 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .steps .s.now { color:var(--accent); font-weight:650 } .steps .s.now .c { border-color:var(--accent); color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft) }
 .steps .bar { width:18px; height:1.5px; background:var(--line); margin:0 4px } .steps .bar.done { background:var(--accent) }
 
-/* simulator */
+
 .sim { display:grid; grid-template-columns:minmax(320px,400px) 1fr; gap:24px; align-items:start }
 .phone { border-radius:34px; background:#111; padding:10px; box-shadow:0 20px 50px rgba(0,0,0,.18) }
 .screen { border-radius:26px; overflow:hidden; background:var(--chat-bg); height:min(680px, calc(100vh - 170px)); display:flex; flex-direction:column }
@@ -175,7 +175,7 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .tag { display:inline-block; font-size:11px; padding:1px 7px; border-radius:6px; background:var(--series-wash); color:var(--ink-2); margin:2px 3px 0 0 }
 .quick { display:flex; flex-wrap:wrap; gap:6px }
 
-/* charts */
+
 .chart { position:relative }
 .chart svg { display:block; width:100%; overflow:visible }
 .chart .axis { fill:var(--ink-3); font-size:11px }
@@ -189,18 +189,18 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .hbar .num { text-align:right; font-variant-numeric:tabular-nums; color:var(--ink-2) }
 details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin-top:10px }
 
-/* teach */
+
 .teach-item { padding:12px 0; border-bottom:1px solid var(--line-2) }
 .teach-item:last-child { border-bottom:0 }
 .teach-item .q { font-size:13.5px; background:var(--panel-2); border:1px solid var(--line-2); border-radius:9px; padding:7px 10px; white-space:pre-wrap; word-break:break-word }
 .teach-form { display:grid; grid-template-columns:1fr 170px 170px auto; gap:8px; margin-top:8px }
 
-/* qr */
+
 .qrbox { display:flex; gap:18px; align-items:center; flex-wrap:wrap }
 .qrbox img { width:220px; height:220px; background:#fff; padding:10px; border-radius:12px; border:1px solid var(--line) }
 .qrbox ol { margin:0; padding-left:18px; color:var(--ink-2) } .qrbox li { margin:3px 0 }
 
-/* media upload */
+
 .slots { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:14px }
 .slot { border:1px solid var(--line); border-radius:12px; padding:14px; background:var(--panel); display:flex; flex-direction:column; gap:10px; transition:border-color .15s, background .15s }
 .slot.drag { border-color:var(--accent); background:var(--accent-soft) }
@@ -231,7 +231,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 .kwrow { display:flex; gap:6px; align-items:center; font-size:13px; padding:2px 0 }
 .kwrow .kwp { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 
-/* settings form */
+
 .form { display:grid; grid-template-columns:220px 1fr; gap:14px 18px; align-items:start }
 .form label { font-weight:600; padding-top:8px }
 .form label small { display:block; font-weight:400; color:var(--ink-3); font-size:12px; margin-top:2px }
@@ -244,7 +244,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 .inline .f { width:auto }
 @media (max-width: 760px) { .form { grid-template-columns:1fr } .form label { padding-top:0 } }
 
-/* templates */
+
 .tpl-tabs { display:flex; gap:6px; flex-wrap:wrap }
 .tpl { display:grid; grid-template-columns:minmax(0,1fr) minmax(260px,380px); gap:18px }
 .tpl textarea.f { width:100%; min-height:150px; resize:vertical; font:13.5px/1.5 inherit; font-family:inherit }
@@ -257,7 +257,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 .tpl .warnline { font-size:12.5px; color:var(--warn); margin-top:6px }
 @media (max-width: 1100px) { .tpl { grid-template-columns:1fr } }
 
-/* pola */
+
 .pola-head { display:flex; gap:10px; align-items:center; flex-wrap:wrap }
 .pola-card { padding:0; overflow:hidden }
 .pola-sum { display:flex; gap:12px; align-items:center; padding:14px 18px; cursor:pointer }
@@ -279,7 +279,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 .kwchips span { font-size:12px; padding:2px 8px; border-radius:99px; background:var(--series-wash); color:var(--ink-2) }
 @media (max-width: 1100px) { .pola-body { grid-template-columns:1fr } }
 
-/* toast */
+
 .toasts { position:fixed; right:20px; bottom:20px; display:flex; flex-direction:column; gap:8px; z-index:60 }
 .logfacts { display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:10px 18px }
 .logfacts div { display:flex; flex-direction:column; gap:2px; min-width:0 } .logfacts b { font-size:13px; overflow-wrap:anywhere }
@@ -351,7 +351,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
     </div>
 
     <div class="content">
-      <!-- RINGKASAN -->
+
       <section data-page="ringkasan" class="stack">
         <div class="card" id="startCard">
           <div class="row"><h3 style="flex:1">Siap mulai</h3><span class="small muted" id="startWhen"></span><button class="btn sm" type="button" id="startRecheck">Cek ulang</button></div>
@@ -385,7 +385,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         </div>
       </section>
 
-      <!-- PERCAKAPAN -->
+
       <section data-page="percakapan" class="hidden">
         <div class="split">
           <div class="list">
@@ -405,7 +405,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         </div>
       </section>
 
-      <!-- LOG -->
+
       <section data-page="log" class="hidden stack">
         <div class="card">
           <div class="row"><h3 style="flex:1">Info untuk developer</h3><span class="small muted" id="logNow"></span></div>
@@ -422,7 +422,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         </div>
       </section>
 
-      <!-- COBA BOT -->
+
       <section data-page="coba" class="hidden">
         <div class="sim">
           <div class="phone"><div class="screen">
@@ -454,7 +454,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         </div>
       </section>
 
-      <!-- TEMPLATE BALASAN -->
+
       <section data-page="template" class="hidden stack">
         <div class="card">
           <div class="row"><h3 style="flex:1" id="tplHeading">Pesan otomatis</h3><input class="f" id="tplSearch" placeholder="Cari kalimat…" style="width:240px"></div>
@@ -465,7 +465,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
       </section>
 
 
-      <!-- PRODUK -->
+
       <section data-page="produk" class="hidden stack">
         <div class="card">
           <div class="pola-head"><h3 style="flex:1">Produk</h3><input class="f" id="prodSearch" placeholder="Cari produk…" style="width:200px"><button class="btn primary" id="prodNew">+ Produk baru</button></div>
@@ -474,7 +474,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         <div class="stack" id="prodList"></div>
       </section>
 
-      <!-- PENGETAHUAN -->
+
       <section data-page="pengetahuan" class="hidden stack">
         <div class="card">
           <h3>Pengetahuan Mawar</h3>
@@ -493,7 +493,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
       </section>
 
 
-      <!-- STATISTIK -->
+
       <section data-page="statistik" class="hidden stack">
         <div class="row"><span class="muted">Rentang</span>
           <div class="row" id="rangeChips"><button class="chip" data-d="7">7 hari</button><button class="chip on" data-d="30">30 hari</button><button class="chip" data-d="90">90 hari</button></div></div>
@@ -509,7 +509,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         <div class="card"><h3>Kenapa diserahkan ke CS</h3><p class="hint">Alasan bot berhenti membalas.</p><div id="chHandover"></div></div>
       </section>
 
-      <!-- MEDIA -->
+
       <section data-page="media" class="hidden stack">
         <div class="card"><h3>Gambar & file yang dikirim bot</h3>
           <p class="hint">Klik kotak unggah atau seret file ke sana. Gambar (JPG/PNG/WEBP) dikirim sebagai foto, PDF sebagai dokumen. Maksimal 15 MB per file. Langsung berlaku, tidak perlu restart.</p>
@@ -558,7 +558,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
         <div class="stack" id="promoList"></div>
       </section>
 
-      <!-- PENGATURAN -->
+
       <section data-page="pengaturan" class="hidden stack">
         <form class="card" id="settingsForm">
           <div class="row"><h3 style="flex:1">Pengaturan</h3><button class="btn primary" id="saveSettings">Simpan</button></div>
@@ -630,16 +630,11 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 </div>
 
 <script>
-/* ------------------------------------------------------------ basics --- */
 const key = new URLSearchParams(location.search).get('key');
 const headers = { 'Content-Type': 'application/json', ...(key ? { 'X-Api-Key': key } : {}) };
-/* ------------------------------------------------------- error pop-up --- */
-// Every error, raw: the client photographs it, the developer reads what failed.
 const errQueue = [];
 let appVersion = '';
 const LEVEL_TEXT = { tindak: 'PERLU TINDAKAN', cek: 'CEK: tindakan hanya kalau berulang', info: 'TIDAK PERLU TINDAKAN: bot memperbaiki sendiri' };
-// What to do about it. The server sends a guide with every error; errors born in this page
-// (the bot cannot be reached, a script failed) get theirs here. None is ever empty.
 function guideFor(e) {
   if (e.guide) return e.guide;
   if (e.source === 'konsol → bot') return { level: 'tindak', meaning: 'Halaman ini tidak bisa menghubungi bot: bot belum jalan atau jendelanya tertutup.', todo: '1) Klik "Mulai ChatBot Prema". 2) Tunggu 20 detik, lalu muat ulang halaman (F5).' };
@@ -664,7 +659,6 @@ function errorText(e) {
 }
 const errSeen = new Map();
 function showError(e) {
-  // The same failure repeating (the bot is down, polled every 5 s) is counted, not stacked.
   const key = `${e.source}|${e.message}|${e.detail?.path || ''}`;
   if (errSeen.has(key) && !$('#errBox').classList.contains('hidden')) {
     const n = errSeen.get(key) + 1; errSeen.set(key, n);
@@ -679,7 +673,6 @@ function showError(e) {
   $('#errCount').textContent = errQueue.length > 1 ? `${errQueue.length} error` : '';
   $('#errBox').classList.remove('hidden');
 }
-// One card per error: whether to act, what it means, the steps; the raw text below it for the developer.
 function renderErrors() {
   $('#errList').innerHTML = errQueue.map(({ g, raw }) => `<div class="errone ${esc(g.level)}">
     <div class="errlevel">${esc(LEVEL_TEXT[g.level] || LEVEL_TEXT.cek)}</div>
@@ -699,11 +692,8 @@ let botDownSince = null;
 const api = async (url, options = {}) => {
   let r;
   try {
-    // X-Page: the Log page records changes with the page they were made on.
     r = await fetch(url, { headers: { ...headers, 'X-Page': TITLES[page] || page }, ...options });
   } catch (error) {
-    // The bot is not running or the PC is unreachable. A restart (Mulai, an update) takes
-    // a few seconds: say so on the pill first; the pop-up only if it is still down after that.
     const err = new Error(`Tidak bisa menghubungi bot: ${error.message}`);
     botDownSince ??= Date.now();
     if (Date.now() - botDownSince < BOT_RESTART_GRACE_MS) {
@@ -724,7 +714,6 @@ const api = async (url, options = {}) => {
   return body;
 };
 
-// Errors from the bot itself (sending, catalog, Ollama, daily jobs), checked every 5 seconds.
 let lastErrorId = null;
 async function pollErrors() {
   try {
@@ -732,11 +721,10 @@ async function pollErrors() {
     if (!r.ok) return;
     const { errors, latest, version } = await r.json();
     appVersion = version || appVersion;
-    // On opening the console, start from now: older ones are in logs/bot.log.
     if (lastErrorId === null) { lastErrorId = latest; return; }
     errors.forEach((e) => showError(e));
     lastErrorId = latest;
-  } catch { /* the api() pop-up reports an unreachable bot */ }
+  } catch {                                                   }
 }
 const $ = (s, el = document) => el.querySelector(s);
 const $$ = (s, el = document) => [...el.querySelectorAll(s)];
@@ -763,7 +751,6 @@ function stepper(step) {
     `<span class="s ${i < at || (i === at && at === 5) ? 'done' : i === at ? 'now' : ''}"><span class="c">${i < at || (at === 5 && i === 5) ? '✓' : i + 1}</span>${label}</span>`).join('') + '</div>';
 }
 
-/* theme */
 function applyTheme(t) { if (t) document.documentElement.dataset.theme = t; else delete document.documentElement.dataset.theme; }
 applyTheme(new URLSearchParams(location.search).get('theme') || store.get('theme'));
 $('#themeBtn').onclick = () => {
@@ -771,13 +758,10 @@ $('#themeBtn').onclick = () => {
   const next = dark ? 'light' : 'dark'; applyTheme(next); store.set('theme', next); rerenderCharts();
 };
 
-/* tooltip */
 const tip = $('#tip');
 function showTip(e, html) { tip.innerHTML = html; tip.classList.remove('hidden'); tip.style.left = e.clientX + 'px'; tip.style.top = e.clientY + 'px'; }
 function hideTip() { tip.classList.add('hidden'); }
 
-/* --------------------------------------------------------------- bantuan --- */
-// How to use each page, behind the "?" balloon at the bottom right.
 const HELP = {
   ringkasan: '<p>Status WhatsApp Business, jam aktif bot, dan pelanggan yang menunggu CS. Lengkapi daftar kesiapan sebelum meninggalkan bot menyala.</p>',
   percakapan: '<p>Baca percakapan dan ringkasan kebutuhan pelanggan. CS ambil alih menghentikan bot untuk pelanggan tersebut. Kembalikan ke bot memulai percakapan kembali.</p>',
@@ -799,7 +783,6 @@ function renderHelp() {
 $('#helpBtn').onclick = () => { renderHelp(); $('#helpPanel').classList.toggle('hidden'); };
 $('#helpClose').onclick = () => $('#helpPanel').classList.add('hidden');
 
-/* ------------------------------------------------------------ routing --- */
 const TITLES ={ ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Sapaan & pesan', produk:'Produk', pengetahuan:'Pengetahuan', promo:'Promo', ai:'Gaya bicara AI', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan', log:'Log' };
 const AI_TEMPLATE_KEYS = new Set(['greetKnown', 'welcome', 'greetUnknown', 'waitForCs', 'socials', 'handoverNotice', 'voiceNote', 'catalogLink', 'sizeChartWhich', 'sizeChartMissing', 'sizeChartLink', 'sizeChartNote']);
 const pageForMode = (p) => ['pola', 'latih'].includes(p) ? 'pengetahuan' : p;
@@ -830,7 +813,6 @@ function go(p) {
   $('#pageTitle').textContent = TITLES[page];
   if (!$('#helpPanel').classList.contains('hidden')) renderHelp();
   if (location.hash !== '#' + page) history.replaceState(null, '', location.pathname + location.search + '#' + page);
-  // The Log page shows which pages were opened, in order.
   if (lastLoggedPage !== page) { lastLoggedPage = page; fetch('/activity', { method:'POST', headers, body: JSON.stringify({ page: TITLES[page] }) }).catch(() => {}); }
   refresh();
 }
@@ -838,7 +820,6 @@ let lastLoggedPage = null;
 $$('.nav').forEach((b) => b.onclick = () => go(b.dataset.page));
 document.addEventListener('click', (e) => { const g = e.target.closest('[data-goto]'); if (g) go(g.dataset.goto); });
 
-/* ------------------------------------------------------------ status --- */
 let info = null, sessions = [];
 function countdown(iso) {
   if (!iso) return '';
@@ -865,7 +846,6 @@ async function loadStatus() {
   const missing = info.mediaMissing; const nm = $('#navMedia'); nm.textContent = missing; nm.classList.toggle('hidden', !missing);
 }
 
-/* ---------------------------------------------------------- ringkasan --- */
 function drawTimeline() {
   if (!info) return;
   const svg = $('#timeline'); const W = 1000;
@@ -889,14 +869,12 @@ function sparkline(values) {
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><polygon points="0,${H} ${line} ${W},${H}" fill="var(--series-wash)"/><polyline points="${line}" fill="none" stroke="var(--series)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/><circle cx="${last[0]}" cy="${last[1]}" r="4" fill="var(--series)" stroke="var(--panel)" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
 }
 
-// "Siap mulai": live checks of what this PC needs, each problem with what to do (raw error below it).
 async function loadStartChecks(fresh) {
   const r = await api('/checks' + (fresh ? '?fresh=1' : ''));
   const bad = r.checks.filter((c) => !c.ok);
   $('#startCard').style.borderColor = bad.length ? 'var(--warn)' : '';
   $('#startText').textContent = bad.length ? `${bad.length} hal perlu dibereskan supaya bot bisa bekerja:` : 'Semua siap: internet, jam PC, WhatsApp, AI dan versi bot.';
   $('#startWhen').textContent = 'dicek ' + new Date(r.checkedAt).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
-  // Problems first; what is fine stays a one-liner.
   $('#startList').innerHTML = [...bad, ...r.checks.filter((c) => c.ok)].map((c) => `<div class="check"><span class="mark ${c.ok ? 'ok' : 'no'}">${c.ok ? '✓' : '!'}</span><div style="min-width:0"><div>${esc(c.title)}</div><div class="small muted">${esc(c.detail)}</div>${c.ok ? '' : `${c.fix ? `<div class="small"><b>Yang perlu dilakukan:</b> ${esc(c.fix)}</div>` : ''}${c.raw ? `<div class="small muted" style="overflow-wrap:anywhere">Error asli: <code>${esc(c.raw)}</code></div>` : ''}`}</div></div>`).join('');
 }
 document.getElementById('startRecheck')?.addEventListener('click', () => { $('#startText').textContent = 'Mengecek…'; loadStartChecks(true); });
@@ -925,19 +903,18 @@ async function loadRingkasan() {
     ['Diserahkan ke CS', num(today.handover), `${num(a.totals.handover)} dalam 14 hari`, a.daily.map((d) => d.handover)],
   ].map(([l, v, f, series]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="foot">${f}</div>${series ? sparkline(series) : `<div class="progress" style="margin-top:20px"><i style="width:${Math.round((rate || 0) * 100)}%"></i></div>`}</div>`).join('');
 
-  // WhatsApp card
   const wc = $('#waCard');
   if (!main) wc.innerHTML = '<h3>Nomor WhatsApp</h3><p class="hint">Belum ada nomor terdaftar.</p>';
   else if (main.connected && main.healing?.needsRelink) wc.innerHTML = `<div class="row"><h3 style="flex:1">Pesan dari HP toko tidak terbaca</h3><span class="pill bad"><span class="dot"></span>perlu scan ulang</span></div>
-      <p class="small" style="margin:8px 0">Bot tersambung (+${esc(main.phoneNumber)}), tetapi kunci enkripsi bot dan HP toko sudah tidak cocok, jadi pesan yang dikirim dari HP (CS atau pesan otomatis WhatsApp Business) tidak bisa dibuka. Ini terjadi kalau data bot dipakai dua salinan (misalnya folder bot kedua), atau database lama dikembalikan. Bot sudah mencoba memperbaikinya sendiri selama 30 menit tanpa hasil.</p>
-      <ol class="small"><li>Pastikan hanya <b>satu</b> bot yang jalan: tutup atau hapus folder bot lain di PC ini atau PC lain.</li><li>Klik <b>Scan ulang (kunci baru)</b>, lalu scan QR dari HP toko (WhatsApp Business &gt; Perangkat tertaut). Chat, pengaturan dan data toko tidak hilang.</li></ol>
+      <p class="small" style="margin:8px 0">Bot tersambung (+${esc(main.phoneNumber)}), tetapi pemulihan pesan HP utama belum berhasil setelah 30 menit dan pembaruan sesi. Penyebab perlu diperiksa dari detail perangkat dan pesan; peringatan ini belum membuktikan ada bot ganda atau pairing rusak.</p>
+      <ol class="small"><li>Pastikan HP toko online dan buka WhatsApp Business. Jangan lepas perangkat pemilik atau admin.</li><li>Simpan detail Log untuk diperiksa. <b>Scan ulang (kunci baru)</b> menjadi pilihan terakhir setelah pemeriksaan. Chat, pengaturan dan data toko tetap tersimpan.</li></ol>
       <div class="row" style="gap:8px;margin-top:8px"><button class="btn primary sm" onclick="rescan('${esc(main.key)}')">Scan ulang (kunci baru)</button></div>`;
   else if (main.connected) wc.innerHTML = `<div class="row"><h3 style="flex:1">Nomor WhatsApp</h3><span class="pill good"><span class="dot"></span>tersambung</span></div>
       <p style="margin:6px 0 2px;font-size:18px;font-weight:650">+${esc(main.phoneNumber)}</p><p class="hint">${esc(main.pushName || main.label)} · tidak perlu scan ulang setelah PC restart.</p>
       ${main.pendingMessages ? `<p class="hint">${num(main.pendingMessages)} pesan menunggu dikirim. Bot mencoba lagi otomatis.</p>` : ''}
       ${main.pendingIncoming ? `<p class="hint">${num(main.pendingIncoming)} pesan menunggu diproses. Pesan tetap tersimpan dan dicoba lagi otomatis.</p>` : ''}
-      ${main.healing?.selfCopies ? `<p class="hint" style="color:var(--warn)"><b>Ada salinan bot lain dengan kunci tautan yang sama</b> (${num(main.healing.selfCopies)} pesan atas nama perangkat bot ini tidak bisa dibuka). Tutup semua salinan lain dengan klik Mulai ChatBot Prema, lalu klik <b>Scan ulang (kunci baru)</b> di bawah dan scan dari HP toko.</p><button class="btn primary sm" onclick="rescan('${esc(main.key)}')">Scan ulang (kunci baru)</button>` : ''}
-      ${Object.keys(main.healing?.otherDevices ?? {}).length ? `<p class="hint">Pesan dari perangkat tertaut lain (nomor perangkat ${Object.keys(main.healing.otherDevices).map(esc).join(', ')}) belum bisa dibuka bot. Wajar kalau perangkat itu dipakai CS: biarkan, bot tetap melayani pelanggan.</p>` : ''}
+      ${main.healing?.selfCopies ? `<p class="hint" style="color:var(--warn)">${num(main.healing.selfCopies)} pesan atas nama perangkat bot belum bisa dibuka. Pesan kiriman ulang atau konflik sesi perlu diperiksa; ini belum membuktikan bot ganda.</p>` : ''}
+      ${Object.keys(main.healing?.otherDevices ?? {}).length ? `<p class="hint">Pesan dari perangkat tertaut lain (nomor perangkat ${Object.keys(main.healing.otherDevices).map(esc).join(', ')}) belum bisa dibuka bot. Jangan lepas perangkat admin. Chat terkait ditahan, lalu diserahkan ke CS jika belum pulih.</p>` : ''}
       ${main.healing?.selfHealing ? '<p class="hint">Sambungan enkripsi dengan HP toko sedang diperbaiki otomatis. Tidak perlu scan ulang; pastikan HP toko online.</p>' : ''}
       ${main.healing?.pending ? `<p class="hint">${num(main.healing.pending)} pesan sedang dipulihkan otomatis.${main.healing.needsAttention ? ' Pemulihan lebih dari 5 menit; pastikan HP utama online dan WhatsApp Business dibuka.' : ' Tidak perlu scan ulang.'}</p>` : ''}
       <button class="btn sm" onclick="rescan('${esc(main.key)}')">Ganti nomor</button>`;
@@ -955,7 +932,6 @@ async function loadRingkasan() {
       ${main.lastError ? `<p class="small muted">${esc(main.lastError)}</p>` : ''}`;
   }
 
-  // follow-up
   const follow = conversations.filter((c) => c.step === 'handed_over' && c.handover_reason !== 'CS membalas');
   const nf = $('#navFollow'); nf.textContent = follow.length; nf.classList.toggle('hidden', !follow.length);
   $('#followList').innerHTML = follow.length ? follow.slice(0, 6).map((c) => `
@@ -965,7 +941,6 @@ async function loadRingkasan() {
       <div class="last">${c.product_name ? '<b>' + esc(c.product_name) + '</b> · ' : ''}${esc(c.last_text || '')}</div></div></div>`).join('')
     : '<div class="empty">Tidak ada yang menunggu. 🎉</div>';
 
-  // readiness
   const k = info.knowledge || { topics: 0, filled: 0, faq: 0 };
   const checks = [
     [main?.connected, 'Nomor WhatsApp tersambung', main?.connected ? '+' + esc(main.phoneNumber) : 'Scan QR di kartu sebelah'],
@@ -990,14 +965,12 @@ async function reconnectSession(k) {
   await api(`/sessions/${k}/connect`, { method:'POST' }); toast('Menyambung…'); refresh();
 }
 
-/* --------------------------------------------------------- percakapan --- */
 let convs = [], convFilter = 'all', openKey = null;
 async function loadConvs() {
   ({ conversations: convs } = await api('/conversations?hours=' + $('#hours').value));
   renderConvs();
   if (openKey) openConv(...openKey, true);
 }
-// Who has the customer now: the bot, nobody yet (the bot handed over, CS has not replied), or CS.
 const CS_REASONS = ['CS membalas', 'diambil alih dari konsol'];
 const whoHas = (c) => (c.step !== 'handed_over' ? 'bot' : CS_REASONS.includes(c.handover_reason) ? 'cs' : 'wait');
 const WHO = {
@@ -1034,7 +1007,6 @@ $$('#convFilters .chip').forEach((b) => b.onclick = () => { convFilter = b.datas
 $('#hours').onchange = loadConvs;
 function openConvFrom(session, jid) { openKey = [session, jid]; go('percakapan'); }
 
-/** Questions and pictures the bot noted for CS ("bisa DP?"). */
 function csNotes(c) {
   try { return JSON.parse(c.notes || '[]'); } catch { return []; }
 }
@@ -1051,7 +1023,6 @@ function orderSummary(c, row) {
   let details = [];
   try { details = JSON.parse(c.details || '[]'); } catch {}
   let notes = csNotes(c);
-  // AI mode: what the customer answered per item (order_info); its first note is the same summary, in one line.
   let order = null;
   try { order = JSON.parse(c.order_info || 'null'); } catch {}
   const answers = order?.jawaban ? Object.entries(order.jawaban) : [];
@@ -1106,7 +1077,6 @@ async function act(session, jid, what) {
   loadConvs();
 }
 
-/* ------------------------------------------------------------- coba ---- */
 const simId = 'sim-' + Math.random().toString(36).slice(2);
 let simImage = false;
 const QUICK = ['halo kak', 'saya Budi dari Jogja', 'mau bikin jersey futsal, minimal order berapa?', 'bikin hoddie angkatan bisa?', 'belum ada desainnya', 'sekitar 40 pcs', 'lokasinya dimana? bisa kirim ke makassar?', 'size chart kaos oversize ada?', 'amanah ga nih kak', 'bisa bayar paylater?'];
@@ -1150,7 +1120,6 @@ $('#simReset').onclick = async () => {
   sim.innerHTML = '<div class="sys">Percakapan baru.</div>'; $('#simSteps').innerHTML = stepper('new'); $('#simLast').textContent = '';
 };
 
-/* ------------------------------------------------------------ uji AI --- */
 let scenarios = [], scnResults = {}, scnOpen = null, scnDraft = false;
 const OUTCOME = { 'ditulis ulang': ['quiet', 'ditulis ulang'], diam: ['warn', 'diam'], error: ['bad', 'error'] };
 
@@ -1232,11 +1201,9 @@ function renderAiLog(log) {
 $('#aiLogRefresh').onclick = async () => renderAiLog((await api('/ai/log')).log);
 $('#aiLogClear').onclick = async () => { if (!confirm('Kosongkan daftar balasan yang ditahan?')) return; await api('/ai/log', { method:'DELETE' }); renderAiLog([]); };
 
-/* ---------------------------------------------------------- template --- */
 let templates = [], tplGroup = null, tplLoaded = false;
 const SAMPLE = { nama: 'Budi', produk: 'Jersey' };
 
-/** WhatsApp-style preview: escape first, then *bold* _italic_ ~strike~ and line breaks. */
 function waFormat(text) {
   return esc(text)
     .replace(/\*([^*\n]+)\*/g, '<b>$1</b>')
@@ -1289,7 +1256,6 @@ function renderTemplates() {
       prev.innerHTML = v.trim() ? waFormat(fill(v)) : '<i class="muted">(tidak dikirim)</i>';
       count.textContent = v.length + ' huruf';
       const bad = [...v.matchAll(/\{(\w+)\}/g)].map((m) => m[1]).filter((n) => !t.vars.includes(n));
-      // The bot never quotes computed prices; flag new rupiah amounts for a second look.
       const priceNew = (v.match(/Rp\s?[\d.,]+/gi) || []).filter((p) => !t.default.includes(p));
       const msgs = [];
       if (bad.length) msgs.push(`{${bad[0]}} tidak dikenal di sini; yang tersedia ${t.vars.map((x) => '{' + x + '}').join(' ')}`);
@@ -1315,9 +1281,7 @@ function renderTemplates() {
 }
 $('#tplSearch').oninput = () => renderTemplates();
 
-/* ------------------------------------------------------------ produk --- */
 let products = [], prodLoaded = false, prodOpen = null;
-// What the team tells Mawar about a product (AI mode); lines, "nama: keterangan" for the pairs.
 const INFO_FIELDS = [
   ['sebutan', 'Nama lain dari pelanggan', 'satu per baris', 2],
   ['model', 'Model / pilihan', 'satu per baris', 3],
@@ -1408,7 +1372,6 @@ $('#prodNew').onclick = async () => {
   } catch (err) { toast('Gagal: ' + err.message); }
 };
 
-/* ------------------------------------------------------- pengetahuan --- */
 let topics = [], faqs = [], faqDraft = false;
 
 async function loadPengetahuan() {
@@ -1488,7 +1451,6 @@ function renderFaq() {
 $('#faqNew').onclick = () => { faqDraft = true; renderFaq(); $('#faqList [data-faq="0"] [data-q]')?.focus(); };
 
 
-/* --------------------------------------------------------- statistik --- */
 let promotions = [], promotionDraft = false;
 async function loadPromotions() {
   const [data, catalog] = await Promise.all([api('/promotions'), api('/products')]);
@@ -1536,11 +1498,9 @@ $('#promoNew').onclick = () => { promotionDraft = true; renderPromotions(); $('#
 let statDays = 30, lastStats = null;
 $$('#rangeChips .chip').forEach((b) => b.onclick = () => { statDays = Number(b.dataset.d); $$('#rangeChips .chip').forEach((x) => x.classList.toggle('on', x === b)); loadStatistik(); });
 
-/** Single-series column chart: thin bars, 4px rounded tops, square at the baseline, hairline grid, hover tooltip. */
 function columnChart(el, data, { height = 220, label, value, tooltip, shade } = {}) {
   const W = Math.max(280, el.clientWidth || 600), H = height, padL = 34, padB = 26, padT = 10;
   const max = Math.max(1, ...data.map(value));
-  // About four gridlines: the smallest 1/2/5 step that covers max in <= 4 steps.
   const raw = max / 4, mag = Math.pow(10, Math.floor(Math.log10(raw)));
   const nice = Math.max(1, [1, 2, 5, 10].map((m) => m * mag).find((s) => s >= raw));
   const top = Math.ceil(max / nice) * nice;
@@ -1601,7 +1561,6 @@ function renderStatistik() {
 function rerenderCharts() { renderStatistik(); }
 let resizeTimer; addEventListener('resize', () => { clearTimeout(resizeTimer); resizeTimer = setTimeout(rerenderCharts, 150); });
 
-/* -------------------------------------------------------------- media --- */
 let kwMeta = null;
 const withKey = (url) => key ? url + (url.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key) : url;
 const kb = (n) => n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB';
@@ -1615,11 +1574,9 @@ async function loadMedia() {
 }
 const productLabel = (key) => (kwMeta?.products || []).find((p) => p.key === key)?.name || key;
 
-/** The WhatsApp Business catalog: synced items, which product each belongs to, and which the bot sends. */
 function renderCatalog() {
   const c = catalog, el = $('#catalogCard');
   if (!c) return;
-  // Which items actually go out: per product, promos first, then catalog order, capped.
   const sent = new Set();
   const byProduct = {};
   for (const it of c.items) if (it.product) (byProduct[it.product] ||= []).push(it);
@@ -1713,9 +1670,6 @@ async function upload(slot, files) {
   loadStatus();
 }
 
-/* --------------------------------------------------------------- log --- */
-// Activity (what was done in the console, what the bot did) and the technical
-// log (logs/bot.log + errors), for a photo the developer can read.
 let logTab = 'aktivitas', logSource = '';
 const LOG_ICON = { dashboard: '🖥️', bot: '🤖' };
 async function loadLog() {
@@ -1759,7 +1713,6 @@ $$('#logTabs .chip').forEach((b) => b.onclick = () => { logTab = b.dataset.tab; 
 $$('#logFilters .chip').forEach((b) => b.onclick = () => { logSource = b.dataset.src; $$('#logFilters .chip').forEach((x) => x.classList.toggle('on', x === b)); loadLog(); });
 $('#logSearch').oninput = () => { clearTimeout(window.logSearchTimer); window.logSearchTimer = setTimeout(loadLog, 300); };
 
-/* --------------------------------------------------------- pengaturan --- */
 let settingsLoaded = false;
 function renderAi(ai) {
   $('#aiState').innerHTML = ai.enabled
@@ -1786,7 +1739,7 @@ $('#aiForm').onsubmit = async (e) => {
   const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value, timeoutSeconds: f.aiTimeout.value };
   if (f.aiKey.value.trim()) body.key = f.aiKey.value;
   try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify(body) })); f.aiKey.value = ''; toast('Pengaturan AI tersimpan dan langsung berlaku'); loadStatus(); }
-  catch (err) { /* shown in the error pop-up */ }
+  catch (err) {                                 }
 };
 $('#aiKeyRemove').onclick = async () => {
   if (!confirm('Hapus kunci API Ollama dari Pengaturan?')) return;
@@ -1795,7 +1748,7 @@ $('#aiKeyRemove').onclick = async () => {
 $('#aiPromptReset').onclick = async () => {
   if (!confirm('Kembalikan semua instruksi AI ke bawaan? Instruksi yang diubah tim akan hilang.')) return;
   try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify({ chatPrompt: '', chatExamples: '', openingPrompt: '', answerPrompt: '' }) })); toast('Instruksi kembali ke bawaan'); }
-  catch (err) { /* shown in the error pop-up */ }
+  catch (err) {                                 }
 };
 $('#aiTest').onclick = async (e) => {
   e.target.disabled = true; $('#aiTestOut').innerHTML = '<span class="muted">Menghubungi Ollama…</span>';
@@ -1817,7 +1770,6 @@ async function loadPengaturan() {
     ? '<span class="small muted" style="align-self:center">Folder yang ditemukan:</span>' + backupSuggestions.map((b) => `<button type="button" class="chip" data-dir="${esc(b.dir)}">☁️ ${esc(b.label)}</button>`).join('')
     : '<span class="small muted">Tidak ditemukan folder Google Drive/OneDrive di PC ini. Pasang Google Drive untuk desktop, atau ketik folder flashdisk/NAS.</span>';
   $$('#backupSuggest [data-dir]').forEach((b) => b.onclick = () => { $('#backupForm [name=backupDir]').value = b.dataset.dir; });
-  // Do not overwrite what someone is typing when the page refreshes.
   if (!settingsLoaded || !document.activeElement?.closest('form')) {
     const set = (form, name, v) => { const el = $(`${form} [name=${name}]`); if (el) el.value = v ?? ''; };
     for (const n of ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'detailWaitDays']) set('#settingsForm', n, values[n]);
@@ -1830,8 +1782,6 @@ async function loadPengaturan() {
   }
   renderHours();
 }
-// Says in words what the two times mean, as they are typed, so nobody has to
-// guess whether 08.30 -> 18.30 is "the day" or "the night".
 function renderHours() {
   const from = $('#settingsForm [name=activeFrom]').value, until = $('#settingsForm [name=activeUntil]').value;
   const dot = (t) => t.replace(':', '.');
@@ -1876,7 +1826,6 @@ $('#testRecap').onclick = async (e) => {
   finally { e.target.disabled = false; }
 };
 
-/* ------------------------------------------------------------ refresh --- */
 let busy = false;
 async function refresh() {
   if (busy) return; busy = true;

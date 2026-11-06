@@ -1,15 +1,5 @@
 import { all, now, run } from './db.js';
 
-/**
- * The activity log behind the console's Log page: what the team did in the
- * console (pages opened, changes saved), what the bot did with each message,
- * and notes the team writes for the developer ("mas mau tambah fitur ...").
- * A photo of the Log page shows where they were and what they were doing.
- *
- * Only what was changed is logged, never the values (keys and texts stay out).
- *
- * source: 'dashboard' | 'bot' | 'catatan'
- */
 
 const MAX_DETAIL = 500;
 
@@ -23,11 +13,9 @@ export function recordActivity({ source, page = null, action, detail = null }) {
             detail == null ? null : (typeof detail === 'string' ? detail : JSON.stringify(detail)).slice(0, MAX_DETAIL),
         ]);
     } catch {
-        /* the log never breaks what it records */
     }
 }
 
-/** Newest first. source: one of the sources or null for all; q: text search. */
 export function listActivity({ limit = 200, source = null, q = '' } = {}) {
     const where = [];
     const params = [];
@@ -47,15 +35,10 @@ export function listActivity({ limit = 200, source = null, q = '' } = {}) {
     );
 }
 
-/** Drops entries older than `days` (the daily maintenance job). */
 export function pruneActivity(days) {
     return run(`DELETE FROM activity_log WHERE at < datetime('now', ?)`, [`-${Number(days)} days`]).changes;
 }
 
-/**
- * What a console request did, in words: "PUT /templates/clarify" -> "Mengubah
- * template clarify". Unknown routes fall back to the method and path.
- */
 const ROUTES = [
     [/^PUT \/settings$/, (b) => `Mengubah Pengaturan (${Object.keys(b ?? {}).join(', ')})`],
     [/^PUT \/ai$/, (b) => `Mengubah pengaturan AI (${Object.keys(b ?? {}).filter((k) => k !== 'key').concat(b?.key !== undefined ? ['kunci API'] : []).join(', ')})`],

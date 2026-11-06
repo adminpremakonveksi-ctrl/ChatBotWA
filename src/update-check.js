@@ -3,9 +3,6 @@ import path from 'node:path';
 import { root } from './config.js';
 import { logger } from './logger.js';
 
-// Compares the installed commit (data/versi.txt, written by Mulai/Update) with
-// the newest commit on GitHub, so the console can say "this is not the latest bot".
-// Skipped on a git checkout (the developer's PC) and when versi.txt is missing.
 
 const FIRST_CHECK_MS = 60 * 1000;
 const EVERY_MS = 6 * 60 * 60 * 1000;
@@ -14,7 +11,6 @@ const TIMEOUT_MS = 15 * 1000;
 const state = { available: false, latest: null, installed: null, checkedAt: null, error: null };
 let warnedFor = null;
 
-/** scripts/repo.txt: "https://github.com/owner/repo [branch]", comments start with #. */
 export const readRepo = (text) => {
     const line = String(text ?? '').split(/\r?\n/).map((l) => l.trim()).find((l) => l && !l.startsWith('#'));
     const match = line?.match(/github\.com\/([^/\s]+)\/([^/\s]+?)(?:\.git)?\/?(?:\s+(\S+))?$/i);
@@ -30,7 +26,6 @@ const readFile = (file) => {
     }
 };
 
-/** One check. `dir` and `fetchImpl` are injectable for tests. */
 export async function checkUpdate({ dir = root, fetchImpl = fetch } = {}) {
     if (fs.existsSync(path.join(dir, '.git'))) return { ...state, skipped: 'git' };
 
@@ -60,7 +55,6 @@ export async function checkUpdate({ dir = root, fetchImpl = fetch } = {}) {
             );
         }
     } catch (error) {
-        // No internet is normal on this PC now and then: keep the last answer, no pop-up.
         state.error = error.message;
         logger.info({ err: error.message }, 'cek versi terbaru gagal');
     }

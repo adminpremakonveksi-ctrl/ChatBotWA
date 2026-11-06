@@ -36,7 +36,6 @@ import { deletePromotion, listPromotions, promotionActive, savePromotion } from 
 const loopback = ['127.0.0.1', 'localhost', '::1'].includes(config.host);
 
 if (!loopback && !config.apiKey) {
-    // Listening on the LAN without a key would let anyone there unlink the number.
     throw new Error('HOST bukan localhost, jadi API_KEY wajib diisi');
 }
 
@@ -55,7 +54,6 @@ const VERSION = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf
 
 const wrap = (handler) => (req, res, next) => Promise.resolve(handler(req, res)).catch(next);
 
-/** What the console shows: keywords always first, the AI only for what they miss. */
 const aiLabel = () => {
     const provider = aiProvider();
     if (provider === 'ollama') return `AI Ollama (${config.ollama.model}), dari pengetahuan toko`;
@@ -67,9 +65,6 @@ app.get('/health', (req, res) => res.json({ ok: true, botActive: isBotActive(), 
 
 app.use(requireApiKey);
 
-// Every change made in the console goes to the activity log (Log page), with
-// the page it was made on (X-Page, sent by the console). Only what changed is
-// written, never the values (keys, texts).
 app.use((req, res, next) => {
     if (req.method === 'GET' || req.path === '/activity') return next();
 
@@ -85,20 +80,16 @@ app.use((req, res, next) => {
     next();
 });
 
-// The Log page: newest first; a page view is logged by the console itself.
 app.get('/activity', wrap(async (req, res) => {
     res.json({ entries: listActivity({ limit: req.query.limit, source: req.query.source || null, q: String(req.query.q ?? '').slice(0, 80) }) });
 }));
 
-// The technical log for the developer: the last lines of logs/bot.log (written
-// by the auto-start service), as they are.
 app.get('/logs/tail', wrap(async (req, res) => {
     const file = path.join(root, 'logs', 'bot.log');
     const lines = Math.min(Number(req.query.lines) || 300, 2000);
 
     if (!fs.existsSync(file)) return res.json({ file: 'logs/bot.log', exists: false, lines: [] });
 
-    // Only the end of the file: it can grow large between daily clean-ups.
     const size = fs.statSync(file).size;
     const length = Math.min(size, 512 * 1024);
     const handle = fs.openSync(file, 'r');
@@ -117,25 +108,17 @@ app.post('/activity', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
-// New errors and warnings since the id the console last showed (the error pop-up polls this).
-// Behind the API key: stacks and logged details may name customers.
 app.get('/errors', (req, res) => res.json({ errors: errorsSince(req.query.after), latest: latestErrorId(), version: VERSION }));
 
-/* -------------------------------------------------------------- console --- */
 
-// Read once at boot: the console always matches the bot that serves it. Read on every
-// request, a newer console.html on disk (an Update, an edit) called routes this
-// running bot did not have yet: "GET /ai/scenarios (HTTP 404)" (2026-10-27).
 const consolePage = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'console.html'), 'utf8');
 
-/** Admin console: QR, conversations, try-the-bot, media checklist. */
 app.get('/', (req, res) => {
     res.type('html').send(consolePage);
 });
 
 const packageVersion = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version;
 
-/** Version shown in the console; the commit comes from the last "Update ChatBot Prema". */
 const installedVersion = () => {
     try {
         return fs.readFileSync(path.join(root, 'data', 'versi.txt'), 'utf8').trim().slice(0, 7);
@@ -148,7 +131,6 @@ app.get('/info', wrap(async (req, res) => {
     res.json({
         version: packageVersion,
         commit: installedVersion(),
-        // A newer version on GitHub (Ringkasan banner); checked every few hours.
         update: updateStatus(),
         botName: config.bot.botName,
         csName: config.bot.csName,
@@ -163,7 +145,6 @@ app.get('/info', wrap(async (req, res) => {
         ai: aiLabel(),
         botMode: config.bot.mode,
         aiReady: Boolean(aiProvider()),
-        // How much of Pengetahuan the team filled in (Kesiapan).
         knowledge: (() => {
             const topics = listTopics();
 
@@ -174,11 +155,9 @@ app.get('/info', wrap(async (req, res) => {
         recapTo: config.recap.to,
         recapAt: config.recap.at,
         backupDir: config.maintenance.backupDir,
-        // A backup inside this folder dies with the PC; the console nags until it points elsewhere.
         backupOutside: !path.resolve(config.maintenance.backupDir).toLowerCase().startsWith(path.resolve(root).toLowerCase()),
         lastBackup: getSetting('backup:last') ?? getSetting('job:backup'),
         mediaMissing: media.checklist().filter((item) => !item.ok).length,
-        // For the Log page's "Info untuk developer".
         runtime: {
             node: process.version,
             os: `${os.type()} ${os.release()} (${os.arch()})`,
@@ -189,9 +168,7 @@ app.get('/info', wrap(async (req, res) => {
     });
 }));
 
-/* ------------------------------------------------------------- sessions --- */
 
-/** "Siap mulai" on Ringkasan: internet, PC clock, WhatsApp, AI, version, checked live. */
 app.get('/checks', wrap(async (req, res) => {
     res.json(await startupChecks({ manager, fresh: req.query.fresh === '1' }));
 }));
@@ -258,7 +235,6 @@ app.post('/sessions/:key/logout', wrap(async (req, res) => {
     res.json(manager.get(req.params.key).status());
 }));
 
-/** Unlink, then start over so a different number can be scanned in its place. */
 app.post('/sessions/:key/rescan', wrap(async (req, res) => {
     const session = manager.get(req.params.key);
 
@@ -274,14 +250,11 @@ app.delete('/sessions/:key', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
-/* ---------------------------------------------------------------- stats --- */
 
-/** Messages per day. The volume decides the AI budget, so it is counted from day one. */
 app.get('/stats', wrap(async (req, res) => {
     res.json({ days: stats(Number(req.query.days ?? 30)) });
 }));
 
-/* -------------------------------------------------------- conversations --- */
 
 app.get('/conversations', wrap(async (req, res) => {
     const hours = Math.min(24 * 90, Math.max(1, Number(req.query.hours ?? 24)));
@@ -298,14 +271,12 @@ app.get('/conversations/:session/:jid', wrap(async (req, res) => {
     res.json({ conversation: loadConversation(session, jid), messages: messagesOf(session, jid) });
 }));
 
-/** Hands a customer back to the bot, e.g. after CS is done or after a test. */
 app.post('/conversations/:session/:jid/reset', wrap(async (req, res) => {
     resetConversation(req.params.session, req.params.jid);
 
     res.json({ ok: true });
 }));
 
-/** CS takes a customer over from the console; the bot stops answering them. */
 app.post('/conversations/:session/:jid/handover', wrap(async (req, res) => {
     markHandover(req.params.session, req.params.jid, 'diambil alih dari konsol');
 
@@ -318,7 +289,6 @@ app.get('/recap/preview', wrap(async (req, res) => {
     res.json({ text: buildRecap(since) });
 }));
 
-/* ---------------------------------------------------- simulator & media --- */
 
 app.post('/simulate', wrap(async (req, res) => {
     const { id, text, hasImage, hasAudio } = req.body ?? {};
@@ -338,7 +308,6 @@ app.get('/media', wrap(async (req, res) => {
     res.json({ slots: media.slots(), items: media.checklist() });
 }));
 
-/** Upload from the console: the raw file is the request body, its type is read from its bytes. */
 app.post('/media/:slot', express.raw({ type: () => true, limit: '16mb' }), wrap(async (req, res) => {
     const saved = media.save(req.params.slot, req.body);
 
@@ -347,7 +316,6 @@ app.post('/media/:slot', express.raw({ type: () => true, limit: '16mb' }), wrap(
 }));
 
 
-/* -------------------------------------------- WhatsApp Business catalog --- */
 
 app.get('/catalog', wrap(async (req, res) => {
     res.json(catalogStatus());
@@ -359,7 +327,6 @@ app.post('/catalog/sync', wrap(async (req, res) => {
     res.json({ count, ...catalogStatus() });
 }));
 
-/** Correct which product an item belongs to: a product key, 'none', or '' for automatic. */
 app.put('/catalog/:id', wrap(async (req, res) => {
     setItemProduct(req.params.id, req.body?.product);
 
@@ -384,7 +351,6 @@ app.delete('/media/file', wrap(async (req, res) => {
     res.json({ slots: media.slots() });
 }));
 
-/* ------------------------------------------------------------ templates --- */
 
 app.get('/templates', wrap(async (req, res) => {
     res.json({ templates: listTemplates() });
@@ -404,13 +370,11 @@ app.delete('/templates/:key', wrap(async (req, res) => {
     res.json({ templates: listTemplates() });
 }));
 
-/* ------------------------------------------------------------- settings --- */
 
 app.get('/settings', wrap(async (req, res) => {
     res.json({ values: currentSettings(), backupSuggestions: backupSuggestions(), lastBackup: getSetting('backup:last') ?? getSetting('job:backup') });
 }));
 
-/* ------------------------------------------------------------------ AI --- */
 
 app.get('/ai', wrap(async (req, res) => res.json(aiSettings())));
 
@@ -421,7 +385,6 @@ app.put('/ai', wrap(async (req, res) => {
     res.json(settings);
 }));
 
-// "Tes koneksi": the models on offer, and one real label for a sample message.
 app.post('/ai/test', wrap(async (req, res) => {
     if (!aiProvider()) throw Object.assign(new Error('Isi dulu kunci API Ollama (atau alamat Ollama lokal), lalu Simpan'), { statusCode: 422 });
 
@@ -450,16 +413,13 @@ app.post('/recap/test', wrap(async (req, res) => {
     res.json({ sent: await sendTestRecap({ manager, bot }) });
 }));
 
-/* ------------------------------------------------- teaching & analytics --- */
 
 app.get('/analytics', wrap(async (req, res) => {
     res.json(analytics(Math.min(90, Math.max(7, Number(req.query.days ?? 30)))));
 }));
 
 
-/* --------------------------------------------------------------- Kamus --- */
 
-// Every word list the bot reads (dictionary, fillers, cities, units, ...): see src/bot/words.js.
 app.get('/words', wrap(async (req, res) => {
     const counts = Object.fromEntries(Object.keys(WORD_LISTS).map((name) => [name, wordRows(name).length]));
 
@@ -483,7 +443,6 @@ app.delete('/words/:id', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
-/* ------------------------------------------------------------- products --- */
 
 const productView = (p) => ({ ...p, keywords: productKeywords(p.key) });
 
@@ -512,7 +471,6 @@ app.delete('/products/:key', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
-// Uji AI: the team's test chats, run through the real AI turn (nothing sent), and what the guards stopped.
 app.get('/ai/scenarios', wrap(async (req, res) => {
     res.json({ scenarios: listScenarios() });
 }));
@@ -545,7 +503,6 @@ app.delete('/ai/log', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
-// What the AI chat knows (Pengetahuan): shop topics and Q&A; product details live on /products.
 app.get('/promotions', wrap(async (req, res) => {
     res.json({ promotions: listPromotions().map((p) => ({ ...p, active: promotionActive(p) })) });
 }));
@@ -594,7 +551,6 @@ app.delete('/knowledge/faq/:id', wrap(async (req, res) => {
     res.json({ ok: true });
 }));
 
-// Errors go back raw, with where and when, so the console can show them as they are.
 app.use((error, req, res, next) => {
     const status = error.type === 'entity.too.large' ? 413 : error.statusCode ?? 500;
     const message = error.type === 'entity.too.large' ? 'File lebih dari 15 MB' : error.message;
@@ -605,7 +561,6 @@ app.use((error, req, res, next) => {
         time: new Date().toISOString().replace('T', ' ').slice(0, 19),
         name: error.name,
         code: error.code,
-        // A server fault shows its stack; a refused input (4xx) only its reason.
         stack: status >= 500 ? error.stack : undefined,
     };
 
@@ -615,7 +570,6 @@ app.use((error, req, res, next) => {
     res.status(status).json({ error: message, detail });
 });
 
-/* ----------------------------------------------------------------- boot --- */
 
 const bot = new Bot();
 
@@ -623,7 +577,6 @@ async function main() {
     describeDatabase();
     loadSettings();
     loadAiSettings();
-    // Chats handed to CS only because a WhatsApp Business automatic message was taken for CS.
     const released = releaseAutoHandovers();
     if (released.length) logger.info({ chat: released.length }, 'chat dikembalikan ke bot: yang dikira CS ternyata pesan otomatis');
 
@@ -640,8 +593,6 @@ async function main() {
         'konfigurasi bot',
     );
 
-    // Listen before touching WhatsApp: a busy port means another bot is
-    // already running, and two bots on one number fight over the socket.
     await new Promise((resolve, reject) => {
         const server = app.listen(config.port, config.host);
         server.once('listening', resolve);
@@ -663,9 +614,6 @@ async function main() {
     }
 }
 
-// Anything unexpected is logged first (so it reaches the console pop-up and
-// logs/bot.log), then the process exits as Node would: the launcher's service
-// loop starts a fresh bot, instead of a half-broken one holding the port.
 const crash = (label) => (reason) => {
     logger.error({ err: reason?.message ?? String(reason), stack: reason?.stack }, label);
     setTimeout(() => process.exit(1), 500).unref();

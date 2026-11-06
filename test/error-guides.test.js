@@ -8,18 +8,11 @@ import { fileURLToPath } from 'node:url';
 
 import { FALLBACK, GUIDE, LEVELS, errorsSince, guideOf, latestErrorId, meaningOf, recordError } from '../src/errors.js';
 
-/**
- * Every error and warning the bot can show gets a guide for the person at the PC: whether
- * to act, what it means, the steps. Errors used to appear with no word on what to do, one
- * new kind after another (2026-11-02). This test reads the source: a new warn/error without
- * a guide of its own fails here, so it cannot ship unexplained.
- */
 
 const srcDir = fileURLToPath(new URL('../src/', import.meta.url));
 const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true })
     .flatMap((d) => (d.isDirectory() ? walk(path.join(dir, d.name)) : d.name.endsWith('.js') ? [path.join(dir, d.name)] : []));
 
-/** Index after the string that starts at `i` ('..', "..", `..` with ${} inside). */
 function skipString(src, i) {
     const quote = src[i++];
     while (i < src.length) {
@@ -33,7 +26,6 @@ function skipString(src, i) {
     return i;
 }
 
-/** Index after the `{ ... }` that starts at `i`. */
 function skipBraces(src, i) {
     let depth = 0;
     while (i < src.length) {
@@ -47,7 +39,6 @@ function skipBraces(src, i) {
     return i;
 }
 
-/** The arguments (as source text) of the call whose "(" is at `open`. */
 function callArgs(src, open) {
     const args = [];
     let depth = 0;
@@ -69,7 +60,6 @@ function callArgs(src, open) {
     return args.map((a) => a.trim()).filter(Boolean);
 }
 
-/** The outermost string literals of an expression, with `${...}` shown as "N". */
 function literals(text) {
     const found = [];
     for (let i = 0; i < text.length;) {
@@ -95,7 +85,6 @@ function literals(text) {
     return found;
 }
 
-/** Every message a warn/error/alert/crash call in src/ can show: { file, line, message }. */
 function messagesInSource() {
     const found = [];
     for (const file of walk(srcDir)) {
@@ -104,7 +93,6 @@ function messagesInSource() {
             const args = callArgs(src, match.index + match[0].length - 1);
             if (!args.length) continue;
             const kind = match[1] ?? 'crash';
-            // The first argument of warn/error may flag the line quiet (kept out of the pop-up).
             if (args.length > 1 && /\bquiet\b/.test(args[0])) continue;
             const messageArg = kind === 'warn' || kind === 'error' ? args[args.length - 1] : args[0];
             for (const message of literals(messageArg)) {
@@ -150,7 +138,6 @@ test('every guide says whether to act, what it means and what to do, in steps a 
         assert.ok(LEVELS.includes(g.level), `${name}: level`);
         assert.ok(g.meaning.length > 15 && g.todo.length > 5, `${name}: meaning and todo`);
         assert.doesNotMatch(`${g.meaning} ${g.todo}`, /undefined|\[object/, `${name}: template slip`);
-        // Anything that needs action says how, in numbered steps.
         if (g.level === 'tindak') assert.match(g.todo, /1\)/, `${name}: a "tindak" guide lists steps`);
     }
     assert.ok(LEVELS.includes(FALLBACK.level) && /Salin teks/.test(FALLBACK.todo), 'the fallback still tells what to do');
@@ -170,7 +157,6 @@ test('an error nobody wrote a guide for still gets steps, and is marked as unkno
 });
 
 test('a detail cannot take over an error that names itself; the raw message stays as logged', () => {
-    // The AI error mentions "Connection Closed" in its details, but it is the AI's failure.
     const guide = guideOf('AI gagal membalas: bot diam untuk pesan ini', { err: 'Connection Closed' });
     assert.match(guide.meaning, /balasan yang lolos pemeriksaan/);
     const before = latestErrorId();

@@ -10,18 +10,12 @@ import { productName } from './products.js';
 
 const LABEL = { katalog: 'Katalog', 'size-chart': 'Size chart', 'katalog-review': 'Katalog review', promo: 'Pamflet promo', pola: 'Foto pola' };
 
-/**
- * Try the bot from the console without a phone: same classifier, same flow,
- * same media folder, but nothing is sent and no customer data is touched.
- * Conversations live in memory and vanish on restart.
- */
 const conversations = new Map();
 
 export async function simulate(id, { text = '', hasImage = false, hasAudio = false }) {
     const conversation = conversations.get(id) ?? { step: 'new', history: [] };
     const history = conversation.history ?? [];
 
-    // The same as the real bot: the AI chat (Mode bot "ai") or the scripted flow.
     const ai = config.bot.mode === 'ai';
     const classified = ai
         ? { intent: 'ai', source: 'ai' }
@@ -42,18 +36,14 @@ export async function simulate(id, { text = '', hasImage = false, hasAudio = fal
         const files = media.files(action.kind, action.product, action.variant);
         const links = media.links(action.kind, action.product, action.variant);
         const produk = action.product ? productName(action.product) : 'produk';
-        // The same lead-ins as the real bot (bot.js).
         const lead = (link) =>
             action.kind === 'katalog' ? templates.catalogLink(link, produk) : action.kind === 'size-chart' ? templates.sizeChartLink(link, produk) ?? link : link;
         const linkBubble = links.map((link, i) => ({ type: 'text', text: i === 0 ? lead(link) : link }));
 
-        // "Katalog Jersey (1/2)" says more to the team than "01.png".
         const label = [LABEL[action.kind] ?? action.kind, action.kind !== 'pola' && action.product && productName(action.product), action.variant && action.variant !== 'reguler' && action.variant]
             .filter(Boolean)
             .join(' ');
 
-        // Same rules as the real bot: a WhatsApp catalog link replaces the pictures;
-        // on other slots the link goes first, then the pictures.
         if (links.length && action.kind === 'katalog') return linkBubble;
 
         return files.length || links.length
@@ -73,9 +63,7 @@ export async function simulate(id, { text = '', hasImage = false, hasAudio = fal
         name: classified.name,
         via: classified.source,
         step: conversations.get(id).step,
-        // Why the AI said nothing (it is down, the limit, a reply it was not allowed to send).
         silent: turn.silent ?? null,
-        // How the AI got to its reply (AI mode), for the team.
         thought: turn.thought ?? '',
         replies,
     };

@@ -18,14 +18,6 @@ const hoursSince = (stamp, at) => {
     return date ? (at.getTime() - date.getTime()) / 3600000 : Infinity;
 };
 
-/**
- * Where a customer is in the flow. Two things send a conversation back to the
- * greeting, keeping the stored name so a returning customer is greeted by it:
- *  - a handover older than HANDOVER_HOURS (CS has had its shift), and
- *  - a half-finished conversation idle for RESET_HOURS, except one waiting for
- *    a follow-up answer (the size list comes days later) or chatting with the
- *    AI (it remembers the order being discussed): detailWaitDays.
- */
 export function loadConversation(sessionKey, jid, at = new Date()) {
     const row = get('SELECT * FROM conversations WHERE session_key = ? AND jid = ?', [sessionKey, jid]);
 
@@ -61,7 +53,6 @@ export function saveConversation(sessionKey, jid, values) {
     );
 }
 
-/** Back to the greeting, e.g. after CS is done or after a test. Keeps the name. */
 export function resetConversation(sessionKey, jid) {
     cancelDeliveries(sessionKey, jid);
     cancelIncoming(sessionKey, jid);
@@ -74,8 +65,10 @@ export function resetConversation(sessionKey, jid) {
 }
 
 export function markHandover(sessionKey, jid, reason) {
-    if (reason === 'CS membalas' || reason === 'diambil alih dari konsol') cancelDeliveries(sessionKey, jid);
-    if (reason === 'CS membalas' || reason === 'diambil alih dari konsol') cancelIncoming(sessionKey, jid);
+    if (['CS membalas', 'diambil alih dari konsol', 'pesan perangkat toko belum terbaca'].includes(reason)) {
+        cancelDeliveries(sessionKey, jid);
+        cancelIncoming(sessionKey, jid);
+    }
     saveConversation(sessionKey, jid, { step: 'handed_over', handed_over_at: now(), handover_reason: reason });
     logMessage({ sessionKey, jid, direction: 'handover', text: reason });
 }
@@ -93,7 +86,6 @@ export const hasReceived = (sessionKey, jid, id) => Boolean(id && get(
     [sessionKey, jid, id],
 ));
 
-/** How often the bot sent exactly this bubble to this customer in the last `minutes`. */
 export function recentlySent(sessionKey, jid, text, minutes) {
     return get(
         `SELECT COUNT(*) AS n FROM message_log
@@ -102,12 +94,10 @@ export function recentlySent(sessionKey, jid, text, minutes) {
     ).n;
 }
 
-/** True when a message id was sent by the bot itself (not by CS on the phone). */
 export function isBotMessage(waMessageId) {
     return Boolean(get(`SELECT 1 FROM message_log WHERE wa_message_id = ? AND direction = 'out' LIMIT 1`, [waMessageId]));
 }
 
-/** Message volume per local day, for deciding the AI budget later. */
 export function stats(days = 30) {
     return all(
         `SELECT date(created_at, '${local()}') AS tanggal,
@@ -122,10 +112,8 @@ export function stats(days = 30) {
     );
 }
 
-/** "62812...@s.whatsapp.net" -> "62812..."; privacy ids (@lid) have no number. */
 export const phoneOf = (jid) => (jid.endsWith('@s.whatsapp.net') ? jid.split('@')[0].split(':')[0] : null);
 
-/** Conversations active since a UTC stamp, newest first, with their last customer message. */
 export function listConversations(since) {
     return all(
         `SELECT c.*,
@@ -150,7 +138,6 @@ export function messagesOf(sessionKey, jid, limit = 200) {
     ).reverse();
 }
 
-/** A message arrived readable. Kept a week so a re-delivery of it, after a restart too, is known for what it is. */
 export function markSeen(sessionKey, messageId) {
     run('INSERT OR IGNORE INTO seen_messages (session_key, message_id, seen_at) VALUES (?, ?, ?)', [sessionKey, messageId, now()]);
 }
@@ -158,7 +145,6 @@ export function markSeen(sessionKey, messageId) {
 export const wasSeen = (sessionKey, messageId) =>
     Boolean(get('SELECT 1 FROM seen_messages WHERE session_key = ? AND message_id = ? LIMIT 1', [sessionKey, messageId]));
 
-/** Deletes chat text older than `days`; customers' messages are not kept forever. */
 export function prune(days) {
     const cutoff = `-${Number(days)} days`;
     run(`DELETE FROM seen_messages WHERE seen_at < datetime('now', '-7 days')`);
@@ -168,7 +154,6 @@ export function prune(days) {
     return { messages, conversations };
 }
 
-/** Labels a customer's just-answered bubbles with what the classifier made of them. */
 export function tagIncoming(sessionKey, jid, intent) {
     run(
         `UPDATE message_log SET intent = ? WHERE session_key = ? AND jid = ? AND direction = 'in' AND intent IS NULL`,
@@ -176,7 +161,6 @@ export function tagIncoming(sessionKey, jid, intent) {
     );
 }
 
-/** Customer messages the bot did not understand: the to-do list for teaching it. */
 export function unrecognised(days = 30) {
     return all(
         `SELECT text, COUNT(*) AS times, MAX(created_at) AS last_at
@@ -190,10 +174,6 @@ export function unrecognised(days = 30) {
     );
 }
 
-/**
- * How far customers got through the reply flow: distinct customers per stage,
- * from the step changes the bot logs. A later stage implies the earlier ones.
- */
 function funnel(since) {
     const count = (sql, params = []) => get(sql, [since, ...params]).n;
     const reached = (steps) =>
@@ -214,7 +194,6 @@ function funnel(since) {
     ];
 }
 
-/** Everything the Statistik page draws, in local time. */
 export function analytics(days = 30) {
     const since = `-${Number(days)} days`;
     const offset = local();
@@ -271,12 +250,9 @@ export function analytics(days = 30) {
     };
 }
 
-/* ------------------------------------------------- Latih bot helpers --- */
 
-// Words that carry no meaning of their own (Kamus: "Kata dibuang dari saran").
 const FILLERS = () => wordSet('pengisi_saran');
 
-/** The core of a message to teach as a keyword: "Mau nanya2 dulu mas" -> "mau nanya nanya dulu". */
 export function suggestPhrase(text) {
     const words = normalise(text).trim().split(' ').filter((w) => w && !FILLERS().has(w));
 
@@ -295,7 +271,6 @@ export function dismissedTexts() {
     }
 }
 
-/** Hides one unrecognised message from Latih bot, or shows it again (undo). */
 export function dismissText(text, undo = false) {
     const key = dismissKey(text);
     if (!key) return;
@@ -310,15 +285,8 @@ export function dismissText(text, undo = false) {
     );
 }
 
-/**
- * The conversation just before the message being answered, oldest first, for
- * the AI: [{ who: 'pelanggan' | 'bot' | 'cs', text }]. `skip` = how many of the
- * latest incoming lines are the message itself (already logged).
- */
 export function recentHistory(sessionKey, jid, skip = 1, limit = 6) {
     if (Array.isArray(skip)) {
-        // Recovery may revisit an older input while newer messages are queued.
-        // Exclude pending inputs by identity, not by their position in the log.
         return all(`SELECT m.direction, m.text FROM message_log m
             WHERE m.session_key = ? AND m.jid = ? AND m.direction IN ('in', 'out', 'cs')
             AND TRIM(COALESCE(m.text, '')) <> ''
@@ -333,7 +301,6 @@ export function recentHistory(sessionKey, jid, skip = 1, limit = 6) {
         [sessionKey, jid, limit + skip],
     );
 
-    // Drop the message itself (its lines are the newest incoming ones).
     let dropped = 0;
     const before = rows.filter((row) => {
         if (dropped < skip && row.direction === 'in') {

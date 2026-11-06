@@ -2,28 +2,16 @@ import { all, db, get, now, run } from '../db.js';
 import { loadDictionary, rememberRemoved, syncTextRules } from '../migrations.js';
 import { SEED_WORDS } from '../seeds.js';
 
-/**
- * Every word list the bot reads: the dictionary (shorthand, Javanese and
- * Sundanese, phrases), words that are never a name or a typo, cities, fillers,
- * units, the words around a name or a design... Stored in the table
- * word_lists (seeded by migration 009) and edited in the console (Latih bot >
- * Kamus): add, change, delete. Nothing here is fixed in code.
- *
- * The code keeps the logic (how a list is used); the lists are data.
- */
 
-/** List name -> { label, help, pairs } (what the console shows). */
 export const WORD_LISTS = Object.fromEntries(
     Object.entries(SEED_WORDS).map(([name, meta]) => [name, { label: meta.label, help: meta.help, pairs: Boolean(meta.pairs) }]),
 );
 
-// The dictionary lists also change how keywords are stored (normalise()).
 const DICTIONARY = new Set(['singkatan', 'bahasa_daerah', 'frasa']);
 
 let cache = null;
 const listeners = new Set();
 
-/** Lets other caches (keywords, patterns) drop their copy when a list changes. */
 export const onWordsChanged = (fn) => listeners.add(fn);
 
 function rows() {
@@ -35,24 +23,20 @@ function rows() {
 const sets = new Map();
 const maps = new Map();
 
-/** The words of a list, as a Set (cached). */
 export function wordSet(list) {
     if (!sets.has(list)) sets.set(list, new Set(rows().filter((r) => r.list === list).map((r) => r.word)));
 
     return sets.get(list);
 }
 
-/** The words of a list, as an array, longest first (for building patterns). */
 export const wordsOf = (list) => [...wordSet(list)].sort((a, b) => b.length - a.length);
 
-/** A pairs list as word -> value (cached). */
 export function wordMap(list) {
     if (!maps.has(list)) maps.set(list, new Map(rows().filter((r) => r.list === list).map((r) => [r.word, r.value])));
 
     return maps.get(list);
 }
 
-/** Rows for the console: one list, or all. */
 export const wordRows = (list = null) => rows().filter((r) => !list || r.list === list);
 
 function changed(list) {
@@ -60,7 +44,6 @@ function changed(list) {
     sets.clear();
     maps.clear();
 
-    // A dictionary edit changes how text is read: apply it and re-store keywords.
     if (DICTIONARY.has(list)) {
         loadDictionary(db);
         syncTextRules(db);
@@ -102,7 +85,6 @@ export function updateWord(id, { word, value } = {}) {
 
     if (w !== row.word && get('SELECT 1 FROM word_lists WHERE list = ? AND word = ?', [row.list, w])) fail(`"${w}" sudah ada di daftar ini`);
 
-    // A built-in word the team changed is never seeded back under its old spelling.
     if (row.source === 'bawaan' && w !== row.word) rememberRemoved(db, `word:${row.list}`, row.word);
 
     run('UPDATE word_lists SET word = ?, value = ? WHERE id = ?', [w, v, row.id]);
@@ -120,5 +102,4 @@ export function removeWord(id) {
     changed(row.list);
 }
 
-/** For tests and imports that write through SQL. */
 export const forgetWords = () => changed(null);

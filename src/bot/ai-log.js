@@ -1,13 +1,5 @@
 import { all, now, run } from '../db.js';
 
-/**
- * What the guards stopped in AI chat mode, for the console (Coba bot > Uji AI):
- * a reply refused and rewritten, a reply refused twice (the bot stayed
- * silent), or the AI not answering at all. Kept short: the newest 500.
- *
- * outcome: 'ditulis ulang' (refused once, the rewrite was sent),
- *          'diam' (nothing sent), 'error' (the AI failed).
- */
 export function recordAi({ who = null, message = '', reply = '', problem, outcome }) {
     run('INSERT INTO ai_log (created_at, who, message, reply, problem, outcome) VALUES (?, ?, ?, ?, ?, ?)', [
         now(),

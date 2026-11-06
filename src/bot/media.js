@@ -7,26 +7,6 @@ import { catalogLinksFor, productLink } from './catalog.js';
 import { all as allRows } from '../db.js';
 import { listProducts } from './products.js';
 
-/**
- * Files the bot sends. The team uploads them from the console (Media page);
- * on disk they follow a naming convention under media/:
- *
- *   katalog/<produk>.pdf|jpg|png      catalog per product (or a folder of pages)
- *   katalog/umum.pdf|jpg|png          general catalog, when no product is known
- *   size-chart/<produk>.jpg           regular size chart
- *   size-chart/<produk>-boxy.jpg      boxy variant
- *   size-chart/<produk>-oversize.jpg  oversize variant
- *   katalog-review.pdf|jpg            reviews (or a folder katalog-review/)
- *   promo/jersey.jpg                  jersey promo pamphlet, step [9]
- *
- * Catalog slots may also hold a WhatsApp Business catalog link (wa.me/c/...
- * or wa.me/p/...), stored in the database. A product with neither files nor
- * a link of its own falls back to the general catalog link (the whole shop).
- *
- * A name may point to a folder instead of a file; every file inside is sent,
- * sorted by name. Files are looked up on every call, so a new upload takes
- * effect without a restart.
- */
 
 const EXTENSIONS = ['.pdf', '.jpg', '.jpeg', '.png', '.webp'];
 
@@ -38,7 +18,6 @@ export const MIME = {
     '.webp': 'image/webp',
 };
 
-// WhatsApp refuses images over 16 MB; keep well under it.
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
 function baseName(kind, product, variant) {
@@ -52,7 +31,6 @@ function baseName(kind, product, variant) {
         case 'promo':
             return path.join('promo', product ?? 'umum');
         case 'pola':
-            // Photos of a team answer pattern ("Pola jawaban"), by pattern id.
             return path.join('pola', String(product));
         default:
             throw Object.assign(new Error(`Jenis media tidak dikenal: ${kind}`), { statusCode: 422 });
@@ -61,11 +39,6 @@ function baseName(kind, product, variant) {
 
 const isMedia = (file) => EXTENSIONS.includes(path.extname(file).toLowerCase());
 
-/**
- * The real type of an upload, read from its first bytes. The file name and
- * the browser's Content-Type are not trusted: a renamed .exe must not end up
- * being sent to customers as a "catalog".
- */
 export function sniffType(buffer) {
     if (!buffer || buffer.length < 12) return null;
     if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return '.jpg';
@@ -76,7 +49,6 @@ export function sniffType(buffer) {
     return null;
 }
 
-/** Every place a file can go, in the order the console shows them. */
 function slotDefinitions() {
     const slot = (kind, product, variant, label, group, { multi = false, optional = false, effect }) => ({
         id: [kind, product ?? '', variant ?? ''].join(':').replace(/:+$/, ''),
@@ -90,8 +62,6 @@ function slotDefinitions() {
         effect,
     });
 
-    // Built from the products in the database: a product the team adds gets
-    // its slots, a deleted one loses them (its files stay on disk).
     const products = listProducts();
 
     return [
@@ -132,19 +102,9 @@ export function createMedia(dir = config.mediaDir) {
     };
 
 
-    /** The link stored on exactly this slot ("katalog:jersey", "size-chart:kaos:reguler"). */
     const ownLink = (kind, product = null, variant = null) => getSetting(`link:${[kind, product, variant].filter(Boolean).join(':')}`);
 
-    /**
-     * Links to send for a catalog; when there are any they replace its pictures.
-     * In order of preference:
-     *   1. the link the team set on this product,
-     *   2. the product's items in the WhatsApp Business catalog (synced),
-     *   3. none, so the uploaded pictures are sent,
-     *   4. the shop-wide catalog link, when there are no pictures either.
-     */
     const links = (kind, product = null, variant = null) => {
-        // Every other slot (size chart, review, promo): its own link, if the team set one.
         if (kind !== 'katalog') {
             const own = kind === 'pola' ? null : ownLink(kind, product, variant);
 
@@ -176,24 +136,16 @@ export function createMedia(dir = config.mediaDir) {
         return { path: relative(file), name: path.basename(file), size: fs.statSync(file).size, type: ext === '.pdf' ? 'pdf' : 'image' };
     };
 
-    /** All slots with the files currently in them. */
     const slots = () =>
         slotDefinitions().map((slot) => ({
             ...slot,
             files: files(slot.kind, slot.product, slot.variant).map(describe),
             linkable: true,
             link: ownLink(slot.kind, slot.product, slot.variant),
-            // How many WhatsApp catalog items the bot sends for this product.
             catalogItems: slot.kind === 'katalog' && slot.product && !ownLink(slot.kind, slot.product) ? catalogLinksFor(slot.product).length : 0,
-            // What the bot actually sends when this slot has nothing of its own.
             fallbackLink: slot.kind === 'katalog' && slot.product && !ownLink(slot.kind, slot.product) && !catalogLinksFor(slot.product).length && files(slot.kind, slot.product).length === 0 ? ownLink('katalog', null) : null,
         }));
 
-    /**
-     * Saves or clears a slot's link. Catalog slots take WhatsApp catalog links
-     * only; the others (size chart, review, promo) any https link, e.g. a
-     * Google Drive or Instagram post.
-     */
     const setLink = (id, value) => {
         const slot = findSlot(id);
 
@@ -213,7 +165,6 @@ export function createMedia(dir = config.mediaDir) {
             try {
                 parsed = new URL(url);
             } catch {
-                /* invalid below */
             }
             if (!parsed || !parsed.hostname.includes('.') || /\s/.test(url)) {
                 throw Object.assign(new Error('Link tidak valid. Tempel link lengkap, mis. https://drive.google.com/...'), { statusCode: 422 });
@@ -224,7 +175,6 @@ export function createMedia(dir = config.mediaDir) {
             return url;
         }
 
-        // Only WhatsApp catalog/product links: the bot never sends customers anywhere else from here.
         if (!/^https:\/\/(wa\.me\/(c|p)\/[\w/-]+|api\.whatsapp\.com\/[\w?=&/.-]+)$/i.test(url)) {
             throw Object.assign(new Error('Tempel link katalog WhatsApp, mis. https://wa.me/c/6281234567890'), { statusCode: 422 });
         }
@@ -242,20 +192,14 @@ export function createMedia(dir = config.mediaDir) {
         return slot;
     };
 
-    /** Product links for chosen catalog items, in the chosen order; items gone from the catalog are skipped. */
     const catalogItemLinks = (ids = []) => {
         const byId = new Map(allRows('SELECT * FROM catalog_items').map((item) => [item.id, item]));
 
         return ids.map((id) => byId.get(String(id))).filter(Boolean).map((item) => productLink(item)).filter(Boolean);
     };
 
-    /** Adds a photo to a team answer pattern (always multi-page). */
     const savePattern = (patternId, buffer) => saveInto({ kind: 'pola', product: String(patternId), variant: null, multi: true }, buffer);
 
-    /**
-     * Stores an upload. Multi-page slots (catalogs) gain a page; single slots
-     * (size charts) are replaced.
-     */
     const save = (id, buffer) => saveInto(findSlot(id), buffer);
 
     const saveInto = (slot, buffer) => {
@@ -276,7 +220,6 @@ export function createMedia(dir = config.mediaDir) {
             return base + ext;
         }
 
-        // Multi-page: keep pages in a folder, numbered in upload order.
         const existing = files(slot.kind, slot.product, slot.variant);
 
         if (existing.length === 1 && !(fs.existsSync(base) && fs.statSync(base).isDirectory())) {
@@ -295,7 +238,6 @@ export function createMedia(dir = config.mediaDir) {
         return target;
     };
 
-    /** Absolute path of a file under media/, or an error for anything outside it. */
     const resolve = (rel) => {
         const target = path.resolve(dir, String(rel ?? ''));
         const inside = path.relative(dir, target);
@@ -315,7 +257,6 @@ export function createMedia(dir = config.mediaDir) {
         if (parent !== dir && fs.readdirSync(parent).length === 0) fs.rmdirSync(parent);
     };
 
-    /** Required files and whether they are in place (optional slots excluded). */
     const checklist = () =>
         slots()
             .filter((slot) => !slot.optional)

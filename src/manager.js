@@ -2,7 +2,6 @@ import { all, get, now, run } from './db.js';
 import { logger } from './logger.js';
 import { Session } from './session.js';
 
-/** Owns every WhatsApp number the gateway knows about. */
 class Manager {
     constructor() {
         this.sessions = new Map();
@@ -12,7 +11,6 @@ class Manager {
     async boot(bot) {
         this.bot = bot;
 
-        // First run: one number to pair, so the QR shows up without any setup.
         if (!get('SELECT id FROM wa_sessions LIMIT 1')) {
             const stamp = now();
             run(
@@ -87,17 +85,14 @@ class Manager {
         try {
             await session.logout();
         } catch {
-            /* the pairing is going away regardless */
         }
 
-        // wa_auth_creds and wa_auth_keys cascade from the session row.
         run('DELETE FROM wa_sessions WHERE id = ?', [session.id]);
         this.sessions.delete(key);
 
         this.#ensureOneDefault();
     }
 
-    /** The number used when a send request does not name one. */
     async defaultSession() {
         const row = get('SELECT "key" FROM wa_sessions WHERE is_default = 1 LIMIT 1');
 
@@ -108,7 +103,6 @@ class Manager {
         return this.get(row.key);
     }
 
-    /** Exactly one number carries the default flag, as long as one exists. */
     #ensureOneDefault() {
         if (get('SELECT id FROM wa_sessions WHERE is_default = 1 LIMIT 1')) {
             return;

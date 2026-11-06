@@ -2,13 +2,6 @@ import { BufferJSON, initAuthCreds, proto } from 'baileys';
 
 import { all, db, get, now, run } from './db.js';
 
-/**
- * A Baileys auth store backed by the bot's local SQLite database.
- *
- * Drop-in replacement for useMultiFileAuthState. Credentials survive restarts,
- * redeploys and a fresh checkout, which is what keeps a paired number paired
- * instead of falling back to a QR scan every time.
- */
 export async function useSqliteAuthState(sessionId) {
     const existing = get('SELECT creds FROM wa_auth_creds WHERE wa_session_id = ? LIMIT 1', [sessionId]);
     const isNew = !existing;
@@ -24,9 +17,6 @@ export async function useSqliteAuthState(sessionId) {
         );
     };
 
-    // Persist the freshly generated identity straight away. Baileys only emits
-    // creds.update later, and a restart before that would otherwise hand out a
-    // different registration id and invalidate the QR already on screen.
     if (isNew) {
         await saveCreds();
     }
@@ -50,7 +40,6 @@ export async function useSqliteAuthState(sessionId) {
             for (const row of rows) {
                 let value = JSON.parse(row.value, BufferJSON.reviver);
 
-                // App state sync keys must be handed back as protobuf objects.
                 if (type === 'app-state-sync-key' && value) {
                     value = proto.Message.AppStateSyncKeyData.fromObject(value);
                 }
@@ -63,8 +52,6 @@ export async function useSqliteAuthState(sessionId) {
 
         async set(data) {
             const stamp = now();
-            // Persist the supplied key batch atomically. A partial batch can
-            // leave session/pre-key references inconsistent after a disk error.
             db.transaction(() => {
                 for (const category of Object.keys(data)) {
                     for (const id of Object.keys(data[category])) {
@@ -90,7 +77,6 @@ export async function useSqliteAuthState(sessionId) {
         },
     };
 
-    /** Wipes the pairing for this session so the next connect shows a QR. */
     const clear = async () => {
         run('DELETE FROM wa_auth_keys WHERE wa_session_id = ?', [sessionId]);
         run('DELETE FROM wa_auth_creds WHERE wa_session_id = ?', [sessionId]);

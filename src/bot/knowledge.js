@@ -2,19 +2,6 @@ import { all, get, now, run } from '../db.js';
 import { promotionKnowledge } from './promotions.js';
 import { INFO_PAIRS, listProducts } from './products.js';
 
-/**
- * What the bot knows about the shop (AI chat mode), all written by the team
- * in the console and stored in SQLite:
- *
- *  - Info toko: topics with an answer ("Pembayaran & DP": "DP 50% ..."),
- *  - Tanya-jawab: questions customers ask and the shop's answer, general or
- *    for one product,
- *  - per product (halaman Produk): names, models, bahan, teknik done and NOT
- *    done, colours, sizes, minimum order, what to ask, notes (products.js),
- *  - current promotions, managed from the Promo page.
- *
- * The AI answers only from this. A topic left empty is "not told yet".
- */
 
 const fail = (message, statusCode = 422) => {
     throw Object.assign(new Error(message), { statusCode });
@@ -27,7 +14,6 @@ const text = (value, max, label) => {
     return clean;
 };
 
-/* ------------------------------------------------------------- Info toko --- */
 
 export const listTopics = () => all('SELECT id, title, content, position FROM store_info ORDER BY position, id');
 
@@ -53,7 +39,6 @@ export function deleteTopic(id) {
     run('DELETE FROM store_info WHERE id = ?', [id]);
 }
 
-/** Moves a topic one place up (-1) or down (+1). */
 export function moveTopic(id, by) {
     const list = listTopics();
     const i = list.findIndex((t) => t.id === Number(id));
@@ -66,7 +51,6 @@ export function moveTopic(id, by) {
     return listTopics();
 }
 
-/* ----------------------------------------------------------- Tanya-jawab --- */
 
 export const listFaq = () => all('SELECT id, product, question, answer, position FROM faq ORDER BY position, id');
 
@@ -93,7 +77,6 @@ export function deleteFaq(id) {
     run('DELETE FROM faq WHERE id = ?', [id]);
 }
 
-/* --------------------------------------------------- what the AI is told --- */
 
 const bullet = (label, value) => (value ? `  ${label}: ${value}` : null);
 
@@ -119,17 +102,8 @@ function productBlock(p, sendable) {
     return [...rows, told ? null : '  (detail produk ini belum diisi toko)'].filter(Boolean).join('\n');
 }
 
-/** One line for a product that is not being discussed: enough to recognise it and answer "do you make X?". */
 const productLine = (p) => `- ${p.name} [kode: ${p.key}]${p.info.sebutan.length ? ` (nama lain: ${p.info.sebutan.join(', ')})` : ''}`;
 
-/**
- * Everything the bot may say, as one block for the AI. `media.has` decides
- * which files exist, so the AI only offers what can really be sent.
- *
- * `focus`: the product keys being discussed. Those get every detail and their
- * own Q&A; the others one line each, so the AI does not mix products up (a
- * long list buries what matters). No focus: every product in full.
- */
 export function knowledgeBlock(media, { focus = null, at = new Date() } = {}) {
     const products = listProducts();
     const full = (p) => !focus || focus.includes(p.key);

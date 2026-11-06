@@ -6,13 +6,6 @@ import test from 'node:test';
 import { classifyWithRules } from '../src/bot/classify-rules.js';
 import { normalise, squashWord } from '../src/text.js';
 
-/**
- * People do not type clean messages: stretched letters, "dong", "sih",
- * "hehe", emoji, "eh" in front. The same message with these extras must
- * mean what the clean one means (2026-10-19: "ok makasih sih" was not
- * understood, "sayaa Budi" was the name "Sayaa Budi", "Budi, Magelang 🙏"
- * was no introduction at all).
- */
 
 const key = (r) => `${r.intent}|${r.product ?? ''}|${(r.name ?? '').toLowerCase()}`;
 const same = (step, clean, noisy) => {
@@ -26,9 +19,7 @@ test('stretched words are read as typed clean', () => {
     assert.equal(squashWord('kakkk'), 'kak');
     assert.equal(squashWord('wkwkwk'), 'wkwk');
     assert.equal(squashWord('hahaha'), 'haha');
-    // Doubles inside a word stay ("maaf", "saat"), and two-letter words ("aa").
     for (const word of ['maaf', 'saat', 'tunggu', 'aa']) assert.equal(squashWord(word), word);
-    // Keywords go through the same rule: "all size" still meets "all size".
     assert.equal(normalise('ukuran all size').trim(), normalise('ukuran alll size').trim());
     assert.equal(normalise('mau ngobrol samaa adminn dong').trim(), normalise('mau ngobrol sama admin dong').trim());
 });

@@ -12,9 +12,6 @@ import * as store from '../src/bot/store.js';
 import { run } from '../src/db.js';
 import { SEED_QUESTIONS, SIZE_QUESTION } from '../src/seeds.js';
 
-/**
- * One test per problem found in the code review, so none of them comes back.
- */
 
 const media = { has: (kind, product) => kind === 'katalog' && product === 'jersey', links: () => [] };
 const texts = (actions) => actions.filter((a) => a.type === 'text').map((a) => a.text);
@@ -25,7 +22,6 @@ const step = (conv, text, extra = {}) => {
 };
 
 test('misses are counted whatever the label, so asking again always ends at CS', () => {
-    // A picture at the product question is "has_reference": not understood there, and still counted.
     let conv = { step: 'awaiting_product' };
     for (let i = 0; i < 2; i++) {
         const r = step(conv, '', { intent: 'has_reference' });
@@ -52,7 +48,6 @@ test('at a follow-up question: another product is a change of mind, a greeting i
 test('asking the price during the follow-up questions keeps them', () => {
     updateProduct('jersey', { questions: [...SEED_QUESTIONS.jersey, SIZE_QUESTION] });
 
-    // The agreed flow: catalog, the product's question, [5], the size question last.
     let r = step({ step: 'awaiting_product' }, 'mau bikin jersey');
     assert.equal(r.conv.step, 'awaiting_detail');
 
@@ -96,7 +91,6 @@ test('after the WhatsApp Business Salam: the first message is not apologised for
     assert.deepEqual(sent, [], 'no "belum paham" to the very first message');
     assert.equal(store.loadConversation('utama', 'a@s.whatsapp.net').step, 'awaiting_intro');
 
-    // A Salam from long ago (sent by day) does not mute the night.
     bot.onOwnMessage('utama', { jid: 'b@s.whatsapp.net', id: 'salam-b', text: salam });
     bot.autoGreeted.set('utama|b@s.whatsapp.net', Date.now() - 60 * 60 * 1000);
     bot.onIncoming('utama', wa, { jid: 'b@s.whatsapp.net', id: 'b1', text: 'halo kak' });
@@ -108,7 +102,6 @@ test('after the WhatsApp Business Salam: the first message is not apologised for
 test('from the simulated chats: names, sizes, amounts and design said along the way', () => {
     updateProduct('hoodie', { questions: [SEED_QUESTIONS.hoodie[0], SIZE_QUESTION] });
 
-    // "SMA 1" is not one piece; "perkenalkan saya Dimas" is a name.
     let r = step({ step: 'new' }, 'Selamat malam, perkenalkan saya Dimas dari SMA 1 Purworejo');
     assert.equal(r.conv.name, 'Dimas');
     assert.equal(r.conv.quantity ?? null, null);
@@ -117,14 +110,12 @@ test('from the simulated chats: names, sizes, amounts and design said along the 
     assert.equal(r.conv.quantity, '120 pcs');
     assert.deepEqual(texts(r.actions), [replies.askDesign('Hoodie')], 'the agreed flow: [4] first');
 
-    // "nanti saya kirim filenya" is not a name; the amount is known, so the follow-up questions come now.
     r = step(r.conv, 'Desainnya sudah ada, nanti saya kirim filenya');
     assert.equal(r.conv.name, 'Dimas');
     assert.equal(r.conv.step, 'awaiting_detail');
     r = step(r.conv, 'Pakai resleting');
     assert.deepEqual(texts(r.actions), [SIZE_QUESTION], 'the size list is asked last');
 
-    // "Ukuran beragam, nanti kami kirimkan datanya" answers the size question (no size chart, no "Seragam").
     r = step(r.conv, 'Ukuran beragam, nanti kami kirimkan datanya');
     assert.equal(r.conv.product, 'hoodie');
     assert.equal(r.conv.step, 'handed_over');
@@ -164,7 +155,6 @@ test('odd messages: unknown products, "kamu bot?", anger, phone, amounts in word
     assert.equal(c('dua ratus biji aja deh', 'awaiting_detail').quantity, 'dua ratus pcs');
     assert.equal(c('how much for 100 pieces?').quantity, '100 pcs');
 
-    // A typo guess for a pattern does not beat a product named exactly.
     assert.equal(c('seragam batik kantor').product, 'kemeja');
     assert.notEqual(c('seragam batik kantor').intent, 'custom');
 
@@ -185,12 +175,10 @@ test('questions only CS can answer: noted, said so once, the chat goes on', () =
     assert.equal(r.conv.step, 'awaiting_product');
     assert.deepEqual(JSON.parse(r.conv.notes), ['bisa dp dulu ga kak?']);
 
-    // Next to a question the bot answers: both.
     r = step({ step: 'awaiting_product' }, 'minimal order berapa? terus bisa dicicil?');
     assert.equal(r.actions.filter((a) => a.text === replies.csQuestion()).length, 1);
     assert.ok(texts(r.actions).some((t) => /minimum pemesanan/.test(t)));
 
-    // A product chosen later keeps the note (it is not part of the order details).
     r = step({ step: 'awaiting_product', notes: JSON.stringify(['bisa dp?']) }, 'mau bikin kaos');
     assert.equal(r.conv.notes, JSON.stringify(['bisa dp?']));
 });
@@ -227,14 +215,12 @@ test('the socket does not send the start-up queries that timed out on a client P
     const fs = await import('node:fs');
     const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
 
-    // "unexpected error in 'init queries'": props, block list and privacy settings, none used by the bot.
     assert.match(source, /fireInitQueries:\s*false/);
 });
 
 test('custom active hours: a window that does not cross midnight works (08.30 -> 18.30 was "always")', async () => {
     const { isBotActive, inWindow } = await import('../src/bot/schedule.js');
     const at = (iso) => new Date(iso);
-    // Monday 2026-10-19, Asia/Jakarta (UTC+7).
     const day = { timezone: 'Asia/Jakarta', activeFrom: '08:30', activeUntil: '18:30', forceMode: '', holidays: [] };
     assert.equal(isBotActive(at('2026-10-19T02:00:00Z'), day), true, '09.00: inside 08.30-18.30');
     assert.equal(isBotActive(at('2026-10-19T12:00:00Z'), day), false, '19.00: outside');
@@ -259,11 +245,9 @@ test('the size list may come days later: "nanti saya kabari" keeps the question 
         assert.ok(!r.conv.misses, `${text}: not a miss`);
     }
 
-    // Days later the list arrives: now the order goes to CS.
     const r = step(conv, 'S 10, M 20, L 20');
     assert.equal(r.conv.step, 'handed_over');
     assert.match(r.conv.details, /S 10, M 20, L 20/);
-    // A list with numbers and "sisanya nanti" is an answer.
     assert.equal(step(conv, 'M 20, sisanya nanti saya kabari').conv.step, 'handed_over');
 });
 
@@ -307,7 +291,6 @@ test('sizes are asked last: [4], the product question, [5] how many, then sizes,
     r = step(r.conv, 'S 10, M 20');
     assert.equal(r.conv.step, 'handed_over', 'then [7] + [8], [5] is not asked twice');
 
-    // The amount known from the start: [5] is skipped, the sizes are still last.
     r = step({ step: 'awaiting_product' }, 'mau bikin kaos 50 pcs');
     r = step(r.conv, 'sablon logo di depan');
     r = step(r.conv, 'lengan pendek');
@@ -323,7 +306,6 @@ test('a name said again or corrected mid-chat is kept, never a miss (2026-10-19,
         assert.equal(c.name, name, text);
     }
 
-    // Already introduced, at the product question: three corrections in a row stay with the bot.
     let conv = { step: 'awaiting_product', name: 'Budi', origin: 'Jogja' };
     for (const text of ['aku haikal loh', 'nama ku haikal', 'eh salah, nama saya Haikal']) {
         const r = step(conv, text);
@@ -334,7 +316,6 @@ test('a name said again or corrected mid-chat is kept, never a miss (2026-10-19,
         conv = r.conv;
     }
 
-    // Mid-order: the name changes, the flow waits at its question.
     const r = step({ step: 'awaiting_design', product: 'kaos', name: 'Budi' }, 'eh salah, nama saya Haikal');
     assert.deepEqual(texts(r.actions), [replies.introAgain('Haikal')]);
     assert.equal(r.conv.step, 'awaiting_design');
@@ -348,7 +329,6 @@ test('statuses, channels and groups are not decrypted at all (status@broadcast "
     assert.match(source, /shouldIgnoreJid:\s*\(jid\) => ignoredJid\(jid\)/);
 
     for (const jid of ['status@broadcast', '12345@broadcast', '120363@newsletter', '120363-1@g.us']) assert.equal(ignoredJid(jid), true, jid);
-    // Customers, our own LID, the self-chat test: read as always.
     for (const jid of ['6281234567890@s.whatsapp.net', '247768274698362@lid', '@s.whatsapp.net']) assert.equal(ignoredJid(jid), false, jid);
 });
 
@@ -357,7 +337,6 @@ test('"Stream Errored (conflict)": the bot stops instead of fighting the other p
     const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
     const close = source.slice(source.indexOf("if (connection === 'close')"), source.indexOf('async #onMessages'));
 
-    // 440 is checked before the reconnect, and returns without scheduling one.
     const replaced = close.indexOf('DisconnectReason.connectionReplaced');
     assert.ok(replaced > 0 && replaced < close.indexOf('reconnectTimer'), 'conflict handled before reconnecting');
     assert.match(close.slice(replaced, close.indexOf('reconnectTimer')), /setState\('replaced'[\s\S]*?return;/);
@@ -375,12 +354,10 @@ test('"Jas almet bahan apa ya?" the AI does not know: noted for CS, then the flo
     assert.ok(!r.conv.offered_cs, 'no "mau dioper ke CS?" while the flow goes on');
     assert.match(r.conv.notes, /bahan apa/, 'CS sees the question in Percakapan and the morning recap');
 
-    // Mid-order the same: noted, the step waits.
     const mid = step({ step: 'awaiting_design', product: 'kaos' }, 'sablonnya pakai apa?', { intent: 'has_reference', isQuestion: true, aiAnswer: { type: 'unknown' } });
     assert.deepEqual(texts(mid.actions), [replies.csQuestion()]);
     assert.equal(mid.conv.step, 'awaiting_design');
 
-    // A question outside the flow still gets the offer.
     const off = step({ step: 'awaiting_product' }, 'kalian buka cabang di jakarta?', { intent: 'other', isQuestion: true, aiAnswer: { type: 'unknown' } });
     assert.deepEqual(texts(off.actions), [replies.aiUnknown()]);
     assert.equal(off.conv.offered_cs, 1);
@@ -415,7 +392,6 @@ test('launcher: Mulai checks for a new version first; Update installs it but doe
     assert.match(update, /-Action prepare/);
     assert.match(update, /klik Mulai ChatBot Prema/);
 
-    // The files Update must never touch.
     assert.match(body('Install-UpdateFiles'), /\/XD data media logs node_modules \.git \/XF \.env/);
 });
 
@@ -438,7 +414,6 @@ test('no history sync: Baileys never holds customer messages back waiting for it
     const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
     assert.match(source, /shouldSyncHistoryMessage:\s*\(\)\s*=>\s*false/);
 
-    // What that option does in the pinned Baileys: no history sync means Online and flush at once.
     const chats = fs.readFileSync(new URL('../node_modules/baileys/lib/Socket/chats.js', import.meta.url), 'utf8');
     assert.match(chats, /if \(!willSyncHistory\) \{[\s\S]{0,200}syncState = SyncState\.Online;[\s\S]{0,60}ev\.flush\(\)/, 'Baileys 6.7.24 behaviour this fix relies on');
 });

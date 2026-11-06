@@ -8,7 +8,6 @@ import { activePatterns } from '../src/bot/patterns.js';
 import { replies } from '../src/bot/replies.js';
 import { seedText } from './helpers.js';
 
-// What exists in media/ for these tests.
 const available = new Set(['katalog/jersey', 'katalog/umum', 'size-chart/kaos/reguler', 'size-chart/kaos/oversize', 'katalog-review']);
 const media = {
     has: (kind, product = null, variant = null) => {
@@ -141,7 +140,6 @@ test('seeded answer patterns keep the conversation where it was', () => {
     const moq = decide({ step: 'awaiting_product' }, seeded('moq'), media);
     assert.deepEqual(texts(moq.actions), [seedText('moq', 0), seedText('moq', 1)]);
 
-    // Ragu: text, then the files of the Media slot "katalog-review".
     const trust = decide({ step: 'awaiting_product' }, seeded('trust'), media);
     assert.deepEqual(kinds(trust.actions), ['text', 'media:katalog-review']);
 
@@ -169,7 +167,6 @@ test('not understood: asked again; CS only after 3 in a row (Pengaturan)', () =>
     assert.deepEqual(texts(third.actions), [replies.waitForCs(), replies.handoverNotice()]);
     assert.equal(third.patch.step, 'handed_over');
 
-    // Understanding something in between starts the count over.
     const reset = decide({ step: 'awaiting_product', misses: 2 }, r('greeting'), media);
     assert.equal(reset.patch.misses, 0);
 });
@@ -211,6 +208,5 @@ test('replies never contain a price', () => {
     const all = Object.values(replies).map((fn) => fn('X') ?? '').join('\n');
     assert.equal(all.match(/Rp\s?[\d.]+/g), null);
 
-    // The only rupiah amount in the spec, the shipping "mulai dari Rp 1.000/piece", is in the Pengiriman pattern.
     assert.deepEqual(seedText('shipping', 0).match(/Rp\s?[\d.]+/g), ['Rp 1.000']);
 });

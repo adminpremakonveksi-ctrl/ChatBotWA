@@ -18,7 +18,6 @@ test('Ollama is set from the console: key masked, applied at once, removable', (
     assert.equal(config.ollama.model, 'gpt-oss:20b');
     assert.equal(aiProvider(), 'ollama');
 
-    // Saving without a key keeps it.
     updateAiSettings({ model: 'gemma4:31b' });
     assert.equal(aiSettings().keySource, 'pengaturan');
 

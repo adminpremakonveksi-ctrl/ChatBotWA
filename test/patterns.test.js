@@ -17,7 +17,6 @@ import { run } from '../src/db.js';
 
 const JPG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(20)]);
 const c = (text, step = 'awaiting_product') => classifyWithRules({ text, step });
-// Team patterns only: the seeded ones (Lokasi, ...) stay, as on a real install.
 const clean = () => { for (const p of listPatterns().filter((x) => !x.builtin)) deletePattern(p.id); };
 
 function ukuran(extra = {}) {

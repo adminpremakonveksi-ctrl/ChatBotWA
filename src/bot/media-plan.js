@@ -3,7 +3,6 @@ import { replies } from './replies.js';
 
 export const isSizeQuestion = (text) => /\bukuran(?:nya)?\b|\bsize(?:nya)?\b/i.test(String(text ?? ''));
 
-/** Shared by both modes. A requested variant falls back to the regular chart. */
 export function sizeChartActions(media, product, variant = 'reguler') {
     if (!product) return [{ type: 'text', text: replies.sizeChartWhich() }];
     const found = [...new Set([variant || 'reguler', 'reguler', null])]

@@ -6,7 +6,6 @@ import test from 'node:test';
 
 import { NON_CHANNEL_MEX, fixMexNotifications, isNonChannelMex } from '../src/baileys-fixes.js';
 
-// The notification from the client PC log (2026-10-19 07:05:38).
 const linkedProfiles = () => ({
     tag: 'notification',
     attrs: { from: '28067997159547@lid', type: 'mex', id: '1541249863', offline: '0', t: '1792248640' },
@@ -20,7 +19,6 @@ test('a linked-profiles mex notification reaches Baileys under its own type; cha
     assert.ok(!isNonChannelMex(channel()));
     assert.ok(!isNonChannelMex(group()));
 
-    // Baileys' own listener, registered when the socket is made, sees every notification.
     const ws = new EventEmitter();
     const seen = [];
     ws.on('CB:notification', (node) => seen.push(`${node.attrs.id}:${node.attrs.type}`));
@@ -31,7 +29,6 @@ test('a linked-profiles mex notification reaches Baileys under its own type; cha
     ws.emit('CB:notification', channel());
     ws.emit('CB:notification', group());
 
-    // Every notification still goes to Baileys (which acks it); only the misrouted one has a new type.
     assert.deepEqual(seen, [`1541249863:${NON_CHANNEL_MEX}`, '77:mex', '88:w:gp2']);
 });
 

@@ -5,23 +5,12 @@ import { normaliseResult } from './intents.js';
 import { productKeys } from './products.js';
 import { resultSchema, systemPrompt, userTurn } from './classify-ai.js';
 
-/**
- * Intent recognition through Ollama: Ollama Cloud (ollama.com, API key) or a
- * local Ollama (OLLAMA_HOST, no key). Same prompt and same labels as the
- * Claude classifier; the model only labels, it never writes a reply.
- *
- * Open models do not always keep to the schema (they answer "delivery" or
- * "shipping_inquiry" for a label that does not exist), so every answer is
- * validated; anything invalid is an error and the keywords decide instead.
- */
 
 export const ollamaEnabled = () => Boolean(config.ollama.apiKey || config.ollama.hostSet);
 
-// The last real call, for the console's "Siap mulai" check (a timeout there is the usual client problem).
 let lastCall = null;
 export const lastOllamaCall = () => lastCall;
 
-/** The JSON object in a reply, also when the model wraps it in ```json fences or prose. */
 export function parseJson(content) {
     const text = String(content ?? '').trim();
     const start = text.indexOf('{');
@@ -32,11 +21,6 @@ export function parseJson(content) {
     return JSON.parse(text.slice(start, end + 1));
 }
 
-/**
- * One chat call to Ollama that must answer with a JSON object of `schema`
- * (a zod schema). Returns the raw parsed object; callers validate it.
- */
-/** The HTTP call itself; a network failure or timeout is remembered before it is thrown. */
 async function post(fetchImpl, options) {
     const started = Date.now();
     try {
@@ -64,7 +48,6 @@ export async function ollamaJson({ system, user, schema, temperature = 0, messag
             options: { temperature, num_ctx: config.ollama.numCtx },
             messages: [
                 { role: 'system', content: `${system}\n\nJawab HANYA dengan satu objek JSON sesuai skema.` },
-                // A retry carries the rejected answer and why, so the model can fix it.
                 ...(messages ?? [{ role: 'user', content: user }]),
             ],
         }),
@@ -83,7 +66,6 @@ export async function ollamaJson({ system, user, schema, temperature = 0, messag
     try {
         return { answer: parseJson(raw), raw };
     } catch (error) {
-        // Open models now and then write broken JSON; callers may ask again with this.
         throw Object.assign(new Error(`Ollama membalas JSON rusak: ${error.message}`), { raw, badJson: true });
     }
 }
@@ -95,7 +77,6 @@ export async function classifyWithOllama(input, { fetchImpl = fetch } = {}) {
         { fetchImpl },
     );
 
-    // Fields a small model leaves out get their neutral value; the labels themselves must be valid.
     const parsed = schema.safeParse({ extras: [], product: null, name: null, origin: null, sizeVariant: 'reguler', ...answer });
 
     if (!parsed.success) {

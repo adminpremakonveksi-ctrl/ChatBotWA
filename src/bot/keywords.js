@@ -4,21 +4,9 @@ import { cleanPhrase } from '../text.js';
 import { onProductsChanged, productKeys } from './products.js';
 import { onWordsChanged } from './words.js';
 
-/**
- * Every keyword of the built-in flow answers and of the products, in the
- * database: the seeded ones (source 'bawaan', from src/seeds.js) and the
- * ones the team adds in "Latih bot" or "Produk" (source 'tim'). All of them
- * can be edited or deleted; nothing here is fixed in code any more.
- *
- * A keyword points at an intent (e.g. "contoh desain" -> design_reference)
- * or at a product ("kaos panitia" -> kaos). It never changes what the bot
- * says. Question-and-answer topics (Lokasi, Pengiriman, ...) are answer
- * patterns with their own keywords (patterns.js).
- */
 
 export { cleanPhrase };
 
-// Intents a phrase may be taught; the rest are not keyword-shaped or are patterns.
 export const TEACHABLE = ['product', 'size_chart', 'design_reference', 'no_reference', 'has_reference', 'quantity', 'greeting', 'ask_first', 'ack', 'price', 'human', 'about_bot', 'cs_question'];
 
 let cache = null;
@@ -26,7 +14,6 @@ const forget = () => {
     cache = null;
 };
 onProductsChanged(forget);
-// A dictionary edit re-stores every keyword (Kamus).
 onWordsChanged(forget);
 
 export function customKeywords() {
@@ -56,7 +43,6 @@ export function addKeyword({ phrase, intent, product = null }) {
     return clean;
 }
 
-/** Edits a keyword (bawaan or tim): its wording, and what it points at. */
 export function updateKeyword(id, { phrase, intent, product = null }) {
     const row = get('SELECT * FROM custom_keywords WHERE id = ?', [Number(id)]) ?? fail('Kata kunci tidak ditemukan', 404);
     const clean = phrase === undefined ? row.phrase : cleanPhrase(phrase);
@@ -68,7 +54,6 @@ export function updateKeyword(id, { phrase, intent, product = null }) {
     if (target === 'product' && !productKeys().includes(targetProduct)) fail('Pilih produknya');
     if (get('SELECT 1 FROM custom_keywords WHERE phrase = ? AND id <> ?', [clean, row.id])) fail(`"${clean}" sudah ada`);
 
-    // A built-in phrase the team reworded or repointed is never seeded back.
     if (row.source === 'bawaan' && (clean !== row.phrase || target !== row.intent)) rememberRemoved(db, 'keyword', row.phrase);
 
     run('UPDATE custom_keywords SET phrase = ?, intent = ?, product = ? WHERE id = ?', [clean, target, targetProduct, row.id]);
@@ -85,5 +70,4 @@ export function removeKeyword(id) {
     forget();
 }
 
-/** For tests and imports that write through SQL. */
 export const forgetKeywords = forget;

@@ -19,8 +19,6 @@ export const completeIncoming = (sessionKey, ids = []) => {
 export const cancelIncoming = (sessionKey, jid) => run('DELETE FROM incoming_queue WHERE session_key = ? AND jid = ?', [sessionKey, jid]);
 export const inboxExpired = (row, at = Date.now()) => at - Date.parse(row.created_at.replace(' ', 'T') + 'Z') >= 15 * 60000 || row.attempts >= 5;
 export const beginIncoming = (sessionKey, ids) => {
-    // Count before work starts, so repeated hard crashes cannot replay a
-    // poison input forever without ever reaching the retry limit.
     for (const id of ids) run('UPDATE incoming_queue SET attempts = attempts + 1 WHERE session_key = ? AND message_id = ?', [sessionKey, id]);
 };
 export function deferIncoming(sessionKey, ids, error, retryAfterMs = 0) {

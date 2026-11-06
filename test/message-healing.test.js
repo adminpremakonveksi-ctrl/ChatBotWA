@@ -13,7 +13,7 @@ import { proto } from 'baileys';
 
 const failure = (id = 'A523784B5DB48CEEF1B02E0B05F82AFC') => ({
     key: { remoteJid: '255086848700630@lid', fromMe: true, id },
-    err: Object.assign(new Error('Invalid PreKey ID'), { name: 'PreKeyError' }),
+    err: Object.assign(new Error('Invalid PreKey ID'), { name: 'PreKeyError', senderJid: '6281999911895:0@s.whatsapp.net' }),
 });
 function fixture(t, over = {}) {
     let time = 0, saved = null, reconnects = 0;
@@ -122,6 +122,7 @@ test('stop while key refresh is in progress prevents resend or reconnect afterwa
     f.healing.failed(failure());
     f.advance(120000);
     const work = f.healing.tick();
+    await Promise.resolve();
     f.healing.stop();
     finish();
     await work;
@@ -136,8 +137,9 @@ test('the five-minute alert still fires while a repair network request is stalle
     f.healing.failed(failure());
     f.advance(30000);
     const work = f.healing.tick();
+    await Promise.resolve();
     f.advance(5 * 60000);
-    f.healing.tick(); // Deliberately not awaited: the first network request is stalled.
+    f.healing.tick();
     assert.equal(f.logs.filter((l) => l[0] === 'warn').length, 1);
     f.healing.stop();
     finish();
@@ -163,11 +165,13 @@ test('stalled repair is replaced on a fresh connection and an old promise cannot
     f.healing.failed(failure());
     f.advance(30000);
     const first = f.healing.tick();
+    await Promise.resolve();
     f.advance(90000);
     f.healing.tick();
     assert.equal(f.reconnects(), 1);
     current = { requestPlaceholderResend: () => new Promise((resolve) => { finishNew = resolve; }) };
     const second = f.healing.tick();
+    await Promise.resolve();
     finishOld();
     await first;
     assert.equal(f.healing.working, second);
@@ -245,7 +249,7 @@ test('SQLite key writes roll back the whole batch on failure, preserving prekeys
     } finally { db.exec('DROP TRIGGER fail_auth_write'); }
 });
 
-test('an unreadable phone message holds that customer only briefly, then the bot answers (91 stuck, 2026-11-02)', (t) => {
+test('the temporary unreadable-message hold ends after three minutes', (t) => {
     const f = fixture(t);
     f.healing.failed(failure());
     assert.equal(f.healing.waitingForOwn(failure().key.remoteJid), true, 'held while a resend may still come');
@@ -270,7 +274,6 @@ test('messages the phone never resends are released after 30 minutes and reporte
     assert.deepEqual(reports[0][1].customerChats, ['628111@s.whatsapp.net']);
     assert.match(reports[0][1].err.message, /Invalid PreKey ID/, 'raw error kept');
 
-    // More released within the hour wait for the next report, together.
     f.healing.failed(failure('LATER'));
     f.advance(2 * 60 * 60000);
     await f.healing.tick();
@@ -295,18 +298,16 @@ test('every phone message unreadable: the bot renews its session with the phone 
     assert.equal(f.healing.status().needsRelink, false);
     assert.equal(said().length, 0, 'no pop-up while it repairs itself');
 
-    // Repaired: a readable message from the phone ends it, nothing for a person to do.
-    f.healing.received({ id: 'OK', fromMe: true, remoteJid: 'x@lid' });
+    f.healing.received({ id: 'OWN0', fromMe: true, remoteJid: 'x@lid' });
     assert.equal(f.healing.status().ownSessionBroken, false);
 
-    // Never repaired: after 30 minutes and two renewals, one actionable alert, kept across restarts.
     f.advance(1000);
     for (let i = 0; i < 5; i++) f.healing.failed(failure(`AGAIN${i}`));
-    for (let i = 0; i < 40; i++) { f.advance(60000); await f.healing.tick(); }
+    for (let i = 0; i < 40; i++) { f.advance(60000); f.healing.failed(failure(`CONTINUING${i}`)); await f.healing.tick(); }
     assert.ok(f.calls.filter((c) => c[0] === 'sessions').length >= 3);
     assert.equal(f.healing.status().needsRelink, true);
-    assert.equal(said().filter((l) => /tidak cocok/.test(l[2])).length, 1);
-    assert.match(said().find((l) => /tidak cocok/.test(l[2]))[2], /perbaikan otomatis 30 menit belum berhasil[\s\S]*Scan ulang/);
+    assert.equal(said().filter((l) => /Pemulihan sesi HP utama/.test(l[2])).length, 1);
+    assert.match(said().find((l) => /Pemulihan sesi HP utama/.test(l[2]))[2], /belum berhasil setelah 30 menit[\s\S]*Scan ulang menjadi pilihan terakhir/);
     assert.equal(new MessageHealing(f.options).status().needsRelink, true);
 });
 
@@ -324,7 +325,7 @@ test('the sender device is recorded: the shop phone (device 0) and another linke
     const { deviceOfJid } = await import('../src/message-healing.js');
     assert.equal(deviceOfJid('6281999911895@s.whatsapp.net'), 0);
     assert.equal(deviceOfJid('62702630207741:47@lid'), 47);
-    assert.equal(deviceOfJid(undefined), 0);
+    assert.equal(deviceOfJid(undefined), null);
 
     const f = fixture(t);
     const from = (id, sender) => ({ key: { remoteJid: 'cust@lid', fromMe: true, id }, err: Object.assign(new Error('No matching sessions found for message'), { senderJid: sender, e2eType: 'msg' }) });
@@ -338,14 +339,12 @@ test('the sender device is recorded: the shop phone (device 0) and another linke
     assert.equal(f.saved().pending[0].error.e2eType, 'msg');
     const alert = f.logs.find((l) => l[0] === 'warn' && !l[1].quiet);
     assert.match(alert[2], /perangkat tertaut lain \(nomor perangkat 47\)[\s\S]*dipakai CS, biarkan saja/);
-    assert.doesNotMatch(alert[2], /lepas/i, 'the CS devices must not be unlinked');
-    // Once a day, not every ten minutes: it is a note.
+    assert.match(alert[2], /jangan dilepas/i, 'the CS devices must stay linked');
     f.advance(30 * 60000);
     await f.healing.tick();
     assert.equal(f.logs.filter((l) => l[0] === 'warn' && !l[1].quiet && /perangkat tertaut lain/.test(l[2])).length, 1);
     assert.deepEqual(alert[1].otherDevices, { 47: 5 });
 
-    // The same errors from the phone itself (device 0) are the phone's problem, not another device's.
     const g = fixture(t);
     for (let i = 0; i < 5; i++) g.healing.failed(from(`PH${i}`, '62702630207741:0@lid'));
     assert.deepEqual(g.healing.status().otherDevices, {});
@@ -360,14 +359,14 @@ test('the decrypt wrapper tags the error with the sender address and encryption 
     );
 });
 
-test('a message sent as OUR OWN device number means a second copy shares this link, not "another device" (2026-11-02, device 66)', async (t) => {
+test('a message sent as our device number needs diagnosis and does not prove a second bot', async (t) => {
     const { senderKind } = await import('../src/message-healing.js');
     const p = (sender) => ({ key: { fromMe: true, id: 'x' }, error: { sender } });
     assert.equal(senderKind(p('28067997159547:66@lid'), 66), 'self');
     assert.equal(senderKind(p('28067997159547:66@lid'), 59), 'other');
     assert.equal(senderKind(p('28067997159547:66@lid'), null), 'other', 'own device unknown: not claimed to be ours');
     assert.equal(senderKind(p('28067997159547@lid'), 66), 'phone');
-    assert.equal(senderKind(p(undefined), 66), 'phone');
+    assert.equal(senderKind(p(undefined), 66), 'unknown');
     assert.equal(senderKind({ key: { fromMe: false }, error: {} }, 66), null);
 
     const f = fixture(t, { ownDevice: () => 66 });
@@ -380,7 +379,7 @@ test('a message sent as OUR OWN device number means a second copy shares this li
     assert.deepEqual(f.healing.status().otherDevices, {}, 'not blamed on a device that is not there');
     assert.equal(f.healing.status().ownSessionBroken, false);
     const alert = f.logs.find((l) => l[0] === 'warn' && !l[1].quiet);
-    assert.match(alert[2], /perangkat bot ini sendiri \(nomor perangkat 66\)[\s\S]*salinan bot lain[\s\S]*Scan ulang/);
+    assert.match(alert[2], /perangkat bot ini sendiri \(nomor perangkat 66\)[\s\S]*belum membuktikan ada salinan bot lain/);
     assert.equal(alert[1].ownDevice, 66);
     assert.equal(alert[1].err.sender, '28067997159547:66@lid', 'raw detail kept');
 });
@@ -394,11 +393,9 @@ test('a message that already arrived readable and is delivered again is not a fa
     assert.equal(f.healing.status().pending, 0, 'not queued, nothing to repair or release');
     assert.equal(f.logs.filter((l) => l[0] === 'warn').length, 0);
 
-    // A message that never arrived readable is still tracked.
     assert.equal(f.healing.failed({ ...dup, key: { ...dup.key, id: 'NEVER' } }), true);
     assert.equal(f.healing.status().pending, 1);
 
-    // The memory is bounded.
     for (let i = 0; i < 5200; i++) f.healing.received({ id: `M${i}` });
     assert.ok(f.healing.seen.size <= 5000);
 });
@@ -427,7 +424,7 @@ test('a new connection is only forced for messages it can fix: not for another d
 });
 
 test('a failure says which address has a stored session: LID, number, or neither (the cause of "No session record")', async (t) => {
-    const stored = { '628111': true }; // a session exists under the number's address only
+    const stored = { '628111': true };
     const repository = {
         decryptMessage: async () => { throw new Error('No session record'); },
         jidToSignalProtocolAddress: (jid) => jid.split('@')[0].split(':')[0],
@@ -465,7 +462,6 @@ test('a message read before a restart and redelivered after it is a duplicate, n
     const { markSeen, wasSeen, prune } = await import('../src/bot/store.js');
     const { run } = await import('../src/db.js');
 
-    // The database remembers; the first process "read" the message, a new process has an empty memory.
     const store = { wasSeen: (id) => wasSeen('utama', id), markSeen: (id) => markSeen('utama', id) };
     const before = fixture(t, store);
     before.healing.received({ id: 'READ-BEFORE-RESTART', fromMe: true, remoteJid: 'c@lid' });
@@ -478,16 +474,13 @@ test('a message read before a restart and redelivered after it is a duplicate, n
     assert.equal(after.healing.status().pending, 0, 'not queued, not released, not reported');
     assert.equal(after.logs.filter((l) => l[0] === 'warn').length, 0);
 
-    // One that never arrived readable is still tracked.
     after.healing.failed({ ...dup, key: { ...dup.key, id: 'NEVER-READ' } });
     assert.equal(after.healing.status().pending, 1);
 
-    // A week later it is forgotten (the table does not grow forever).
     run(`UPDATE seen_messages SET seen_at = datetime('now', '-8 days') WHERE message_id = 'READ-BEFORE-RESTART'`);
     prune(90);
     assert.equal(wasSeen('utama', 'READ-BEFORE-RESTART'), false);
 
-    // A database that cannot be read must not stop the bot from working.
     const broken = fixture(t, { wasSeen: () => { throw new Error('disk'); }, markSeen: () => { throw new Error('disk'); } });
     assert.doesNotThrow(() => broken.healing.received({ id: 'X' }));
     assert.equal(broken.healing.failed({ ...dup, key: { ...dup.key, id: 'Y' } }), true);

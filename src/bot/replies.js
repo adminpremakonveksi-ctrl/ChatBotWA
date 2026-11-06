@@ -2,16 +2,6 @@ import { config } from '../config.js';
 import { all, run, setSetting } from '../db.js';
 import { listProducts } from './products.js';
 
-/**
- * Every sentence the bot can send. The defaults are copied word for word from
- * SPEK-CHATBOT.md; the team may change any of them from the console
- * ("Template balasan"). Either way the bot sends fixed text: AI only picks
- * which template to send and never writes one.
- *
- * Placeholders: {bot} and {cs} everywhere, plus the ones a template lists in
- * `vars` ({nama}, {produk}). Do not "tidy" the default wording here; it is
- * the client's spec and the "Kembalikan ke naskah asli" target.
- */
 export const TEMPLATES = {
     greetKnown: {
         group: 'Sapaan',
@@ -22,8 +12,6 @@ export const TEMPLATES = {
             'Halo Kak {nama}, terima kasih sudah menghubungi Prema Konveksi. Sembari menunggu CS {cs} online, izinkan saya {bot} selaku AI Agent untuk membantu kakak ya.\n\n' +
             'Kak {nama} mau informasi tentang produk apa nih? Kami siap bantu 😉',
     },
-    // The shop's own WhatsApp Business Salam, as the bot's first message. Not in
-    // the spec; the client asked for it. Empty = the spec's [2] below.
     welcome: {
         group: 'Sapaan',
         label: 'Salam pembuka (menggantikan [2])',
@@ -85,7 +73,6 @@ export const TEMPLATES = {
         label: '[5] Minta jumlah, setelah katalog',
         when: 'Setelah katalog produk ber-price list (jersey, ID card, dll) dikirim. Belum ada obrolan desain, jadi tanpa kalimat "desainnya akan kami cek".',
         vars: [],
-        // The second paragraph of [5], word for word.
         text: 'Kalau perihal jumlah pemesanannya, rencana kakak mau bikin berapa produk nih?',
     },
     portfolio: {
@@ -138,8 +125,6 @@ export const TEMPLATES = {
         text: '',
     },
 
-    // Not in the spec: written for gaps the spec leaves (customers who only want
-    // to ask, price without a product). Plain and editable; the team owns them.
     askFirst: {
         group: 'Pertanyaan umum',
         label: 'Mau tanya-tanya dulu',
@@ -160,7 +145,6 @@ export const TEMPLATES = {
         label: 'Belum paham, tanya ulang',
         when: 'Pesan yang tidak dipahami bot. Bot menanyakan ulang dulu; baru diserahkan ke CS setelah beberapa kali berturut-turut (atur jumlahnya di Pengaturan).',
         vars: [],
-        // Versions in turn (1st, 2nd, 3rd miss), separated by a line with ---.
         text:
             'Maaf kak, {bot} belum paham maksudnya 🙏 Boleh dijelaskan lagi dengan kalimat lain? Misalnya mau tanya produk, harga, ukuran, lokasi, atau pengiriman 😊\n---\n' +
             'Mohon maaf kak, {bot} masih kurang menangkap maksudnya 🙏 Boleh diceritakan lagi kakak mau tanya atau pesan apa?\n---\n' +
@@ -269,7 +253,6 @@ const MAX_LENGTH = 3000;
 
 let overrides = null;
 
-/** Team edits, keyed by template; loaded once and refreshed on every save. */
 const edited = () => {
     overrides ??= new Map(
         all(`SELECT "key", value FROM settings WHERE "key" LIKE 'reply:%'`).map((row) => [row.key.slice(6), row.value]),
@@ -278,17 +261,14 @@ const edited = () => {
     return overrides;
 };
 
-/** The text a template currently has (team edit, or the spec default). */
 export function templateText(key) {
     if (key === 'jerseyPromo' && !edited().has(key)) {
-        // Promo text set earlier in Pengaturan (before templates were editable).
         return config.bot.jerseyPromo || '';
     }
 
     return edited().get(key) ?? TEMPLATES[key].text;
 }
 
-/** Fills a team-written text: {bot} {cs} {nama}; an unknown name becomes "" ("Halo Kak {nama}" -> "Halo Kak"). */
 export function fillText(text, vars = {}) {
     const values = { bot: config.bot.botName, cs: config.bot.csName, nama: '', ...vars };
 
@@ -298,13 +278,6 @@ export function fillText(text, vars = {}) {
         .replace(/[ \t]{2,}/g, ' ');
 }
 
-/** Fills {bot}, {cs}, {nama}, {produk}. Null for an empty optional template (step skipped). */
-/**
- * Fills {bot}, {cs}, {nama}, {produk}. Null for an empty optional template (step skipped).
- * A template may hold several versions separated by a line with --- (so the
- * bot does not repeat itself word for word): `version` picks one in turn,
- * otherwise one is picked at random.
- */
 const VERSION_LINE = /\n[ \t]*---[ \t]*\n/;
 
 export function render(key, vars = {}, version = null) {
@@ -312,7 +285,6 @@ export function render(key, vars = {}, version = null) {
 
     if (!text) return null;
 
-    // Exactly "---" on its own line; a longer line of dashes ("-------" in the Salam) is part of the text.
     const versions = text.split(VERSION_LINE).map((v) => v.trim()).filter(Boolean);
     const chosen = versions[version == null ? Math.floor(Math.random() * versions.length) : version % versions.length] ?? text;
     const values = { bot: config.bot.botName, cs: config.bot.csName, ...vars };
@@ -320,7 +292,6 @@ export function render(key, vars = {}, version = null) {
     return chosen.replace(/\{(\w+)\}/g, (match, name) => (values[name] != null ? String(values[name]) : match));
 }
 
-/** Every version of a template, filled ("belum paham" has several). */
 export const renderAll = (key, vars = {}) => {
     const text = templateText(key) ?? '';
     const count = text.split(VERSION_LINE).filter((v) => v.trim()).length || 1;
@@ -332,7 +303,6 @@ const fail = (message) => {
     throw Object.assign(new Error(message), { statusCode: 422 });
 };
 
-/** Saves a team edit after checking it can always be filled in. */
 export function updateTemplate(key, value) {
     const template = TEMPLATES[key] ?? fail('Template tidak dikenal');
     const text = String(value ?? '').replace(/\r\n/g, '\n').trim();
@@ -358,7 +328,6 @@ export function resetTemplate(key) {
     overrides = null;
 }
 
-/** Everything the console's "Template balasan" page shows. */
 export function listTemplates() {
     return Object.entries(TEMPLATES).map(([key, t]) => ({
         key,
@@ -373,17 +342,14 @@ export function listTemplates() {
     }));
 }
 
-/** "Kaos, Jersey, PDL dan Topi": every product on the Produk page, in its order. */
 export function productListText() {
     const names = listProducts().map((p) => p.name);
 
     return names.length > 1 ? `${names.slice(0, -1).join(', ')} dan ${names.at(-1)}` : names[0] ?? 'berbagai produk konveksi';
 }
 
-/** The engine's view: one function per bubble, same names as before. */
 export const replies = {
     greetKnown: (nama) => render('greetKnown', { nama }),
-    // The team's Salam when set, else the spec's [2].
     greetUnknown: () => render('welcome') ?? render('greetUnknown'),
     afterIntro: (nama) => render('afterIntro', { nama }),
     introAgain: (nama) => render('introAgain', { nama }),
@@ -396,11 +362,9 @@ export const replies = {
     jerseyTemplates: () => render('jerseyTemplates'),
     waitForCs: () => render('waitForCs'),
     handoverNotice: () => render('handoverNotice'),
-    // The n-th version, so a second "belum paham" is worded differently.
     clarify: (n = 0) => render('clarify', {}, n),
     isClarify: (text) => renderAll('clarify').includes(text),
     sizeChartMissing: (produk) => render('sizeChartMissing', { produk }),
-    // The products from the Produk page, so a new one is named without editing the template.
     productUnknown: () => render('productUnknown', { daftar_produk: productListText() }),
     aboutBot: () => render('aboutBot'),
     csQuestion: () => render('csQuestion'),

@@ -19,7 +19,6 @@ test('the WhatsApp Business Salam is not CS typing: no handover, no second greet
     const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: { links: () => [], files: () => [], has: () => false }, isActive: () => true, debounceMs: 5 });
     const wa = { newMessageId: () => `A${sent.length}`, send: async (jid, action) => sent.push(action.text) };
 
-    // The customer writes; WhatsApp Business answers with its Salam from our number.
     bot.onIncoming('utama', wa, { jid: JID, id: 'c1', text: 'halo kak' });
     bot.onOwnMessage('utama', { jid: JID, id: 'wa-salam', text: DEFAULT_AUTO_MESSAGES[0].replace('{bot}', 'ANGGUN') });
     await new Promise((r) => setTimeout(r, 20));
@@ -33,14 +32,12 @@ test('the WhatsApp Business Salam is not CS typing: no handover, no second greet
     await bot.drain();
     assert.deepEqual(sent, [replies.afterIntro('Budi')], 'the bot carries on with [3]');
 
-    // CS really typing still hands over.
     bot.onOwnMessage('utama', { jid: JID, id: 'cs1', text: 'Halo kak Budi, saya bantu ya' });
     assert.equal(store.loadConversation('utama', JID).step, 'handed_over');
 });
 
 test('the team edits the list; an edited Salam is still recognised from its start', () => {
     assert.ok(isAutoMessage(DEFAULT_AUTO_MESSAGES[0].replace('{bot}', 'Mawar')));
-    // The Salam still saved in the WhatsApp app with the old name is recognised too.
     assert.ok(isAutoMessage(DEFAULT_AUTO_MESSAGES[0].replace('{bot}', 'ANGGUN')));
     assert.ok(!isAutoMessage('ok kak'));
 
@@ -57,7 +54,6 @@ test('Salam then "Pesan tidak di tempat": neither is CS, the bot carries on (202
     const bot = new Bot({ classify: async (input) => classifyWithRules(input), media: { links: () => [], files: () => [], has: () => false }, isActive: () => true, debounceMs: 5 });
     const wa = { newMessageId: () => `B${sent.length}`, send: async (jid, action) => sent.push(action.text) };
 
-    // As WhatsApp delivers them: formatting marks gone, the name typed in the app.
     const salam = DEFAULT_AUTO_MESSAGES[0].replace('{bot}', 'ANGGUN').replace(/[*_]/g, '');
     const away = 'Terima kasih telah menghubungi Prema Konveksi. Mohon menunggu ya kak, pesan kakak akan segera kami respon ketika customer service online kembali.\n\nJam kerja customer service (fast response), adalah pukul 08.30 sd 17.00 😇🙏';
 
@@ -92,7 +88,6 @@ test('the Salam\'s own "-------" line does not cut it in two when the list is sa
     setAutoMessages(DEFAULT_AUTO_MESSAGES.join('\n---\n'));
     assert.equal(autoMessages().length, 2, 'Salam and away message, whole');
 
-    // A list saved before the fix, the Salam already in two pieces: still recognised.
     const [head, tail] = DEFAULT_AUTO_MESSAGES[0].split('-------');
     setAutoMessages([head, tail, DEFAULT_AUTO_MESSAGES[1]].join('\n---\n'));
     assert.ok(isAutoMessage(DEFAULT_AUTO_MESSAGES[0].replace('{bot}', 'ANGGUN').replace(/[*_]/g, '')));
@@ -100,7 +95,6 @@ test('the Salam\'s own "-------" line does not cut it in two when the list is sa
     setAutoMessages(DEFAULT_AUTO_MESSAGES.join('\n---\n'));
 });
 
-// Exactly as WhatsApp Business sends them on the shop's phone (2026-10-19).
 const PHONE_SALAM = 'Halo kak 👋🏻! Saya ANGGUN, Narahubung Prema Konveksi. Sebelumnya ini dengan kak siapa dan darimana ya? \n\nRencana mau pesan/tanya-tanya produk apa nih?\n- Kaos Sablon/Polo\n- Kemeja PDH/PDL\n- Rompi\n- Jaket\n- Jersey\n- Lanyard & ID Card\n- Jas Almamater\n- Produk lainnya\n\n--------\n\nno call, text only\n\nnb. Khusus hari MINGGU pelayanan melalui CS sedikit slow response, terima kasih';
 const PHONE_AWAY = 'Terima kasih telah menghubungi Prema Konveksi. Mohon menunggu ya kak, pesan kakak akan segera kami respon ketika customer service online kembali.\n\nJam kerja customer service (fast response), adalah pukul 08.30 sd 17.00 😇🙏';
 
@@ -111,7 +105,6 @@ test('a chat muted by an automatic message before the fix goes back to the bot; 
     const A = '62811@s.whatsapp.net';
     const B = '62822@s.whatsapp.net';
 
-    // As the old version left them: A muted by the away message, B by CS really typing.
     for (const [jid, text] of [[A, PHONE_AWAY], [B, 'Halo kak, saya Anggun. Mau berapa pcs?']]) {
         store.logMessage({ sessionKey: 'utama', jid, direction: 'cs', text });
         store.markHandover('utama', jid, 'CS membalas');
@@ -128,15 +121,13 @@ test('migration 015: a list saved from the console keeps the away message across
     const { migrationIds, runMigrations } = await import('../src/migrations.js');
     assert.ok(migrationIds().includes('015_away_message_setting'));
 
-    // Saved by the team before the update: the Salam only.
     updateSettings({ autoMessages: PHONE_SALAM });
     assert.ok(!isAutoMessage(PHONE_AWAY));
 
-    // The update: 013 and 015 run on this database.
     run(`DELETE FROM migrations WHERE id IN ('013_away_message', '015_away_message_setting')`);
     runMigrations(db);
 
-    loadSettings(); // what a restart does
+    loadSettings();
     assert.ok(isAutoMessage(PHONE_AWAY), 'the away message survives the restart');
     assert.ok(isAutoMessage(PHONE_SALAM), 'and the Salam, "--------" and all');
     setAutoMessages(DEFAULT_AUTO_MESSAGES.join('\n---\n'));
