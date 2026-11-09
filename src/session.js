@@ -17,17 +17,20 @@ import makeWASocket, {
 
 import { useSqliteAuthState } from './auth-state.js';
 import { recordSyncError, syncCatalog } from './bot/catalog.js';
-import { markHandover, markSeen, wasSeen } from './bot/store.js';
-import { fixMexNotifications, makePlaceholderCache, sessionHandledLog } from './baileys-fixes.js';
+import { logMessage, markHandover, markSeen, wasSeen } from './bot/store.js';
+import { isBotActive } from './bot/schedule.js';
+import { fixDeviceCacheNotifications, fixMexNotifications, makePlaceholderCache, sessionHandledLog } from './baileys-fixes.js';
 import { conversationJid, learnFromKey, setOwnIdentity, userOf, withLidFallback } from './lid.js';
 import { MIME } from './bot/media.js';
 import { config } from './config.js';
-import { getSetting, now, run, setSetting } from './db.js';
+import { db, getSetting, now, run, setSetting } from './db.js';
 import { logger } from './logger.js';
 import { MessageHealing } from './message-healing.js';
 import { incomingRows } from './inbox.js';
 import { withDeadline } from './deadline.js';
-import { pendingDeliveries, rememberRetryMessage, retryMessage } from './delivery.js';
+import { enqueueDelivery, pendingDeliveries, rememberRetryMessage, retryMessage } from './delivery.js';
+import { OutgoingMessages } from './outgoing-messages.js';
+import { fixOwnDeviceRetries } from './own-device-retry.js';
 
 const MAX_BACKOFF_MS = 60000;
 const RECONNECTS_BEFORE_ALERT = 3;
@@ -63,6 +66,7 @@ export class Session {
         this.bot = bot;
         this.id = row.id;
         this.key = row.key;
+        this.outgoing = new OutgoingMessages(row.key);
         this.label = row.label;
 
         this.socket = null;
@@ -157,6 +161,7 @@ export class Session {
                 return false;
             }
         });
+        const userDevicesCache = makePlaceholderCache(5 * 60000);
         const socket = this.makeSocket({
             version,
             auth: {
@@ -174,7 +179,9 @@ export class Session {
             shouldIgnoreJid: (jid) => ignoredJid(jid),
             placeholderResendCache: makePlaceholderCache(),
             msgRetryCounterCache: this.retryCounterCache,
+            userDevicesCache,
             getMessage: async (key) => retryMessage(this.key, key),
+            patchMessageBeforeSending: (message) => this.outgoing.prepare(message),
         });
 
         this.socket = socket;
@@ -195,12 +202,22 @@ export class Session {
         });
         this.#learnOwnLid(state.creds.me);
         fixMexNotifications(socket);
+        fixDeviceCacheNotifications(socket, userDevicesCache);
+        const isCurrent = () => !this.stopping && generation === this.generation && this.socket === socket;
+        fixOwnDeviceRetries(socket, {
+            getMessage: async (key) => retryMessage(this.key, key),
+            retry: (key, participant, count, message) => this.outgoing.retryOwnDevice(socket, key, participant, count, message, isCurrent),
+            cache: this.retryCounterCache,
+            log: this.log,
+            isCurrent,
+        });
 
         socket.ev.on('creds.update', () => {
             if (this.stopping || generation !== this.generation || this.socket !== socket) return;
             saveCreds().catch((error) => this.log.error({ err: error.message }, 'gagal menyimpan sesi WhatsApp'));
         });
         socket.ev.on('creds.update', (update) => {
+            if (this.stopping || generation !== this.generation || this.socket !== socket) return;
             if (update?.me) this.#learnOwnLid({ ...state.creds.me, ...update.me });
         });
         socket.ev.on('connection.update', (update) => {
@@ -424,12 +441,15 @@ export class Session {
         } catch {
         }
 
-        if (this.socket !== socket || this.state !== 'connected') throw new Error('Connection Closed');
-        if (this.healing.waitingForOwn(jid, conversationJid, (id) => this.bot.isBotMessage(id))) {
-            throw Object.assign(new Error('Menunggu pemulihan pesan dari perangkat toko'), { code: 'RECOVERY_PENDING' });
-        }
+        const canDeliver = () => {
+            if (this.socket !== socket || this.state !== 'connected') throw new Error('Connection Closed');
+            if (this.healing.waitingForOwn(jid, conversationJid, (id) => this.bot.isBotMessage(id))) {
+                throw Object.assign(new Error('Menunggu pemulihan pesan dari perangkat toko'), { code: 'RECOVERY_PENDING' });
+            }
+            return canSend();
+        };
         try {
-            const result = await withDeadline(() => canSend() ? socket.sendMessage(jid, Session.content(action), { messageId }) : undefined, 120000, 'WhatsApp send');
+            const result = await withDeadline(() => this.outgoing.send(socket, jid, Session.content(action), messageId, canDeliver), 120000, 'WhatsApp send');
             rememberRetryMessage(this.key, result);
         } catch (error) {
             if (this.socket === socket && /connection closed|timed? ?out|econnreset|enotfound/i.test(error.message)) socket.end(error);
@@ -633,9 +653,13 @@ export class Session {
         }
 
         const jid = Session.toJid(to);
-        const result = await this.socket.sendMessage(jid, { text });
-
-        return { id: result?.key?.id ?? null, to: jid, session: this.key };
+        const id = this.newMessageId();
+        db.transaction(() => {
+            logMessage({ sessionKey: this.key, jid, direction: 'out', waMessageId: id, text, intent: 'manual' });
+            enqueueDelivery(this.key, jid, { type: 'text', text }, id, 'manual', true);
+        })();
+        await this.bot.flushPending(this.key, this, jid);
+        return { id, to: jid, session: this.key };
     }
 
     async #setState(state, extra = {}) {

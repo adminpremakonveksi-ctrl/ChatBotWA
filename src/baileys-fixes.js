@@ -1,4 +1,6 @@
 
+import { jidDecode } from 'baileys';
+
 export const NON_CHANNEL_MEX = 'mex-update';
 
 export const isNonChannelMex = (node) =>
@@ -12,6 +14,20 @@ export function fixMexNotifications(socket) {
         if (isNonChannelMex(node)) node.attrs.type = NON_CHANNEL_MEX;
     });
 
+    return true;
+}
+
+export function fixDeviceCacheNotifications(socket, cache) {
+    if (typeof socket?.ws?.prependListener !== 'function' || typeof cache?.del !== 'function') return false;
+    socket.ws.prependListener('CB:notification', (node) => {
+        if (node?.attrs?.type !== 'devices' || !Array.isArray(node.content)) return;
+        const address = node.content.find((child) => child?.attrs?.jid)?.attrs.jid;
+        const notified = jidDecode(address)?.user;
+        if (!notified) return;
+        cache.del(notified);
+        const own = [socket.user?.id, socket.user?.lid].map((jid) => jidDecode(jid)?.user).filter(Boolean);
+        if (own.includes(notified)) for (const id of own) cache.del(id);
+    });
     return true;
 }
 

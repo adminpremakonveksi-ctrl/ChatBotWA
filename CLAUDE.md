@@ -60,6 +60,14 @@ Journal input and its log atomically before debounce/AI. Count attempts before e
 
 Allocate and log outgoing IDs before sending. Reuse IDs after reconnect/restart. Cancel customer replies older than fifteen minutes. Store original outgoing protobuf messages for seven days, including media keys, for retry requests.
 
+Save the prepared outgoing protobuf through patchMessageBeforeSending before encryption and network relay. A linked owner/admin device may request it before sendMessage returns. Use an AsyncLocalStorage context per send so parallel customer messages cannot overwrite each other's retry data. Store the original message, not the deviceSentMessage wrapper used for own-device copies. Retry prepared messages using relayMessage with the same ID, media keys, and a refreshed device list; do not regenerate media for an existing ID. Recheck takeover while media is being prepared.
+
+Prepared payloads are immutable per session/message ID; later echoes cannot replace their keys. Retry lookup verifies the original conversation, accepting learned LID/phone aliases. Retention must not prune payloads still in the durable outgoing queue. sendText must use the same logged, durable sender as other outgoing messages.
+
+Baileys 6.7.24's direct retry relay treats own LID participants as non-self when compared with the own phone ID. The application intercepts only retry receipts from its authenticated own LID to direct chats. Route the participant through the authenticated own phone alias, preserving device number, so Baileys generates deviceSentMessage and the recipient attribute correctly. Renew the actual encryption session: own LID for LID conversations, own phone alias for phone conversations. Acknowledge the original unmodified LID receipt. Serialize retries per physical device, coalesce simultaneous duplicates, cap attempts at five, and bound network operations. Customer receipts, PN receipts, groups, and normal acknowledgements keep their original handling. Never infer an alias from an unrelated sender.
+
+Supply a per-connection device cache with the original five-minute TTL and invalidate affected users on devices notifications. Invalidate both authenticated own aliases when the shop's device list changes. Stopped sockets cannot change own identity mappings. Late catch-up messages from active hours must reach CS without aborting the rest of the batch.
+
 Use separate deadlines for AI, WhatsApp sends, handshake, and recovery. Late work cannot overwrite reset or newer recovery. Keep recap content and per-recipient IDs until all recipients have been served.
 
 Daily backup/cleanup retries missed work at startup. Defaults: fourteen backup copies and ninety days of history. Updates preserve data/, media/, logs/, and .env.
@@ -75,6 +83,8 @@ Daily backup/cleanup retries missed work at startup. Defaults: fourteen backup c
 | src/lid.js, src/baileys-fixes.js | Address mapping, fallback, compatibility wrappers |
 | src/bot/bot.js, src/bot/chat.js | Per-chat queues, takeover, guarded AI conversation |
 | src/inbox.js, src/delivery.js, src/bot/store.js | Durable work, conversations, history |
+| src/outgoing-messages.js | Per-send prepared protobuf persistence and stable outgoing retries |
+| src/own-device-retry.js | Bounded own-LID retry routing, original acknowledgements, per-device serialization |
 | src/bot/catalog.js, src/bot/media.js | Catalog and uploaded assets |
 | src/db.js, src/migrations.js | Initialization and in-place migrations |
 | src/settings.js, src/ai-settings.js | Editable runtime configuration |
@@ -92,6 +102,9 @@ Keep exactly two client batch files: Mulai ChatBot Prema.bat and Update ChatBot 
 - npm.cmd test: full suite using isolated storage.
 - node --test test/multidevice.test.js: focused simulations.
 - node --test test/runtime.test.js: HTTP dashboard and connected socket lifecycle using a simulated transport.
+- node --test test/outgoing-sync.test.js: early own-device retries, stable media/PDF keys, parallel sends, and cancellation during media preparation.
+- node --test test/own-device-retry.test.js: own-LID receipt routing, request isolation, retry budgets, deadlines, and acknowledgements.
+- test/baileys-relay-fixture.js executes the installed Baileys relay with simulated network/key storage under a VM, comparing baseline and corrected PN/LID routing for text, images, and PDFs. It does not modify node_modules or connect WhatsApp.
 - Integrity checks cover JavaScript/dashboard syntax, control characters, templates, seeds, and launcher encoding.
 - Windows tests exercise launcher/watchdog code against simulated process lists.
 - Simulation proves the tested behavior, not decryption on real client devices. Validate four-device operation on the client PC after installing the update.

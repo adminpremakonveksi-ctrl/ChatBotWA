@@ -11,7 +11,7 @@ import { get, getSetting, now, run, setSetting } from '../src/db.js';
 import { pendingDeliveries, rememberRetryMessage, retryMessage } from '../src/delivery.js';
 import { classifyWithRules } from '../src/bot/classify-rules.js';
 import { makePlaceholderCache } from '../src/baileys-fixes.js';
-import { withLidFallback } from '../src/lid.js';
+import { conversationJid, withLidFallback } from '../src/lid.js';
 import { recap } from '../src/maintenance.js';
 import * as store from '../src/bot/store.js';
 
@@ -300,4 +300,37 @@ test('duplicate ciphertext across reconnects reuses the successful decrypt inste
     await assert.rejects(first.decryptMessage({ ...args, ciphertext: Buffer.from('other') }), /Key used/);
     await assert.rejects(first.decryptMessage({ ...args, ciphertext: Buffer.from('other') }), /Key used/);
     assert.equal(calls, 3, 'failures are never cached, allowing WhatsApp to recover with a fresh session');
+});
+
+test('old catch-up messages from active hours are recorded for CS without aborting their batch', async () => {
+    const { session, sockets, bot } = fakeSession();
+    const oldForce = config.bot.forceMode;
+    config.bot.forceMode = 'always';
+    const missed = [], incoming = [];
+    bot.onMissedIncoming = (key, message) => missed.push(message.id);
+    bot.onIncoming = (key, transport, message) => incoming.push(message.id);
+    try {
+        await session.start();
+        sockets[0].ev.emit('messages.upsert', { type: 'append', messages: [
+            { key: { id: 'late-for-cs', remoteJid: '628111111111@s.whatsapp.net', fromMe: false }, message: { conversation: 'Pesan saat offline' }, messageTimestamp: Math.floor(Date.now() / 1000) - 3600 },
+            { key: { id: 'recent-in-same-batch', remoteJid: '628111111111@s.whatsapp.net', fromMe: false }, message: { conversation: 'Pesan baru' }, messageTimestamp: Math.floor(Date.now() / 1000) },
+        ] });
+        await settle();
+        assert.deepEqual(missed, ['late-for-cs']);
+        assert.deepEqual(incoming, ['recent-in-same-batch']);
+    } finally { config.bot.forceMode = oldForce; await session.stop(); }
+});
+
+test('identity events from a stopped socket cannot change the current LID mapping', async () => {
+    const { session, sockets } = fakeSession();
+    try {
+        await session.start();
+        sockets[0].ev.emit('creds.update', { me: { id: '628999:1@s.whatsapp.net', lid: '733333333333:1@lid' } });
+        await settle();
+        assert.equal(conversationJid('733333333333@lid'), '628999@s.whatsapp.net');
+        await session.stop();
+        sockets[0].ev.emit('creds.update', { me: { id: '628888:1@s.whatsapp.net', lid: '733333333333:1@lid' } });
+        await settle();
+        assert.equal(conversationJid('733333333333@lid'), '628999@s.whatsapp.net');
+    } finally { await session.stop(); }
 });

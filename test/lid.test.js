@@ -151,7 +151,7 @@ test('our own LID is learnt when WhatsApp sends it after connecting, and is used
 
     setOwnIdentity({ id: '6281999911895:49@s.whatsapp.net' });
     const source = fs.readFileSync(new URL('../src/session.js', import.meta.url), 'utf8');
-    assert.match(source, /ev\.on\('creds\.update', \(update\) => \{\s*if \(update\?\.me\) this\.#learnOwnLid/);
+    assert.match(source, /ev\.on\('creds\.update', \(update\) => \{[\s\S]*?if \(update\?\.me\) this\.#learnOwnLid/);
     setOwnIdentity({ id: '6281999911895:49@s.whatsapp.net', lid: '28067997159547:49@lid' });
 
     run('DELETE FROM lid_map');

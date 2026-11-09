@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import test from 'node:test';
 
-import { NON_CHANNEL_MEX, fixMexNotifications, isNonChannelMex } from '../src/baileys-fixes.js';
+import { NON_CHANNEL_MEX, fixDeviceCacheNotifications, fixMexNotifications, isNonChannelMex, makePlaceholderCache } from '../src/baileys-fixes.js';
 
 const linkedProfiles = () => ({
     tag: 'notification',
@@ -34,6 +34,33 @@ test('a linked-profiles mex notification reaches Baileys under its own type; cha
 
 test('without a socket to fix nothing is changed', () => {
     assert.equal(fixMexNotifications({}), false);
+});
+
+test('device notifications invalidate both shop aliases without changing server notifications', () => {
+    const cache = makePlaceholderCache();
+    cache.set('628999999999', ['old admin']);
+    cache.set('999', ['old admin']);
+    cache.set('628111111111', ['customer']);
+    const socket = { ws: new EventEmitter(), user: { id: '628999999999:12@s.whatsapp.net', lid: '999:12@lid' } };
+    const node = { tag: 'notification', attrs: { type: 'devices' }, content: [{ tag: 'devices', attrs: { jid: '999@lid' }, content: [] }] };
+    const original = structuredClone(node);
+    assert.equal(fixDeviceCacheNotifications(socket, cache), true);
+    socket.ws.emit('CB:notification', node);
+    assert.equal(cache.get('628999999999'), undefined);
+    assert.equal(cache.get('999'), undefined);
+    assert.deepEqual(cache.get('628111111111'), ['customer']);
+    assert.deepEqual(node, original);
+});
+
+test('a customer device change invalidates only that customer cache', () => {
+    const cache = makePlaceholderCache();
+    const socket = { ws: new EventEmitter(), user: { id: '628999999999:12@s.whatsapp.net', lid: '999:12@lid' } };
+    cache.set('628999999999', ['owner']);
+    cache.set('628111111111', ['old customer device']);
+    fixDeviceCacheNotifications(socket, cache);
+    socket.ws.emit('CB:notification', { attrs: { type: 'devices' }, content: [{ attrs: { jid: '628111111111@s.whatsapp.net' } }] });
+    assert.equal(cache.get('628111111111'), undefined);
+    assert.deepEqual(cache.get('628999999999'), ['owner']);
 });
 
 test('the placeholder cache takes an empty key without throwing (NodeCache.del(null): "error in handling message", 2026-10-19)', async () => {
