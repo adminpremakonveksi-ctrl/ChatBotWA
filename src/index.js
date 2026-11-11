@@ -20,6 +20,7 @@ import { logger } from './logger.js';
 import { errorsSince, latestErrorId } from './errors.js';
 import { describeRequest, listActivity, recordActivity } from './activity.js';
 import { WORD_LISTS, addWord, removeWord, updateWord, wordRows } from './bot/words.js';
+import { chooseKey } from './ai-keys.js';
 import { aiSettings, listOllamaModels, loadAiSettings, updateAiSettings } from './ai-settings.js';
 import { classifyWithOllama } from './bot/classify-ollama.js';
 import { backup, buildRecap, sendTestRecap, startMaintenance } from './maintenance.js';
@@ -378,6 +379,11 @@ app.get('/settings', wrap(async (req, res) => {
 
 app.get('/ai', wrap(async (req, res) => res.json(aiSettings())));
 
+app.post('/ai/key/:slot/use', wrap(async (req, res) => {
+    chooseKey(req.params.slot);
+    res.json(aiSettings());
+}));
+
 app.put('/ai', wrap(async (req, res) => {
     const settings = updateAiSettings(req.body ?? {});
 
@@ -489,7 +495,7 @@ app.delete('/ai/scenarios/:id', wrap(async (req, res) => {
 }));
 
 app.post('/ai/scenarios/:id/run', wrap(async (req, res) => {
-    if (!aiProvider()) throw Object.assign(new Error('Isi dulu kunci API Ollama di Pengaturan > AI, lalu Simpan'), { statusCode: 422 });
+    if (!aiProvider()) throw Object.assign(new Error('Isi dulu kunci API Ollama di Atur AI, lalu Simpan'), { statusCode: 422 });
 
     res.json(await runScenario(Number(req.params.id), { media }));
 }));

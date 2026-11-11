@@ -78,6 +78,8 @@ export const config = {
 
     ollama: {
         apiKey: text('OLLAMA_API_KEY', text('API_URL_OLLAMA')),
+        extraKeys: [text('OLLAMA_API_KEY_2'), text('OLLAMA_API_KEY_3'), text('OLLAMA_API_KEY_4')],
+        keyCooldownMinutes: number('OLLAMA_KEY_COOLDOWN_MINUTES', 30),
         host: text('OLLAMA_HOST', 'https://ollama.com').replace(/\/+$/, ''),
         hostSet: Boolean(text('OLLAMA_HOST')),
         model: text('OLLAMA_MODEL', 'gemma4:31b'),

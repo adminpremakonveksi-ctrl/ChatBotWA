@@ -23,7 +23,7 @@ Dashboard: **http://127.0.0.1:3001/** di PC bot.
 | Pengetahuan | Informasi toko dan tanya-jawab yang menjadi sumber jawaban AI |
 | Sapaan & pesan | Kata pembuka, sapaan, pemberitahuan CS, serta petunjuk katalog dan size chart |
 | Promo | Tambah atau ubah promo resmi, pilih produk, aktif/nonaktif, tanggal mulai dan selesai |
-| Gaya bicara AI | Instruksi, gaya bahasa, contoh percakapan, model, koneksi Ollama, dan batas panggilan |
+| Atur AI | Instruksi, gaya bahasa, contoh percakapan, model, koneksi Ollama, dan batas panggilan |
 | Media | Unggah katalog, size chart, serta sinkronkan katalog WhatsApp Business |
 | Pengaturan | Nama bot/CS, jam aktif/libur, masa pengambilalihan CS, rekap pagi, pesan otomatis WA Business, dan backup |
 
@@ -51,7 +51,7 @@ diketahui, bot menanyakannya dahulu. Jika file belum tersedia, CS membantu.
    dependensi, lalu membuka dashboard.
 3. Tautkan nomor WhatsApp Business melalui **Perangkat tertaut → Tautkan perangkat**,
    lalu scan QR dari dashboard.
-4. Isi Pengetahuan dan Produk, atur koneksi di Gaya bicara AI, unggah Media,
+4. Isi Pengetahuan dan Produk, atur koneksi di Atur AI, unggah Media,
    lalu coba percakapan lewat Coba bot.
 5. Isi nomor penerima rekap dan folder backup di Pengaturan.
 
@@ -60,7 +60,7 @@ Setelah selesai, klik **Mulai ChatBot Prema.bat**. Pembaruan menjaga
 data/, media/, logs/, dan .env. Satu database hanya boleh digunakan satu proses bot.
 
 Ollama Cloud memakai OLLAMA_API_KEY; Ollama lokal memakai OLLAMA_HOST.
-Keduanya dapat diatur melalui Gaya bicara AI, tanpa mengedit berkas.
+Keduanya dapat diatur melalui Atur AI, tanpa mengedit berkas.
 AI yang gagal atau belum diatur tidak mengarang balasan pengganti; kendala
 ditampilkan di dashboard. Sapaan dan pengiriman size chart tetap dapat berjalan.
 

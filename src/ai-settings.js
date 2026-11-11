@@ -1,3 +1,4 @@
+import { currentKey, hasKeys, keySlots, keyStatus } from './ai-keys.js';
 import { config } from './config.js';
 import { DEFAULT_ANSWER_PROMPT, DEFAULT_OPENING_PROMPT } from './bot/ai-text.js';
 import { DEFAULT_CHAT_EXAMPLES, DEFAULT_CHAT_PROMPT } from './bot/chat.js';
@@ -6,6 +7,10 @@ import { getSetting, run, setSetting } from './db.js';
 
 const KEYS = {
     key: 'ai:ollama_key',
+    key2: 'ai:ollama_key_2',
+    key3: 'ai:ollama_key_3',
+    key4: 'ai:ollama_key_4',
+    keyCooldown: 'ai:key_cooldown_min',
     model: 'ai:ollama_model',
     host: 'ai:ollama_host',
     chatPrompt: 'ai:chat_prompt',
@@ -29,6 +34,8 @@ export function loadAiSettings() {
     const host = getSetting(KEYS.host);
 
     config.ollama.apiKey = key || fromEnv.apiKey;
+    config.ollama.extraKeys = [2, 3, 4].map((slot) => getSetting(KEYS[`key${slot}`]) || fromEnv.extraKeys?.[slot - 2] || '');
+    config.ollama.keyCooldownMinutes = Number(getSetting(KEYS.keyCooldown)) || fromEnv.keyCooldownMinutes;
     config.ollama.model = model || fromEnv.model;
     config.ollama.host = host || fromEnv.host;
     config.ollama.hostSet = Boolean(host) || fromEnv.hostSet;
@@ -47,13 +54,19 @@ export const DEFAULT_LIMITS = { perCustomer: 40, total: 60 };
 
 const mask = (key) => (key ? `${'•'.repeat(8)}${key.slice(-4)}` : '');
 
+const SLOT_NAMES = ['key', 'key2', 'key3', 'key4'];
+
+const keySource = (name, slotKey) => (getSetting(KEYS[name]) ? 'pengaturan' : slotKey ? '.env' : null);
+
 export function aiSettings() {
     const ownKey = getSetting(KEYS.key);
 
     return {
-        enabled: Boolean(config.ollama.apiKey || config.ollama.hostSet),
+        enabled: Boolean(hasKeys() || config.ollama.hostSet),
         keyMasked: mask(config.ollama.apiKey),
         keySource: ownKey ? 'pengaturan' : config.ollama.apiKey ? '.env' : null,
+        keys: keyStatus().map((entry) => ({ ...entry, masked: mask(keySlots()[entry.slot - 1]), source: keySource(SLOT_NAMES[entry.slot - 1], keySlots()[entry.slot - 1]) })),
+        keyCooldownMinutes: config.ollama.keyCooldownMinutes,
         model: config.ollama.model,
         host: config.ollama.host,
         hostSet: config.ollama.hostSet,
@@ -69,7 +82,19 @@ export function aiSettings() {
     };
 }
 
-export function updateAiSettings({ key, model, host, chatPrompt, chatExamples, openingPrompt, answerPrompt, perCustomer, total, timeoutSeconds } = {}) {
+const cleanKey = (value) => {
+    const text = String(value ?? '').trim();
+    if (text && (text.length < 10 || text.length > 300 || /\s/.test(text))) fail('Kunci API tidak valid: tempel kunci lengkap dari ollama.com (Settings > Keys)');
+
+    return text;
+};
+
+export function updateAiSettings({ key, key2, key3, key4, keyCooldownMinutes, model, host, chatPrompt, chatExamples, openingPrompt, answerPrompt, perCustomer, total, timeoutSeconds } = {}) {
+    const incoming = { key, key2, key3, key4 };
+    const nextKeys = SLOT_NAMES.map((name, index) => (incoming[name] === undefined ? keySlots()[index] : cleanKey(incoming[name])));
+    const used = nextKeys.filter(Boolean);
+    if (new Set(used).size !== used.length) fail('Kunci yang sama tidak boleh dipakai dua kali: isi tiap kolom dengan kunci yang berbeda');
+
     for (const [name, value, fallback] of [['chatPrompt', chatPrompt, DEFAULT_CHAT_PROMPT], ['chatExamples', chatExamples, DEFAULT_CHAT_EXAMPLES], ['openingPrompt', openingPrompt, DEFAULT_OPENING_PROMPT], ['answerPrompt', answerPrompt, DEFAULT_ANSWER_PROMPT]]) {
         if (value === undefined) continue;
         const text = String(value ?? '').replace(/\r\n/g, '\n').trim();
@@ -78,19 +103,18 @@ export function updateAiSettings({ key, model, host, chatPrompt, chatExamples, o
         else setSetting(KEYS[name], text);
     }
 
-    for (const [name, value, min, max, label] of [['perCustomer', perCustomer, 1, 500, 'Batas AI per pelanggan'], ['total', total, 1, 1000, 'Batas AI per menit'], ['timeout', timeoutSeconds, 10, 180, 'Batas waktu jawaban AI (detik)']]) {
+    for (const [name, value, min, max, label] of [['perCustomer', perCustomer, 1, 500, 'Batas AI per pelanggan'], ['total', total, 1, 1000, 'Batas AI per menit'], ['timeout', timeoutSeconds, 10, 180, 'Batas waktu jawaban AI (detik)'], ['keyCooldown', keyCooldownMinutes, 1, 720, 'Jeda kunci yang habis jatah (menit)']]) {
         if (value === undefined) continue;
         const n = Number(value);
         if (!Number.isInteger(n) || n < min || n > max) fail(`${label}: ${min}-${max}`);
         setSetting(KEYS[name], String(n));
     }
 
-    if (key !== undefined) {
-        const value = String(key ?? '').trim();
-        if (value && (value.length < 10 || value.length > 300 || /\s/.test(value))) fail('Kunci API tidak valid: tempel kunci lengkap dari ollama.com (Settings > Keys)');
-        if (value) setSetting(KEYS.key, value);
-        else run(`DELETE FROM settings WHERE "key" = ?`, [KEYS.key]);
-    }
+    SLOT_NAMES.forEach((name, index) => {
+        if (incoming[name] === undefined) return;
+        if (nextKeys[index]) setSetting(KEYS[name], nextKeys[index]);
+        else run(`DELETE FROM settings WHERE "key" = ?`, [KEYS[name]]);
+    });
 
     if (model !== undefined) {
         const value = String(model ?? '').trim();
@@ -120,7 +144,8 @@ export function updateAiSettings({ key, model, host, chatPrompt, chatExamples, o
 }
 
 export async function listOllamaModels({ fetchImpl = fetch } = {}) {
-    const headers = config.ollama.apiKey ? { Authorization: `Bearer ${config.ollama.apiKey}` } : {};
+    const key = currentKey();
+    const headers = key ? { Authorization: `Bearer ${key}` } : {};
     const response = await fetchImpl(`${config.ollama.host}/api/tags`, { headers, signal: AbortSignal.timeout(15000) });
     const body = await response.json().catch(() => ({}));
 

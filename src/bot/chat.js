@@ -480,7 +480,7 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
     }
 
     if (!ollamaEnabled()) {
-        logger.warn('mode AI aktif tetapi AI belum diatur (Pengaturan > AI): bot diam');
+        logger.warn('mode AI aktif tetapi AI belum diatur (Atur AI): bot diam');
         return { actions, patch, silent: 'AI belum diatur' };
     }
     if (!allowAiCall(input.who)) {

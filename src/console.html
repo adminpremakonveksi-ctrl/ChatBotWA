@@ -7,29 +7,29 @@
 <style>
 :root {
   color-scheme: light;
-  --bg:#f4f3ef; --panel:#ffffff; --panel-2:#f9f8f5; --ink:#1b1c1a; --ink-2:#55574f; --ink-3:#8a8c83;
-  --line:#e6e4dd; --line-2:#efede7; --accent:#1f6f5c; --accent-ink:#ffffff; --accent-soft:#e2efe9;
-  --series:#2a78d6; --series-wash:rgba(42,120,214,.10); --grid:#ecebe6; --surface:#ffffff;
-  --good:#0f8a3c; --good-soft:#e3f4e8; --warn:#9a6400; --warn-soft:#fbf0d9; --bad:#c23434; --bad-soft:#fbe5e3;
-  --chat-bg:#efeae2; --bubble-me:#d9fdd3; --bubble-them:#ffffff; --shadow:0 1px 2px rgba(20,20,10,.05), 0 4px 16px rgba(20,20,10,.04);
+  --bg:#f2ede3; --panel:#fffdf8; --panel-2:#f8f3e9; --ink:#1e1b15; --ink-2:#5b5547; --ink-3:#8c8576;
+  --line:#e4dccb; --line-2:#ece5d6; --accent:#0e7a58; --accent-ink:#ffffff; --accent-soft:#dcefe6;
+  --series:#0e7a58; --series-wash:rgba(14,122,88,.12); --grid:#e9e2d2; --surface:#fffdf8;
+  --good:#12823f; --good-soft:#dff1e3; --warn:#9a5f00; --warn-soft:#f9ecd0; --bad:#bf3131; --bad-soft:#f8e2de;
+  --chat-bg:#ece4d4; --bubble-me:#d9f3cf; --bubble-them:#fffdf8; --shadow:0 1px 0 rgba(255,255,255,.7) inset, 0 1px 2px rgba(70,50,20,.06), 0 14px 30px -18px rgba(70,50,20,.24);
 }
 @media (prefers-color-scheme: dark) {
   :root:where(:not([data-theme="light"])) {
     color-scheme: dark;
-    --bg:#111211; --panel:#1a1a19; --panel-2:#20201e; --ink:#f1f1ec; --ink-2:#c3c2b7; --ink-3:#8d8c84;
-    --line:#2d2d2a; --line-2:#262624; --accent:#5cc6a6; --accent-ink:#0b1d17; --accent-soft:#1b2f28;
-    --series:#3987e5; --series-wash:rgba(57,135,229,.14); --grid:#2a2a27; --surface:#1a1a19;
-    --good:#4ccd7c; --good-soft:#173322; --warn:#f0b35a; --warn-soft:#3a2c12; --bad:#ff8a80; --bad-soft:#3d1c1a;
-    --chat-bg:#0e1512; --bubble-me:#005c4b; --bubble-them:#202c33; --shadow:none;
+    --bg:#12110e; --panel:#1b1914; --panel-2:#221f19; --ink:#f4efe3; --ink-2:#cbc4b2; --ink-3:#938b79;
+    --line:#2f2b23; --line-2:#27231c; --accent:#63d6b0; --accent-ink:#082018; --accent-soft:#17302a;
+    --series:#63d6b0; --series-wash:rgba(99,214,176,.16); --grid:#2c2820; --surface:#1b1914;
+    --good:#58d487; --good-soft:#14301f; --warn:#f2b862; --warn-soft:#3a2c10; --bad:#ff8f84; --bad-soft:#3d1e1a;
+    --chat-bg:#0e1512; --bubble-me:#005c4b; --bubble-them:#202c33; --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 18px 36px -24px rgba(0,0,0,.75);
   }
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg:#111211; --panel:#1a1a19; --panel-2:#20201e; --ink:#f1f1ec; --ink-2:#c3c2b7; --ink-3:#8d8c84;
-  --line:#2d2d2a; --line-2:#262624; --accent:#5cc6a6; --accent-ink:#0b1d17; --accent-soft:#1b2f28;
-  --series:#3987e5; --series-wash:rgba(57,135,229,.14); --grid:#2a2a27; --surface:#1a1a19;
-  --good:#4ccd7c; --good-soft:#173322; --warn:#f0b35a; --warn-soft:#3a2c12; --bad:#ff8a80; --bad-soft:#3d1c1a;
-  --chat-bg:#0e1512; --bubble-me:#005c4b; --bubble-them:#202c33; --shadow:none;
+  --bg:#12110e; --panel:#1b1914; --panel-2:#221f19; --ink:#f4efe3; --ink-2:#cbc4b2; --ink-3:#938b79;
+  --line:#2f2b23; --line-2:#27231c; --accent:#63d6b0; --accent-ink:#082018; --accent-soft:#17302a;
+  --series:#63d6b0; --series-wash:rgba(99,214,176,.16); --grid:#2c2820; --surface:#1b1914;
+  --good:#58d487; --good-soft:#14301f; --warn:#f2b862; --warn-soft:#3a2c10; --bad:#ff8f84; --bad-soft:#3d1e1a;
+  --chat-bg:#0e1512; --bubble-me:#005c4b; --bubble-them:#202c33; --shadow:0 1px 0 rgba(255,255,255,.04) inset, 0 18px 36px -24px rgba(0,0,0,.75);
 }
 * { box-sizing:border-box }
 html, body { margin:0; height:100% }
@@ -115,6 +115,66 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .check .mark.ok { background:var(--good-soft); color:var(--good) } .check .mark.no { background:var(--warn-soft); color:var(--warn) }
 .progress { height:6px; background:var(--line-2); border-radius:99px; overflow:hidden; margin:6px 0 10px }
 .progress > i { display:block; height:100%; background:var(--accent); border-radius:99px }
+.keylist { display:flex; flex-direction:column; gap:10px }
+.keyrow { display:grid; grid-template-columns:auto 1fr auto; gap:12px; align-items:start; padding:12px 14px; border:1px solid var(--line); border-left:4px solid var(--line); border-radius:14px; background:var(--panel); transition:background .22s cubic-bezier(.2,.8,.2,1), border-color .22s cubic-bezier(.2,.8,.2,1) }
+.keyrow:hover { background:var(--line-2) }
+.keyrow[data-state="aktif"]:hover { background:var(--good-soft) }
+.keyrow[data-state="aktif"] { border-left-color:var(--good); background:var(--good-soft) }
+.keyrow[data-state="siap"] { border-left-color:var(--accent) }
+.keyrow[data-state="habis"] { border-left-color:var(--warn) }
+.keyrow[data-state="ditolak"] { border-left-color:var(--bad) }
+.keyrow[data-state="kosong"] { border-style:dashed; border-left-width:1px; background:transparent }
+.keynum { width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-weight:700; font-size:13px; background:var(--line-2); color:var(--ink) }
+.keyrow[data-state="aktif"] .keynum { background:var(--good); color:var(--bg) }
+.keyrow[data-state="habis"] .keynum { background:var(--warn-soft); color:var(--warn) }
+.keyrow[data-state="ditolak"] .keynum { background:var(--bad-soft); color:var(--bad) }
+.keymain { min-width:0 }
+.keyhead { display:flex; flex-wrap:wrap; align-items:center; gap:8px; line-height:1.25 }
+.keyhead b { font-weight:650; letter-spacing:-.005em; font-size:15px }
+.keystate { letter-spacing:.01em; display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:600; padding:2px 10px; border-radius:99px; background:var(--line-2); color:var(--ink) }
+.keystate::before { content:""; width:7px; height:7px; border-radius:50%; background:currentColor }
+.keyrow[data-state="aktif"] .keystate { background:var(--good-soft); color:var(--good) }
+.keyrow[data-state="siap"] .keystate { background:var(--accent-soft); color:var(--accent) }
+.keyrow[data-state="habis"] .keystate { background:var(--warn-soft); color:var(--warn) }
+.keyrow[data-state="ditolak"] .keystate { background:var(--bad-soft); color:var(--bad) }
+.keyrow[data-state="kosong"] .keystate { color:inherit; opacity:.7 }
+.keyrow[data-state="aktif"] .keystate::before { animation:keypulse 2.4s ease-in-out infinite }
+@keyframes keypulse { 50% { transform:scale(1.5); opacity:.55 } }
+@media (prefers-reduced-motion: reduce) { .keyrow, .keyedit, .keyactions .btn, .keyrow[data-state="aktif"] .keystate::before { transition:none; animation:none } }
+.keymeta { margin-top:3px; line-height:1.45; letter-spacing:.01em; font-family:ui-monospace, Consolas, monospace; overflow-wrap:anywhere }
+.keyedit { display:grid; grid-template-rows:1fr; margin-top:8px; transition:grid-template-rows .3s cubic-bezier(.2,.8,.2,1), margin-top .3s cubic-bezier(.2,.8,.2,1), opacity .2s ease }
+.keyedit[data-open="false"] { grid-template-rows:0fr; margin-top:0; opacity:0 }
+.keyedit > div { overflow:hidden; min-height:0 }
+.keyedit .f { width:100% }
+.keyedit input:focus-visible { outline-offset:-2px }
+.keyactions { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end }
+.keyactions .btn { min-height:34px; transition:transform .1s ease-out, background .2s ease }
+.keyactions .btn:active { transform:scale(.97) }
+@media (pointer:coarse) { .keyactions .btn { min-height:44px; padding-inline:16px } }
+.aipage { display:flex; flex-direction:column; gap:14px }
+.aipage > .card { margin:0 }
+.aihead { display:flex; gap:12px; align-items:flex-start; margin-bottom:14px }
+.aihead h3 { margin:0; font-size:16px; font-weight:650; letter-spacing:-.01em; line-height:1.25 }
+.aihead p { margin:3px 0 0; line-height:1.5; max-width:64ch }
+.aistep { flex:none; width:26px; height:26px; border-radius:50%; display:grid; place-items:center; font-size:12.5px; font-weight:700; background:var(--accent-soft); color:var(--accent) }
+.aigrid { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:14px 16px }
+.aifield label { display:block; font-weight:600; font-size:13.5px; margin-bottom:6px }
+.aifield label small { display:block; font-weight:400; font-size:12px; line-height:1.45; letter-spacing:.01em; opacity:.8; margin-top:2px }
+.aifield .f { width:100% }
+.aiunit { display:flex; align-items:center; gap:8px }
+.aiunit .f { width:110px }
+.aiunit span { font-size:12.5px; opacity:.75 }
+.aidetails > summary { cursor:pointer; list-style:none; display:flex; gap:8px; align-items:center; font-weight:650; padding:4px 0 }
+.aidetails > summary::-webkit-details-marker { display:none }
+.aidetails > summary::before { content:"\203A"; display:inline-block; font-size:18px; line-height:1; transition:transform .22s cubic-bezier(.2,.8,.2,1) }
+.aidetails[open] > summary::before { transform:rotate(90deg) }
+.aisave { position:sticky; bottom:12px; z-index:5; display:flex; align-items:center; justify-content:flex-end; gap:12px; padding:10px 14px; border:1px solid var(--line); border-radius:16px; background:var(--panel); background:color-mix(in srgb, var(--panel) 84%, transparent); -webkit-backdrop-filter:blur(14px) saturate(160%); backdrop-filter:blur(14px) saturate(160%) }
+.aisave-note { margin-right:auto; display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--warn) }
+.aisave-note::before { content:""; width:8px; height:8px; border-radius:50%; background:currentColor }
+@media (prefers-reduced-transparency: reduce) { .aisave { background:var(--panel); backdrop-filter:none; -webkit-backdrop-filter:none } }
+@media (prefers-reduced-motion: reduce) { .aidetails > summary::before { transition:none } }
+.keyrow button:focus-visible, .keyrow input:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+@media (max-width:560px) { .keyrow { grid-template-columns:auto 1fr } .keyactions { grid-column:1 / -1; justify-content:flex-start } }
 
 
 .split { display:grid; grid-template-columns:360px 1fr; gap:0; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--panel); height:calc(100vh - 150px); min-height:480px; box-shadow:var(--shadow) }
@@ -320,6 +380,117 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
   .split { grid-template-columns:1fr; height:auto } .list { border-right:0; max-height:50vh } .pane { min-height:70vh }
   .hbar { grid-template-columns:110px 1fr 36px }
 }
+:root { --ease:cubic-bezier(.2,.8,.2,1); --focus-ring:color-mix(in srgb, var(--accent) 38%, transparent) }
+* { scrollbar-width:thin; scrollbar-color:var(--line) transparent }
+::selection { background:var(--accent-soft); color:var(--ink) }
+::placeholder { color:var(--ink-3); opacity:.75 }
+.content a:not(.btn), .helppanel a:not(.btn) { color:var(--accent); text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px; text-decoration-color:color-mix(in srgb, var(--accent) 45%, transparent); transition:text-decoration-color .18s var(--ease) }
+.content a:not(.btn):hover, .helppanel a:not(.btn):hover { text-decoration-color:currentColor }
+.content { padding-bottom:104px }
+
+input.f, select.f, textarea.f { padding:9px 12px; line-height:1.4; border:1px solid var(--line); background:var(--panel); transition:border-color .18s var(--ease), box-shadow .18s var(--ease) }
+input.f:hover, select.f:hover, textarea.f:hover { border-color:color-mix(in srgb, var(--accent) 35%, var(--line)) }
+input.f:focus, select.f:focus, textarea.f:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--focus-ring) }
+textarea.f { resize:vertical; line-height:1.55; min-height:84px; font-family:inherit }
+select.f { appearance:none; -webkit-appearance:none; padding-right:36px; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%238d8c84' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 12px center; cursor:pointer }
+input[type="checkbox"], input[type="radio"] { accent-color:var(--accent); width:18px; height:18px; margin:0; flex:none; cursor:pointer }
+
+label.lb, .card label.lb, .pola-body label.lb, .promo-form > label.lb { display:block; margin:18px 0 6px; font-weight:600; font-size:13.5px; line-height:1.35 }
+label.lb:first-child, .card label.lb:first-child, .pola-body label.lb:first-child { margin-top:0 }
+label.lb small, .card label.lb small { display:block; margin-top:2px; font-weight:400; font-size:12px; line-height:1.45; letter-spacing:.01em; color:var(--ink-3) }
+label.lb.lb-check, .card label.lb.lb-check, .pola-body label.lb.lb-check { display:flex; align-items:center; gap:10px; margin:16px 0; font-weight:500; cursor:pointer }
+.pola-body h4 { margin:28px 0 4px; padding-top:20px; border-top:1px solid var(--line-2); font-size:14.5px; font-weight:650; letter-spacing:-.005em }
+.pola-body h4 small { display:block; margin-top:3px; font-weight:400; font-size:12px; line-height:1.45; color:var(--ink-3) }
+.pola-aside { align-self:start; padding:14px 16px; border-radius:12px; background:var(--panel-2); border:1px solid var(--line-2); line-height:1.6; color:var(--ink-2) }
+.pola-aside { position:sticky; top:80px }
+@media (max-width:1100px) { .pola-aside { position:static } }
+.pola-aside p { margin:0 0 10px }
+.pola-aside p:last-child { margin-bottom:0 }
+
+.btn { min-height:34px; justify-content:center; transition:background .18s var(--ease), border-color .18s var(--ease), color .18s var(--ease), transform .1s ease-out, filter .18s var(--ease) }
+.btn.sm { min-height:30px }
+.btn:active:not(:disabled) { transform:scale(.97) }
+.btn.danger:hover:not(:disabled) { background:var(--bad-soft); border-color:transparent }
+.btn:focus-visible, .chip:focus-visible, .pola-sum:focus-visible, .nav:focus-visible, .helpfab:focus-visible { outline:2px solid var(--accent); outline-offset:2px }
+.chip { transition:background .18s var(--ease), border-color .18s var(--ease), transform .1s ease-out }
+.chip:active { transform:scale(.97) }
+.pola-sum { transition:background .18s var(--ease) }
+
+.aisave { padding-right:76px }
+
+@media (pointer:coarse) { .btn { min-height:44px } .btn.sm { min-height:40px } .chip { min-height:38px } input.f, select.f { min-height:44px } }
+@media (max-width:560px) { .content { padding-left:14px; padding-right:14px } .aisave { padding-right:64px } }
+@media (prefers-reduced-motion:reduce) { .btn, .chip, .pola-sum, input.f, select.f, textarea.f { transition:none } .btn:active:not(:disabled), .chip:active { transform:none } }
+:root { --serif:"Iowan Old Style","Palatino Linotype",Palatino,"Book Antiqua",Georgia,serif; --r-card:22px; --r-ctl:12px }
+body { background-color:var(--bg); background-image:radial-gradient(900px 420px at 6% -8%, color-mix(in srgb, var(--accent) 11%, transparent), transparent 70%), radial-gradient(700px 380px at 100% 0%, color-mix(in srgb, #d9922b 8%, transparent), transparent 70%); background-attachment:fixed; letter-spacing:-.003em }
+
+.card { border-radius:var(--r-card); padding:22px; box-shadow:var(--shadow) }
+.card h3 { font-family:var(--serif); font-size:18px; font-weight:600; letter-spacing:-.012em; margin:0 0 4px; line-height:1.25 }
+.card .hint { font-size:13px; line-height:1.55; margin:0 0 14px }
+.pola-card { padding:0 }
+
+.btn { border-radius:999px; padding:8px 16px; font-weight:560; box-shadow:0 1px 0 color-mix(in srgb, var(--ink) 5%, transparent) }
+.btn.primary { box-shadow:0 1px 0 rgba(255,255,255,.22) inset, 0 8px 18px -10px color-mix(in srgb, var(--accent) 85%, transparent) }
+.btn.sm { padding:5px 13px }
+.chip { padding:6px 14px }
+.pill { padding:4px 12px }
+.iconbtn { border-radius:14px; width:38px; height:38px }
+input.f, select.f, textarea.f { border-radius:var(--r-ctl); padding:10px 14px }
+.keyrow { border-radius:16px }
+.pola-aside { border-radius:16px }
+
+.topbar { padding:16px 32px 14px; gap:14px; background:color-mix(in srgb, var(--bg) 78%, transparent); -webkit-backdrop-filter:blur(16px); backdrop-filter:blur(16px); border-bottom:1px solid color-mix(in srgb, var(--line) 60%, transparent) }
+.topbar .ttl { min-width:0 }
+.topbar h1 { font-family:var(--serif); font-size:28px; font-weight:600; letter-spacing:-.02em; line-height:1.1 }
+.topbar .sub { margin:3px 0 0; color:var(--ink-3); font-size:13px; line-height:1.3 }
+.content { padding:24px 32px 104px; max-width:1280px }
+
+.brand { padding:4px 10px 12px; gap:12px }
+.logo { width:42px; height:42px; border-radius:15px; font-family:var(--serif); font-size:22px; font-weight:700; box-shadow:0 1px 0 rgba(255,255,255,.28) inset, 0 8px 16px -10px color-mix(in srgb, var(--accent) 90%, transparent) }
+.brand b { font-family:var(--serif); font-size:17px; letter-spacing:-.01em }
+.navgroup { padding:18px 12px 6px; font-size:10.5px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-3) }
+.nav { padding:10px 12px; border-radius:15px; font-weight:520; transition:background .2s var(--ease), color .2s var(--ease), transform .1s ease-out }
+.nav:hover { background:color-mix(in srgb, var(--ink) 6%, transparent); color:var(--ink) }
+.nav:active { transform:scale(.985) }
+.nav.on { background:var(--accent); color:var(--accent-ink); font-weight:650; box-shadow:0 8px 18px -12px color-mix(in srgb, var(--accent) 90%, transparent) }
+.nav.on .count { background:rgba(255,255,255,.24); color:inherit }
+.aside-foot { border-top:1px solid var(--line-2); margin-top:12px; padding:12px 10px 4px }
+
+.hero { gap:22px }
+.avatar { width:76px; height:76px; border-radius:26px; font-size:34px }
+.hero h2 { font-family:var(--serif); font-size:30px; font-weight:600; letter-spacing:-.02em; line-height:1.1 }
+.hero p { font-size:14.5px; margin-top:6px }
+.kpi .label { font-size:11px; letter-spacing:.08em }
+.kpi .value { font-family:var(--serif); font-size:38px; font-weight:600; letter-spacing:-.02em; line-height:1.1; margin-top:8px }
+#mediaGroups h3 { font-family:var(--serif); font-size:20px; font-weight:600; letter-spacing:-.015em }
+.okchips { display:flex; flex-wrap:wrap; gap:8px; margin-top:4px }
+.okmore { margin-top:6px }
+.okmore > summary { cursor:pointer; padding:6px 0; list-style:none }
+.okmore > summary::-webkit-details-marker { display:none }
+.okmore > summary::before { content:"\203A"; display:inline-block; margin-right:8px; transition:transform .22s var(--ease) }
+.okmore[open] > summary::before { transform:rotate(90deg) }
+#startCard[data-ok="true"] { padding-top:16px; padding-bottom:16px }
+#startCard[data-ok="true"] .hint { margin-bottom:8px }
+@media (prefers-reduced-motion:reduce) { .okmore > summary::before { transition:none } }
+
+@media (min-width:761px) {
+  .app { grid-template-columns:272px minmax(0,1fr) }
+  .app > aside { margin:14px 0 14px 14px; top:14px; height:calc(100vh - 28px); padding:20px 12px 14px; gap:2px; border:1px solid var(--line); border-radius:28px; background:color-mix(in srgb, var(--panel) 80%, transparent); -webkit-backdrop-filter:blur(22px) saturate(160%); backdrop-filter:blur(22px) saturate(160%); box-shadow:var(--shadow); overflow-y:auto }
+}
+@media (max-width:760px) {
+  .app > aside { margin:0; top:auto; height:auto; border-radius:0; border-width:0 0 1px; background:var(--panel); -webkit-backdrop-filter:none; backdrop-filter:none; box-shadow:none; overflow-y:hidden }
+  .navgroup { display:none }
+  .topbar { padding:12px 16px }
+  .topbar h1 { font-size:22px }
+  .topbar .sub { display:none }
+  .content { padding:18px 16px 96px }
+  .kpi .value { font-size:32px }
+  .hero h2 { font-size:24px }
+  .g4 { grid-template-columns:repeat(2,minmax(0,1fr)) }
+  .g4 .card { padding:16px }
+  .g4 .kpi svg { height:28px }
+}
+@media (prefers-reduced-transparency:reduce) { .app > aside, .topbar { background:var(--panel); -webkit-backdrop-filter:none; backdrop-filter:none } }
 </style>
 </head>
 <body>
@@ -337,13 +508,13 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
     <button class="nav" data-page="pengaturan"><svg class="i" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Pengaturan</button>
     <button class="nav" data-page="log"><svg class="i" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>Log</button>
     <button class="nav" data-page="promo"><svg class="i" viewBox="0 0 24 24"><path d="M3 11V4h7l11 11-7 7L3 11z"/><circle cx="7" cy="8" r="1"/></svg>Promo</button>
-    <button class="nav" data-page="ai"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"/></svg>Gaya bicara AI</button>
+    <button class="nav" data-page="ai"><svg class="i" viewBox="0 0 24 24"><path d="M12 3l2.5 6.5L21 12l-6.5 2.5L12 21l-2.5-6.5L3 12l6.5-2.5L12 3z"/></svg>Atur AI</button>
     <div class="aside-foot" id="footInfo">WhatsApp Business · perangkat tertaut</div>
   </aside>
 
   <div class="main">
     <div class="topbar">
-      <h1 id="pageTitle">Ringkasan</h1>
+      <div class="ttl"><h1 id="pageTitle">Ringkasan</h1><p class="sub" id="pageSub"></p></div>
       <div class="sp"></div>
       <span class="pill quiet" id="waPill"><span class="dot"></span>WhatsApp</span>
       <span class="pill quiet" id="botPill"><span class="dot"></span>memuat…</span>
@@ -353,18 +524,18 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
     <div class="content">
 
       <section data-page="ringkasan" class="stack">
-        <div class="card" id="startCard">
-          <div class="row"><h3 style="flex:1">Siap mulai</h3><span class="small muted" id="startWhen"></span><button class="btn sm" type="button" id="startRecheck">Cek ulang</button></div>
-          <p class="hint" id="startText">Mengecek internet, jam PC, WhatsApp, AI dan versi bot…</p>
-          <div id="startList"></div>
-        </div>
-        <div class="card">
+                <div class="card">
           <div class="hero">
             <div class="avatar" id="heroAva">🌹<span class="badge" id="heroBadge"></span></div>
             <div><h2 id="heroTitle">…</h2><p id="heroText"></p></div>
           </div>
           <div class="timeline"><svg id="timeline" viewBox="0 0 1000 30" preserveAspectRatio="none" role="img" aria-label="Jam aktif bot hari ini"></svg>
             <div class="ticks"><span style="left:0">00.00</span><span style="left:25%">06.00</span><span style="left:50%">12.00</span><span style="left:75%">18.00</span><span style="left:100%">24.00</span></div></div>
+        </div>
+        <div class="card" id="startCard">
+          <div class="row"><h3 style="flex:1">Siap mulai</h3><span class="small muted" id="startWhen"></span><button class="btn sm" type="button" id="startRecheck">Cek ulang</button></div>
+          <p class="hint" id="startText">Mengecek internet, jam PC, WhatsApp, AI dan versi bot…</p>
+          <div id="startList"></div>
         </div>
         <div class="grid g4" id="kpis"></div>
         <div class="grid g-main">
@@ -519,34 +690,105 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
       </section>
 
       <section data-page="ai" class="hidden stack">
-        <form class="card" id="aiForm" autocomplete="off">
-          <div class="row"><h3 style="flex:1">AI (Ollama)</h3><span id="aiState"></span></div>
-          <p class="hint" id="aiModeHint">Dalam mode AI, Ollama menyusun balasan dari Pengetahuan dan Produk. Atur gaya bicara dan contoh percakapan di bawah. Kunci API dari <b>ollama.com → Settings → Keys</b>.</p>
-          <div class="form">
-            <label>Kunci API Ollama<small id="aiKeyHint">Kosongkan kalau tidak diubah.</small></label>
-            <div class="row" style="gap:6px;flex-wrap:nowrap"><input class="f" type="password" name="aiKey" placeholder="tempel kunci API di sini" style="flex:1;min-width:0"><button type="button" class="btn sm" id="aiKeyRemove">Hapus kunci</button></div>
-            <label>Model<small>Paket gratis Ollama Cloud: gemma4:31b (cepat) atau gpt-oss:20b.</small></label>
-            <div><input class="f" name="aiModel" list="aiModels" placeholder="gemma4:31b"><datalist id="aiModels"></datalist></div>
-            <label>Alamat Ollama<small>Biarkan kosong untuk Ollama Cloud. Ollama yang dipasang sendiri: http://localhost:11434</small></label>
-            <input class="f" name="aiHost" placeholder="https://ollama.com">
+        <form class="aipage" id="aiForm" autocomplete="off">
+          <div class="card">
+            <div class="row"><h3 style="flex:1">AI (Ollama)</h3><span id="aiState"></span></div>
+            <p class="hint" id="aiModeHint">Dalam mode AI, Ollama menyusun balasan dari Pengetahuan dan Produk. Atur gaya bicara dan contoh percakapan di bawah. Kunci API dari <b>ollama.com → Settings → Keys</b>.</p>
           </div>
-          <details style="margin-top:12px"><summary><b>Instruksi & batas AI</b> <span class="small muted" id="aiPromptState"></span></summary>
-            <div class="form" style="margin-top:10px">
-              <label>Siapa Mawar & gaya bicaranya<small>Mode AI. Tulis seperti memberi arahan ke karyawan baru: perannya, gaya bahasa, apa yang ditanyakan ke pelanggan. Aturan tetap (hanya dari data toko, tanpa harga, tanpa janji tanggal, tanpa teknik yang tidak dilayani) selalu ditambahkan otomatis. {bot} dan {cs} diganti nama di atas.</small></label>
-              <textarea class="f" name="aiChatPrompt" rows="6"></textarea>
-              <label>Contoh percakapan yang bagus<small>Mode AI. Beberapa contoh chat seperti yang diinginkan owner ("Pelanggan: …" lalu "{bot}: …"). AI meniru cara bicaranya; faktanya tetap dari Pengetahuan. Kosongkan untuk kembali ke contoh bawaan.</small></label>
-              <textarea class="f" name="aiChatExamples" rows="8"></textarea>
-              <label>Batas per pelanggan<small>Panggilan AI per pelanggan per 10 menit.</small></label>
-              <input class="f" type="number" name="aiPerCustomer" min="1" max="500" style="width:110px">
-              <label>Batas total<small>Panggilan AI seluruh bot per menit (melindungi kuota dari spam).</small></label>
-              <input class="f" type="number" name="aiTotal" min="1" max="1000" style="width:110px">
-              <label>Batas waktu jawaban AI<small>Detik. Lewat dari ini bot diam untuk pesan itu (error "aborted due to timeout"). Naikkan kalau internet atau AI-nya lambat.</small></label>
-              <input class="f" type="number" name="aiTimeout" min="10" max="180" style="width:110px">
+
+          <div class="card">
+            <header class="aihead"><span class="aistep" aria-hidden="true">1</span><div><h3>Kunci API</h3><p class="small muted">Sampai 4 kunci dari ollama.com → Settings → Keys, dipakai berurutan: kunci 1 sampai habis jatahnya, lalu otomatis pindah ke kunci 2, dan seterusnya. Kosongkan kolom kalau tidak diubah.</p></div></header>
+          <div class="keylist" aria-live="polite">
+            <div class="keyrow" data-key-row="1" data-state="kosong">
+              <span class="keynum" aria-hidden="true">1</span>
+              <div class="keymain">
+                <div class="keyhead"><b>Kunci 1</b><span class="keystate" data-key-state="1">Kosong</span></div>
+                <div class="keymeta small muted" data-key-meta="1"></div>
+                <div class="keyedit" data-key-edit-area="1" data-open="true"><div><input class="f" type="password" name="aiKey1" placeholder="Tempel kunci API dari ollama.com" aria-label="Kunci 1: kunci API" autocomplete="off"></div></div>
+              </div>
+              <div class="keyactions">
+                <button type="button" class="btn sm primary hidden" data-key-use="1" aria-label="Pakai kunci 1 sekarang">Pakai sekarang</button>
+                <button type="button" class="btn sm hidden" data-key-edit="1" aria-label="Ganti kunci 1">Ganti</button>
+                <button type="button" class="btn sm hidden" data-key-remove="key" aria-label="Hapus kunci 1">Hapus</button>
+              </div>
             </div>
-            <div class="row" style="justify-content:flex-end;margin-top:8px"><button type="button" class="btn sm" id="aiPromptReset">Kembalikan instruksi bawaan</button></div>
-          </details>
-          <div class="row" style="justify-content:flex-end;gap:8px;margin-top:12px"><button type="button" class="btn" id="aiTest">Tes koneksi</button><button class="btn primary">Simpan</button></div>
-          <div class="small" id="aiTestOut" style="margin-top:10px"></div>
+            <div class="keyrow" data-key-row="2" data-state="kosong">
+              <span class="keynum" aria-hidden="true">2</span>
+              <div class="keymain">
+                <div class="keyhead"><b>Kunci 2</b><span class="keystate" data-key-state="2">Kosong</span></div>
+                <div class="keymeta small muted" data-key-meta="2"></div>
+                <div class="keyedit" data-key-edit-area="2" data-open="true"><div><input class="f" type="password" name="aiKey2" placeholder="Tempel kunci cadangan" aria-label="Kunci 2: kunci API" autocomplete="off"></div></div>
+              </div>
+              <div class="keyactions">
+                <button type="button" class="btn sm primary hidden" data-key-use="2" aria-label="Pakai kunci 2 sekarang">Pakai sekarang</button>
+                <button type="button" class="btn sm hidden" data-key-edit="2" aria-label="Ganti kunci 2">Ganti</button>
+                <button type="button" class="btn sm hidden" data-key-remove="key2" aria-label="Hapus kunci 2">Hapus</button>
+              </div>
+            </div>
+            <div class="keyrow" data-key-row="3" data-state="kosong">
+              <span class="keynum" aria-hidden="true">3</span>
+              <div class="keymain">
+                <div class="keyhead"><b>Kunci 3</b><span class="keystate" data-key-state="3">Kosong</span></div>
+                <div class="keymeta small muted" data-key-meta="3"></div>
+                <div class="keyedit" data-key-edit-area="3" data-open="true"><div><input class="f" type="password" name="aiKey3" placeholder="Tempel kunci cadangan" aria-label="Kunci 3: kunci API" autocomplete="off"></div></div>
+              </div>
+              <div class="keyactions">
+                <button type="button" class="btn sm primary hidden" data-key-use="3" aria-label="Pakai kunci 3 sekarang">Pakai sekarang</button>
+                <button type="button" class="btn sm hidden" data-key-edit="3" aria-label="Ganti kunci 3">Ganti</button>
+                <button type="button" class="btn sm hidden" data-key-remove="key3" aria-label="Hapus kunci 3">Hapus</button>
+              </div>
+            </div>
+            <div class="keyrow" data-key-row="4" data-state="kosong">
+              <span class="keynum" aria-hidden="true">4</span>
+              <div class="keymain">
+                <div class="keyhead"><b>Kunci 4</b><span class="keystate" data-key-state="4">Kosong</span></div>
+                <div class="keymeta small muted" data-key-meta="4"></div>
+                <div class="keyedit" data-key-edit-area="4" data-open="true"><div><input class="f" type="password" name="aiKey4" placeholder="Tempel kunci cadangan" aria-label="Kunci 4: kunci API" autocomplete="off"></div></div>
+              </div>
+              <div class="keyactions">
+                <button type="button" class="btn sm primary hidden" data-key-use="4" aria-label="Pakai kunci 4 sekarang">Pakai sekarang</button>
+                <button type="button" class="btn sm hidden" data-key-edit="4" aria-label="Ganti kunci 4">Ganti</button>
+                <button type="button" class="btn sm hidden" data-key-remove="key4" aria-label="Hapus kunci 4">Hapus</button>
+              </div>
+            </div>
+          </div>
+          <div class="small muted keyflow" style="margin-top:2px">Urutan pakai: 1 → 2 → 3 → 4. Kalau satu habis jatahnya, bot pindah ke kunci berikutnya tanpa berhenti. Error baru muncul kalau semuanya sudah dicek dan habis.</div>
+
+            <div class="aifield" style="margin-top:14px">
+              <label for="aiKeyCooldown">Jeda kunci yang habis jatah<small>Kunci yang ditolak Ollama karena jatah habis tidak dipakai selama ini, lalu dicoba lagi.</small></label>
+              <div class="aiunit"><input class="f" type="number" id="aiKeyCooldown" name="aiKeyCooldown" min="1" max="720"><span>menit</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <header class="aihead"><span class="aistep" aria-hidden="true">2</span><div><h3>Model dan koneksi</h3><p class="small muted">Biarkan alamat kosong untuk Ollama Cloud.</p></div></header>
+            <div class="aigrid">
+              <div class="aifield"><label for="aiModel">Model<small>Paket gratis Ollama Cloud: gemma4:31b (cepat) atau gpt-oss:20b.</small></label><input class="f" id="aiModel" name="aiModel" list="aiModels" placeholder="gemma4:31b"><datalist id="aiModels"></datalist></div>
+              <div class="aifield"><label for="aiHost">Alamat Ollama<small>Ollama yang dipasang sendiri: http://localhost:11434</small></label><input class="f" id="aiHost" name="aiHost" placeholder="https://ollama.com"></div>
+            </div>
+            <div class="row" style="margin-top:12px;gap:10px"><button type="button" class="btn" id="aiTest">Tes koneksi</button></div>
+            <div class="small" id="aiTestOut" style="margin-top:10px" aria-live="polite"></div>
+          </div>
+
+          <div class="card">
+            <header class="aihead"><span class="aistep" aria-hidden="true">3</span><div><h3>Gaya bicara dan contoh</h3><p class="small muted">Cara Mawar berbicara dan contoh chat yang ditiru AI.</p></div></header>
+            <details class="aidetails"><summary>Ubah instruksi <span class="small muted" id="aiPromptState"></span></summary>
+              <div class="aifield" style="margin-top:10px"><label for="aiChatPrompt">Siapa Mawar & gaya bicaranya<small>Mode AI. Tulis seperti memberi arahan ke karyawan baru: perannya, gaya bahasa, apa yang ditanyakan ke pelanggan. Aturan tetap (hanya dari data toko, tanpa harga, tanpa janji tanggal, tanpa teknik yang tidak dilayani) selalu ditambahkan otomatis. {bot} dan {cs} diganti nama di atas.</small></label><textarea class="f" id="aiChatPrompt" name="aiChatPrompt" rows="6"></textarea></div>
+              <div class="aifield" style="margin-top:14px"><label for="aiChatExamples">Contoh percakapan yang bagus<small>Mode AI. Beberapa contoh chat seperti yang diinginkan owner ("Pelanggan: …" lalu "{bot}: …"). AI meniru cara bicaranya; faktanya tetap dari Pengetahuan. Kosongkan untuk kembali ke contoh bawaan.</small></label><textarea class="f" id="aiChatExamples" name="aiChatExamples" rows="8"></textarea></div>
+              <div class="row" style="justify-content:flex-end;margin-top:10px"><button type="button" class="btn sm" id="aiPromptReset">Kembalikan instruksi bawaan</button></div>
+            </details>
+          </div>
+
+          <div class="card">
+            <header class="aihead"><span class="aistep" aria-hidden="true">4</span><div><h3>Batas pemakaian</h3><p class="small muted">Melindungi jatah AI dari lonjakan dan menjaga bot tidak menggantung.</p></div></header>
+            <div class="aigrid">
+              <div class="aifield"><label for="aiPerCustomer">Per pelanggan<small>Panggilan AI per pelanggan per 10 menit.</small></label><div class="aiunit"><input class="f" type="number" id="aiPerCustomer" name="aiPerCustomer" min="1" max="500"><span>panggilan</span></div></div>
+              <div class="aifield"><label for="aiTotal">Seluruh bot<small>Panggilan AI per menit (melindungi kuota dari spam).</small></label><div class="aiunit"><input class="f" type="number" id="aiTotal" name="aiTotal" min="1" max="1000"><span>per menit</span></div></div>
+              <div class="aifield"><label for="aiTimeout">Batas waktu jawaban<small>Lewat dari ini bot diam untuk pesan itu. Naikkan kalau internet atau AI-nya lambat.</small></label><div class="aiunit"><input class="f" type="number" id="aiTimeout" name="aiTimeout" min="10" max="180"><span>detik</span></div></div>
+            </div>
+          </div>
+
+          <div class="aisave" role="region" aria-label="Simpan pengaturan AI"><span class="aisave-note hidden" id="aiDirty" role="status">Ada perubahan yang belum disimpan</span><button class="btn primary">Simpan</button></div>
         </form>
       </section>
 
@@ -580,6 +822,8 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
             <div><textarea class="f" name="holidays" rows="3" placeholder="2027-03-08 - 2027-03-14 Lebaran&#10;2026-12-25 Natal"></textarea><div class="small muted" id="holidayHint" style="margin-top:4px">Format: tanggal-mulai - tanggal-selesai keterangan. Satu hari cukup satu tanggal.</div></div>
             <label>Pesan otomatis<small>Sapaan, pemberitahuan CS, dan petunjuk size chart.</small></label>
             <div style="padding-top:8px">Diatur di halaman <a href="#template" data-goto="template">Pesan otomatis</a>.</div>
+            <label>Kunci AI (Ollama)<small>Sampai 4 kunci, dipakai berurutan. Kalau satu habis, otomatis pindah ke kunci berikutnya.</small></label>
+            <div style="padding-top:8px">Diatur di halaman <a href="#ai" data-goto="ai">Atur AI</a>.</div>
           </div>
         </form>
 
@@ -630,6 +874,12 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 </div>
 
 <script>
+document.addEventListener('keydown', (event) => {
+  if ((event.key === 'Enter' || event.key === ' ') && event.target.classList?.contains('pola-sum')) {
+    event.preventDefault();
+    event.target.click();
+  }
+});
 const key = new URLSearchParams(location.search).get('key');
 const headers = { 'Content-Type': 'application/json', ...(key ? { 'X-Api-Key': key } : {}) };
 const errQueue = [];
@@ -783,7 +1033,8 @@ function renderHelp() {
 $('#helpBtn').onclick = () => { renderHelp(); $('#helpPanel').classList.toggle('hidden'); };
 $('#helpClose').onclick = () => $('#helpPanel').classList.add('hidden');
 
-const TITLES ={ ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Sapaan & pesan', produk:'Produk', pengetahuan:'Pengetahuan', promo:'Promo', ai:'Gaya bicara AI', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan', log:'Log' };
+const SUBS = { ringkasan:'Keadaan bot hari ini', percakapan:'Chat pelanggan dan siapa yang menangani', coba:'Coba bot tanpa mengirim apa pun', template:'Kata pembuka dan pesan otomatis', produk:'Daftar produk dan detail untuk Mawar', pengetahuan:'Info toko dan tanya-jawab', promo:'Promo resmi yang boleh dijelaskan AI', ai:'Kunci, model, dan cara bicara AI', statistik:'Pesan, jam ramai, dan alur percakapan', media:'Katalog dan size chart yang dikirim bot', pengaturan:'Jam jaga, rekap, dan backup', log:'Riwayat kerja bot untuk pemeriksaan' };
+const TITLES ={ ringkasan:'Ringkasan', percakapan:'Percakapan', coba:'Coba bot', template:'Sapaan & pesan', produk:'Produk', pengetahuan:'Pengetahuan', promo:'Promo', ai:'Atur AI', statistik:'Statistik', media:'Media', pengaturan:'Pengaturan', log:'Log' };
 const AI_TEMPLATE_KEYS = new Set(['greetKnown', 'welcome', 'greetUnknown', 'waitForCs', 'socials', 'handoverNotice', 'voiceNote', 'catalogLink', 'sizeChartWhich', 'sizeChartMissing', 'sizeChartLink', 'sizeChartNote']);
 const pageForMode = (p) => ['pola', 'latih'].includes(p) ? 'pengetahuan' : p;
 const visibleTemplates = (items) => items.filter((t) => AI_TEMPLATE_KEYS.has(t.key));
@@ -792,16 +1043,24 @@ function setupNavigation() {
   if (uiMode) return;
   uiMode = 'ai';
   document.documentElement.dataset.botMode = 'ai';
-  const labels = { template: 'Sapaan & pesan', ai: 'Gaya bicara AI', promo: 'Promo' };
-  const order = ['ringkasan', 'percakapan', 'coba', 'produk', 'pengetahuan', 'template', 'promo', 'ai', 'media', 'statistik', 'pengaturan', 'log'];
-  for (const p of order) {
-    const button = $(`.nav[data-page="${p}"]`);
-    const label = [...button.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
-    if (labels[p] && label) label.textContent = labels[p];
-    button.parentNode.insertBefore(button, $('#footInfo'));
+  const labels = { template: 'Sapaan & pesan', ai: 'Atur AI', promo: 'Promo' };
+  const groups = [[null, ['ringkasan']], ['Percakapan', ['percakapan', 'coba']], ['Isi bot', ['produk', 'pengetahuan', 'template', 'promo', 'ai', 'media']], ['Sistem', ['statistik', 'pengaturan', 'log']]];
+  for (const [title, pages] of groups) {
+    if (title) {
+      const head = document.createElement('div');
+      head.className = 'navgroup';
+      head.textContent = title;
+      $('#footInfo').before(head);
+    }
+    for (const p of pages) {
+      const button = $(`.nav[data-page="${p}"]`);
+      const label = [...button.childNodes].find((n) => n.nodeType === 3 && n.textContent.trim());
+      if (labels[p] && label) label.textContent = labels[p];
+      $('#footInfo').before(button);
+    }
   }
   $('#tplHeading').textContent = 'Sapaan & pesan otomatis';
-  $('#tplHint').textContent = 'Ubah kata pembuka, pesan menunggu CS, dan petunjuk media di sini. Jawaban pelanggan diatur di Pengetahuan dan Produk; gaya bicara di Gaya bicara AI.';
+  $('#tplHint').textContent = 'Ubah kata pembuka, pesan menunggu CS, dan petunjuk media di sini. Jawaban pelanggan diatur di Pengetahuan dan Produk; gaya bicara di Atur AI.';
   $('#aiModeHint').textContent = 'Atur cara AI berbicara kepada pelanggan, contoh percakapan, serta koneksi Ollama. Isi informasi toko di Pengetahuan, rincian barang di Produk, dan penawaran yang sedang berlaku di Promo.';
 }
 let page = 'ringkasan';
@@ -811,6 +1070,7 @@ function go(p) {
   $$('.nav').forEach((b) => b.classList.toggle('on', b.dataset.page === page));
   $$('section[data-page]').forEach((s) => s.classList.toggle('hidden', s.dataset.page !== page));
   $('#pageTitle').textContent = TITLES[page];
+  $('#pageSub').textContent = SUBS[page] || '';
   if (!$('#helpPanel').classList.contains('hidden')) renderHelp();
   if (location.hash !== '#' + page) history.replaceState(null, '', location.pathname + location.search + '#' + page);
   if (lastLoggedPage !== page) { lastLoggedPage = page; fetch('/activity', { method:'POST', headers, body: JSON.stringify({ page: TITLES[page] }) }).catch(() => {}); }
@@ -875,7 +1135,12 @@ async function loadStartChecks(fresh) {
   $('#startCard').style.borderColor = bad.length ? 'var(--warn)' : '';
   $('#startText').textContent = bad.length ? `${bad.length} hal perlu dibereskan supaya bot bisa bekerja:` : 'Semua siap: internet, jam PC, WhatsApp, AI dan versi bot.';
   $('#startWhen').textContent = 'dicek ' + new Date(r.checkedAt).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
-  $('#startList').innerHTML = [...bad, ...r.checks.filter((c) => c.ok)].map((c) => `<div class="check"><span class="mark ${c.ok ? 'ok' : 'no'}">${c.ok ? '✓' : '!'}</span><div style="min-width:0"><div>${esc(c.title)}</div><div class="small muted">${esc(c.detail)}</div>${c.ok ? '' : `${c.fix ? `<div class="small"><b>Yang perlu dilakukan:</b> ${esc(c.fix)}</div>` : ''}${c.raw ? `<div class="small muted" style="overflow-wrap:anywhere">Error asli: <code>${esc(c.raw)}</code></div>` : ''}`}</div></div>`).join('');
+  const checkRow = (c) => `<div class="check"><span class="mark ${c.ok ? 'ok' : 'no'}">${c.ok ? '✓' : '!'}</span><div style="min-width:0"><div>${esc(c.title)}</div><div class="small muted">${esc(c.detail)}</div>${c.ok ? '' : `${c.fix ? `<div class="small"><b>Yang perlu dilakukan:</b> ${esc(c.fix)}</div>` : ''}${c.raw ? `<div class="small muted" style="overflow-wrap:anywhere">Error asli: <code>${esc(c.raw)}</code></div>` : ''}`}</div></div>`;
+  const okChecks = r.checks.filter((c) => c.ok);
+  $('#startCard').dataset.ok = bad.length ? 'false' : 'true';
+  $('#startList').innerHTML = bad.length
+    ? bad.map(checkRow).join('') + (okChecks.length ? `<details class="okmore"><summary class="small muted">${okChecks.length} hal lain sudah siap</summary>${okChecks.map(checkRow).join('')}</details>` : '')
+    : `<div class="okchips">${okChecks.map((c) => `<span class="pill good" title="${esc(c.detail)}"><span class="dot"></span>${esc(c.title)}</span>`).join('')}</div>`;
 }
 document.getElementById('startRecheck')?.addEventListener('click', () => { $('#startText').textContent = 'Mengecek…'; loadStartChecks(true); });
 
@@ -1139,18 +1404,18 @@ function renderScenarios() {
     const open = scnOpen === s.id || s.id === 0;
     const badge = res?.running ? '<span class="pill quiet">berjalan…</span>' : res?.error ? '<span class="pill bad">gagal dijalankan</span>' : res ? `<span class="pill ${res.pass ? 'good' : 'warn'}">${res.pass ? 'lulus' : 'gagal'}</span>` : '';
     return `<div class="card pola-card" data-scn="${s.id}" style="padding:12px">
-      <div class="pola-sum" data-toggle><b style="flex:1">${esc(s.name || 'Skenario baru')}</b>${badge}<span class="small muted">${s.messages.length} pesan</span>
+      <div class="pola-sum" role="button" tabindex="0" data-toggle><b style="flex:1">${esc(s.name || 'Skenario baru')}</b>${badge}<span class="small muted">${s.messages.length} pesan</span>
         ${s.id ? '<button class="btn sm" data-run>Jalankan</button>' : ''}<span class="muted">${open ? '▴' : '▾'}</span></div>
       ${res?.problems?.length ? `<ul class="small" style="margin:6px 0 0 18px;color:var(--warn,#b45309)">${res.problems.map((p) => `<li>${esc(p)}</li>`).join('')}</ul>` : ''}
       ${res?.error ? `<p class="small" style="margin-top:6px">${esc(res.error)}</p>` : ''}
       ${res?.transcript ? `<details style="margin-top:6px"><summary class="small">Lihat percakapan</summary><div class="stack" style="gap:4px;margin-top:6px">${res.transcript.map((t) => `<div class="small"><b>${t.from === 'pelanggan' ? 'Pelanggan' : t.from === 'bot' ? (t.ai ? 'Mawar (AI)' : 'Mawar (template)') : t.from === 'pikir' ? '🧠 Cara berpikir' : 'Sistem'}:</b> ${esc(t.text).replace(/\n/g, '<br>')}</div>`).join('')}</div></details>` : ''}
       ${open ? `<div class="pola-body" style="display:block">
         <label class="lb">Nama</label><input class="f" data-name value="${esc(s.name)}" maxlength="80" placeholder="mis. Tanya harga">
-        <label class="lb">Pesan pelanggan <span class="small muted" style="font-weight:400">· satu per baris, dikirim berurutan</span></label>
+        <label class="lb">Pesan pelanggan<small>satu per baris, dikirim berurutan</small></label>
         <textarea class="f" data-msgs rows="3" style="width:100%;font-family:inherit" placeholder="halo kak&#10;brp harga kaos 50 pcs?">${esc(s.messages.join('\n'))}</textarea>
-        <label class="lb">Tidak boleh muncul <span class="small muted" style="font-weight:400">· pisahkan dengan koma</span></label>
+        <label class="lb">Tidak boleh muncul<small>pisahkan dengan koma</small></label>
         <input class="f" data-forbid value="${esc(s.forbid.join(', '))}" placeholder="#angka-uang, dijamin">
-        <label class="lb">Harus ada <span class="small muted" style="font-weight:400">· pisahkan dengan koma</span></label>
+        <label class="lb">Harus ada<small>pisahkan dengan koma</small></label>
         <input class="f" data-expect value="${esc(s.expect.join(', '))}" placeholder="#diam, CS">
         <div class="row" style="gap:8px;margin-top:10px"><button class="btn primary sm" data-save>Simpan</button><button class="btn danger sm" data-delete>${s.id ? 'Hapus' : 'Batal'}</button></div>
       </div>` : ''}
@@ -1316,7 +1581,7 @@ function renderProduk() {
   $('#prodList').innerHTML = list.length ? list.map((p) => {
     const open = prodOpen === p.key;
     return `<div class="card pola-card" data-prod="${esc(p.key)}">
-      <div class="pola-sum" data-toggle><b style="flex:1">${esc(p.name)}</b>
+      <div class="pola-sum" role="button" tabindex="0" data-toggle><b style="flex:1">${esc(p.name)}</b>
         <span class="pill ${p.catalog ? 'good' : 'quiet'}">${p.catalog ? 'punya katalog' : 'tanpa katalog khusus'}</span>
         ${p.sizeChart ? '<span class="pill quiet">size chart</span>' : ''}
         ${INFO_FIELDS.some(([k]) => infoText(p.info, k)) ? `<span class="pill good">detail ${INFO_FIELDS.filter(([k]) => infoText(p.info, k)).length}/${INFO_FIELDS.length}</span>` : '<span class="pill warn">detail belum diisi</span>'}
@@ -1325,17 +1590,17 @@ function renderProduk() {
       ${open ? `<div class="pola-body">
         <div>
           <label class="lb">Nama produk</label><input class="f" data-name value="${esc(p.name)}" maxlength="40">
-          <label class="lb">Katalog produk<small class="ai-only">Menentukan tempat unggah katalog pada halaman Media. Rincian yang dikumpulkan AI diatur di bawah.</small></label>
+          <label class="lb">Katalog produk<small>Menentukan tempat unggah katalog pada halaman Media. Rincian yang dikumpulkan AI diatur di bawah.</small></label>
           <select class="f" data-kind><option value="catalog" ${p.catalog ? 'selected' : ''}>Punya katalog produk</option><option value="design" ${!p.catalog ? 'selected' : ''}>Tanpa katalog khusus</option></select>
-          <label class="row lb" style="gap:6px"><input type="checkbox" data-size ${p.sizeChart ? 'checked' : ''}> Punya size chart (muncul di halaman Media)</label>
-          <label class="lb">Sebutan pelanggan <span class="small muted" style="font-weight:400">· nama atau singkatan produk yang biasa diketik pelanggan, satu per baris</span></label>
+          <label class="row lb lb-check"><input type="checkbox" data-size ${p.sizeChart ? 'checked' : ''}> Punya size chart (muncul di halaman Media)</label>
+          <label class="lb">Sebutan pelanggan<small>nama atau singkatan produk yang biasa diketik pelanggan, satu per baris</small></label>
           <textarea class="f" data-kw rows="6">${esc(p.keywords.join('\n'))}</textarea>
-          <h4 style="margin:18px 0 2px">Detail untuk Mawar <span class="small muted" style="font-weight:400">· mode AI. Mawar hanya menyebut yang tertulis di sini; yang kosong ditanyakan ke CS.</span></h4>
-          ${INFO_FIELDS.map(([k, label, hint, rows]) => `<label class="lb">${label} <span class="small muted" style="font-weight:400">· ${hint}</span></label>
+          <h4>Detail untuk Mawar<small>mode AI. Mawar hanya menyebut yang tertulis di sini; yang kosong ditanyakan ke CS.</small></h4>
+          ${INFO_FIELDS.map(([k, label, hint, rows]) => `<label class="lb">${label}<small>${hint}</small></label>
           <textarea class="f" data-i="${k}" rows="${rows}" placeholder="${esc(INFO_PLACEHOLDER[k] || '')}">${esc(infoText(p.info, k))}</textarea>`).join('')}
-          <div class="row" style="margin-top:14px"><button class="btn primary" data-save>Simpan</button><button class="btn danger" data-delete>Hapus produk</button></div>
         </div>
-        <div class="small muted">
+        <div class="pola-aside small">
+          <div class="stack" style="gap:8px;margin-bottom:14px"><button class="btn primary" data-save>Simpan perubahan</button><button class="btn danger" data-delete>Hapus produk</button></div>
           <p><b>Yang terjadi kalau dihapus:</b> bot tidak lagi mengenali produk ini; kata kuncinya ikut terhapus; tempat katalog/size chart-nya hilang dari halaman Media (file yang sudah diunggah tetap tersimpan); item katalog WA yang dipetakan ke produk ini kembali ke pemetaan otomatis.</p>
           <p>Jika produk dihapus, AI tidak lagi menawarkannya. Kebutuhan di luar daftar produk akan dikonfirmasi oleh CS.</p>
         </div>
@@ -1619,12 +1884,12 @@ function renderMedia() {
       <div class="head"><b>${esc(s.label)}</b>${s.catalogItems ? `<span class="pill good"><span class="dot"></span>${s.catalogItems} produk katalog WA</span>` : s.link || s.fallbackLink ? `<span class="pill good"><span class="dot"></span>${s.kind === 'katalog' ? 'katalog WA' + (s.link ? '' : ' toko') : 'link'}</span>` : s.files.length ? `<span class="pill good"><span class="dot"></span>${s.files.length > 1 ? s.files.length + ' file' : 'ada'}</span>` : s.optional ? '<span class="pill quiet">opsional</span>' : '<span class="pill warn"><span class="dot"></span>belum ada</span>'}</div>
       <div class="small muted">${esc(s.effect)}</div>
       ${s.linkable && s.kind !== 'katalog' ? `<div class="linkbox">
-        <label class="small" style="font-weight:600">Link <span class="muted" style="font-weight:400">(opsional)</span></label>
+        <label class="lb">Link<small>Opsional</small></label>
         <div class="row" style="gap:6px;flex-wrap:nowrap"><input class="f" data-link value="${esc(s.link || '')}" placeholder="https://drive.google.com/…" style="flex:1;min-width:0"><button class="btn sm" data-savelink>Simpan</button></div>
         <div class="small muted">${s.link ? 'Bot mengirim link ini dulu' + (s.kind === 'size-chart' ? ' (dengan kalimat "Size chart: link" dari Template)' : '') + (s.files.length ? ', lalu gambar di bawah.' : '.') : 'Kosong: bot hanya mengirim gambar/PDF di bawah.'}</div>
       </div>` : ''}
       ${s.linkable && s.kind === 'katalog' ? `<div class="linkbox">
-        <label class="small" style="font-weight:600">Link katalog WhatsApp ${s.product ? '' : '<span class="muted" style="font-weight:400">(seluruh toko)</span>'}</label>
+        <label class="lb">Link katalog WhatsApp${s.product ? '' : '<small>Berlaku untuk seluruh toko</small>'}</label>
         <div class="row" style="gap:6px;flex-wrap:nowrap"><input class="f" data-link value="${esc(s.link || '')}" placeholder="${s.product ? 'kosong = pakai link toko' : 'https://wa.me/c/62…'}" style="flex:1;min-width:0"><button class="btn sm" data-savelink>Simpan</button></div>
         <div class="small muted">${s.link ? 'Bot mengirim link ini (menggantikan gambar).' : s.catalogItems ? `Bot mengirim ${s.catalogItems} produk dari katalog WhatsApp (lihat daftar di atas). Isi link di sini hanya kalau ingin menggantinya.` : s.fallbackLink ? 'Memakai link katalog toko: ' + esc(s.fallbackLink) : s.product ? (s.files.length ? 'Kosong: bot mengirim gambar di bawah.' : 'Isi link, atau isi link toko di "Katalog umum".') : 'Dipakai untuk semua produk yang belum punya gambar/link sendiri.'}</div>
       </div>` : ''}
@@ -1714,14 +1979,42 @@ $$('#logFilters .chip').forEach((b) => b.onclick = () => { logSource = b.dataset
 $('#logSearch').oninput = () => { clearTimeout(window.logSearchTimer); window.logSearchTimer = setTimeout(loadLog, 300); };
 
 let settingsLoaded = false;
+const keyClock = (iso) => new Date(iso).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' });
+function keyStateLabel(k) {
+  if (k.state === 'aktif') return 'sedang dipakai';
+  if (k.state === 'siap') return 'cadangan, siap dipakai';
+  if (k.state === 'habis') return `habis jatah, dicoba lagi pukul ${keyClock(k.until)}`;
+  if (k.state === 'ditolak') return `ditolak Ollama, ganti kuncinya (dicoba lagi pukul ${keyClock(k.until)})`;
+  return '';
+}
+const setAiDirty = (dirty) => $('#aiDirty').classList.toggle('hidden', !dirty);
+const KEY_SHORT = { aktif: 'Sedang dipakai', siap: 'Cadangan', habis: 'Habis jatah', ditolak: 'Ditolak', kosong: 'Kosong' };
+const KEY_FIELDS = ['key', 'key2', 'key3', 'key4'];
+const keyEditing = new Set();
+function setKeyEditor(slot, open) {
+  const area = $(`[data-key-edit-area="${slot}"]`);
+  area.dataset.open = open ? 'true' : 'false';
+  area.inert = !open;
+}
 function renderAi(ai) {
   $('#aiState').innerHTML = ai.enabled
     ? `<span class="pill good"><span class="dot"></span>aktif · ${esc(ai.model)}</span>`
     : '<span class="pill warn">belum terhubung · jawaban AI belum tersedia</span>';
-  $('#aiKeyHint').textContent = ai.keyMasked
-    ? `Tersimpan: ${ai.keyMasked} (dari ${ai.keySource}). Kosongkan kalau tidak diubah.`
-    : 'Belum ada kunci.';
-  $('#aiKeyRemove').classList.toggle('hidden', ai.keySource !== 'pengaturan');
+  for (const k of ai.keys || []) {
+    const empty = k.state === 'kosong';
+    const editing = keyEditing.has(k.slot);
+    $(`[data-key-row="${k.slot}"]`).dataset.state = k.state;
+    const pill = $(`[data-key-state="${k.slot}"]`);
+    pill.textContent = KEY_SHORT[k.state] || '';
+    pill.title = keyStateLabel(k);
+    const where = k.source === 'pengaturan' ? 'dari Pengaturan' : 'dari file .env';
+    const note = k.state === 'habis' || k.state === 'ditolak' ? ` · ${keyStateLabel(k)}` : '';
+    $(`[data-key-meta="${k.slot}"]`).textContent = empty ? 'Belum ada kunci. Tempel kunci dari ollama.com → Settings → Keys.' : `${k.masked} · ${where}${note}`;
+    setKeyEditor(k.slot, empty || editing);
+    $(`[data-key-use="${k.slot}"]`).classList.toggle('hidden', empty || k.state === 'aktif');
+    $(`[data-key-edit="${k.slot}"]`).classList.toggle('hidden', empty || editing);
+    $(`[data-key-remove]:is([data-key-remove="${KEY_FIELDS[k.slot - 1]}"])`).classList.toggle('hidden', k.source !== 'pengaturan');
+  }
   $('#aiPromptState').textContent = ai.promptsChanged || ai.chatPromptChanged ? '· instruksi diubah tim' : '· bawaan';
   if (!document.activeElement?.closest('#aiForm')) {
     $('#aiForm [name=aiModel]').value = ai.model || '';
@@ -1731,20 +2024,33 @@ function renderAi(ai) {
     $('#aiForm [name=aiPerCustomer]').value = ai.perCustomer ?? '';
     $('#aiForm [name=aiTotal]').value = ai.total ?? '';
     $('#aiForm [name=aiTimeout]').value = ai.timeoutSeconds ?? '';
+    $('#aiForm [name=aiKeyCooldown]').value = ai.keyCooldownMinutes ?? '';
   }
 }
 async function loadAi() { renderAi(await api('/ai')); }
+$('#aiForm').addEventListener('input', () => setAiDirty(true));
 $('#aiForm').onsubmit = async (e) => {
   e.preventDefault();
-  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value, timeoutSeconds: f.aiTimeout.value };
-  if (f.aiKey.value.trim()) body.key = f.aiKey.value;
-  try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify(body) })); f.aiKey.value = ''; toast('Pengaturan AI tersimpan dan langsung berlaku'); loadStatus(); }
+  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value, timeoutSeconds: f.aiTimeout.value, keyCooldownMinutes: f.aiKeyCooldown.value };
+  ['key', 'key2', 'key3', 'key4'].forEach((name, index) => { if (f[`aiKey${index + 1}`].value.trim()) body[name] = f[`aiKey${index + 1}`].value; });
+  try { const saved = await api('/ai', { method:'PUT', body: JSON.stringify(body) }); keyEditing.clear(); setAiDirty(false); renderAi(saved); [1, 2, 3, 4].forEach((n) => { f[`aiKey${n}`].value = ''; }); toast('Pengaturan AI tersimpan dan langsung berlaku'); loadStatus(); }
   catch (err) {                                 }
 };
-$('#aiKeyRemove').onclick = async () => {
-  if (!confirm('Hapus kunci API Ollama dari Pengaturan?')) return;
-  renderAi(await api('/ai', { method:'PUT', body: JSON.stringify({ key: '' }) })); toast('Kunci dihapus');
-};
+$$('[data-key-use]').forEach((button) => button.onclick = async () => {
+  try { renderAi(await api(`/ai/key/${button.dataset.keyUse}/use`, { method:'POST', body: '{}' })); toast(`Kunci ${button.dataset.keyUse} dipakai sekarang`); loadStatus(); }
+  catch (err) {}
+});
+$$('[data-key-edit]').forEach((button) => button.onclick = () => {
+  const slot = Number(button.dataset.keyEdit);
+  keyEditing.add(slot);
+  setKeyEditor(slot, true);
+  button.classList.add('hidden');
+  $(`[name=aiKey${slot}]`).focus();
+});
+$$('[data-key-remove]').forEach((button) => button.onclick = async () => {
+  if (!confirm('Hapus kunci API Ollama ini dari Pengaturan?')) return;
+  renderAi(await api('/ai', { method:'PUT', body: JSON.stringify({ [button.dataset.keyRemove]: '' }) })); toast('Kunci dihapus');
+});
 $('#aiPromptReset').onclick = async () => {
   if (!confirm('Kembalikan semua instruksi AI ke bawaan? Instruksi yang diubah tim akan hilang.')) return;
   try { renderAi(await api('/ai', { method:'PUT', body: JSON.stringify({ chatPrompt: '', chatExamples: '', openingPrompt: '', answerPrompt: '' }) })); toast('Instruksi kembali ke bawaan'); }

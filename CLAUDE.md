@@ -17,7 +17,7 @@ ChatBot Prema is Mawar, the WhatsApp Business assistant for Prema Konveksi. It i
 
 Production uses AI mode only. Settings cannot reactivate naskah. Historical scripted code and tests remain for regression coverage. Do not restore pattern or teaching HTTP routes or menus.
 
-The shop edits Produk, Pengetahuan, Sapaan & pesan, Promo, Gaya bicara AI, Media, and Pengaturan through the dashboard. Saved changes apply without restart. Clients should not need to edit files.
+The shop edits Produk, Pengetahuan, Sapaan & pesan, Promo, Atur AI, Media, and Pengaturan through the dashboard. Saved changes apply without restart. Clients should not need to edit files.
 
 Ollama is the only AI provider. Answers use shop knowledge, product details, and active promotions in the shop timezone. Never invent facts, prices, discounts, totals, delivery promises, or missing knowledge. Prices, negotiations, and final offers go to CS. Owner-approved fixed surcharges/design fees can be quoted exactly under the reply guards. Approved promotion wording is allowed.
 
@@ -71,6 +71,22 @@ Supply a per-connection device cache with the original five-minute TTL and inval
 Use separate deadlines for AI, WhatsApp sends, handshake, and recovery. Late work cannot overwrite reset or newer recovery. Keep recap content and per-recipient IDs until all recipients have been served.
 
 Daily backup/cleanup retries missed work at startup. Defaults: fourteen backup copies and ninety days of history. Updates preserve data/, media/, logs/, and .env.
+
+## AI keys
+
+Up to four Ollama keys (Atur AI, columns 1-4; env OLLAMA_API_KEY, OLLAMA_API_KEY_2..4 as first defaults). They are used in order and the working key stays in use: key 1 until Ollama answers 429, then key 2, and so on (src/ai-keys.js). A refusal moves to the next key inside the same request, so no customer waits for a retry. The working key and each rest time are saved in settings (ai:key_state, keyed by a sha256 prefix, never the key), so a restart continues on the working key and does not ask exhausted keys again. A damaged saved state starts clean.
+- The Atur AI page is four numbered sections (Kunci API, Model dan koneksi, Gaya bicara dan contoh, Batas pemakaian) with a sticky save bar that says when changes are unsaved. Each key is a card whose state is shown in words and colour (Sedang dipakai, Cadangan, Habis jatah, Ditolak, Kosong); the key field opens only on Ganti. Design rules used: existing tokens only, calm hover (no lift), instant press feedback, 44px touch targets on coarse pointers, reduced motion and reduced transparency respected, no colour-only state. Keep the field names the save code reads (aiKey1..4, aiKeyCooldown, aiModel, aiHost, aiChatPrompt, aiChatExamples, aiPerCustomer, aiTotal, aiTimeout).
+- Dashboard look (src/console.html): warm paper palette in light, warm charcoal in dark, emerald accent; page titles, card titles, the hero and KPI numbers use a serif stack (`--serif`, system fonts only, no external fonts); the sidebar floats as a rounded translucent panel with groups (Percakapan, Isi bot, Sistem) and a solid accent pill for the open page; every page has a one-line subtitle (`SUBS`, one entry per `TITLES` key); on Ringkasan the bot status leads and "Siap mulai" is one line of chips when everything is ready, listing only the problems otherwise. Below 760px the sidebar becomes a horizontal bar. The sidebar is the only `<aside>`: a stray or unclosed one once swallowed the whole main area. The page HTML is read once at boot, so a running bot shows the old page until it is restarted and the browser reloaded (Ctrl+F5).
+- Dashboard design system (whole console, src/console.html): one shared layer at the end of the stylesheet. A hint is a `<small>` under its label (never inline text after it); form controls (select, checkbox, radio, textarea, scrollbars) follow the theme; links use the accent colour; charts use the accent colour (`--series`); buttons give instant press feedback, a visible keyboard focus ring and 44px targets on touch; reduced motion and reduced transparency are respected; accordion headers (`.pola-sum`) work from the keyboard; the help button must never cover a Save button (`.aisave` keeps room for it); long editors keep Save and Delete in a sticky side card. The class `check` belongs to the readiness list: use `lb-check` for checkbox labels. Verify layout by screenshots against an in-memory database, not by reading code.
+- No remaining-quota display: Ollama gives no usable token count for free keys, and the shop chose plain rotation. When a key is out the bot moves on silently; only when every key has been checked and is out does one warning ("semua kunci AI sudah dicek satu per satu dan semuanya habis jatahnya") and the red Siap mulai appear.
+
+- The admin can pick the key to use now (button Pakai sekarang, POST /ai/key/:slot/use). It becomes the working key, is saved across restarts, and clears that key's rest mark. If it runs out the bot still moves on to the next key instead of going silent. Choosing an empty column is refused.
+- 429 with a usage-limit message rests the key for the editable time (Jeda kunci, default 30 min). Any other 429 rests it for one minute, because short rate limits are not quota.
+- 401/403 rests the key for a day and raises a warning with its guide (replace the key).
+- All keys resting raises one warning per episode and a retryable 429 error. The input retries as before and, after five attempts or fifteen minutes, goes to CS. Siap mulai fails only when every key is out and names the resting ones otherwise.
+- The same key cannot fill two columns. Only the last four characters reach the dashboard. Keys are never logged.
+- No keys with a configured host (local Ollama) sends no Authorization header and never rotates.
+- Test with simulated fetch only; automated tests never call Ollama.
 
 ## Architecture
 

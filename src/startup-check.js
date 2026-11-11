@@ -1,3 +1,4 @@
+import { currentKey, keyStatus } from './ai-keys.js';
 import { config } from './config.js';
 import { lastOllamaCall, ollamaEnabled } from './bot/classify-ollama.js';
 import { meaningOf } from './errors.js';
@@ -60,9 +61,16 @@ function whatsapp(main) {
 async function ai(fetchImpl) {
     const title = 'AI bisa menjawab';
     if (!ollamaEnabled()) {
-        return check('ai', title, false, 'Kunci AI belum diisi: setelah sapaan bot diam.', 'Isi kunci di Pengaturan > AI.');
+        return check('ai', title, false, 'Kunci AI belum diisi: setelah sapaan bot diam.', 'Isi kunci di Atur AI.');
     }
-    const headers = config.ollama.apiKey ? { Authorization: `Bearer ${config.ollama.apiKey}` } : {};
+    const filled = keyStatus().filter((entry) => entry.state !== 'kosong');
+    const resting = filled.filter((entry) => entry.state === 'habis' || entry.state === 'ditolak');
+    if (filled.length && resting.length === filled.length) {
+        return check('ai', title, false, `Semua ${filled.length} kunci AI sedang habis jatah atau ditolak, jadi bot diam untuk pesan pelanggan.`,
+            '1) Buka Atur AI dan lihat status tiap kunci. 2) Tambahkan kunci Ollama lain (sampai 4 kunci) atau upgrade paket. 3) Jatah pulih sendiri dan bot mencoba lagi otomatis. 4) Sementara itu, balas pelanggan lewat WhatsApp Business di HP.');
+    }
+    const key = currentKey();
+    const headers = key ? { Authorization: `Bearer ${key}` } : {};
     const started = Date.now();
     try {
         const response = await fetchImpl(`${config.ollama.host}/api/tags`, { headers, signal: AbortSignal.timeout(NET_TIMEOUT_MS) });
@@ -77,7 +85,13 @@ async function ai(fetchImpl) {
         return check('ai', title, false, `Server AI terjangkau (${ms} ms), tapi jawaban terakhir gagal.`, meaningOf(last.error) ?? '', last.error);
     }
 
-    return check('ai', title, true, last ? `jawaban terakhir ${(last.ms / 1000).toFixed(1)} detik (batas ${limit} detik)` : `server terjangkau (${ms} ms), batas ${limit} detik`);
+    const clock = (iso) => new Date(iso).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', timeZone: config.bot.timezone });
+    const keys = filled.length > 1
+        ? ` · ${filled.length} kunci${resting.length ? `, ${resting.map((entry) => `kunci ${entry.slot} ${entry.state} sampai ${clock(entry.until)}`).join(', ')}` : ''}`
+        : '';
+    const base = last ? `jawaban terakhir ${(last.ms / 1000).toFixed(1)} detik (batas ${limit} detik)` : `server terjangkau (${ms} ms), batas ${limit} detik`;
+
+    return check('ai', title, true, `${base}${keys}`);
 }
 
 function version() {
