@@ -88,6 +88,15 @@ Up to four Ollama keys (Atur AI, columns 1-4; env OLLAMA_API_KEY, OLLAMA_API_KEY
 - No keys with a configured host (local Ollama) sends no Authorization header and never rotates.
 - Test with simulated fetch only; automated tests never call Ollama.
 
+## Token saving, owner alerts, unanswered questions, restore
+
+- Token saving (Atur AI, "Hemat token", default on, setting ai:trim_knowledge): the prompt sends full text only for the Info toko topics and Tanya-jawab related to the current message (word overlap with the message, the last two customer messages and the product, src/bot/relevance.js). Short topics (240 characters or less) and topics pinned by title ("Jam kerja", which the WAKTU SEKARANG block points to) always stay; the rest become one line saying the content exists but is not shown. Safety net in askChat: if the AI gives up (hands over as tidak_bisa_bantu, or its fakta says tidak ada di data with no reply) or the reply guard refuses after data was left out, the same message is asked once more with the full data. Never remove the safety net; without it a missed word match turns into a false "tanya CS". Product details are already trimmed by focus.
+- Owner alerts (src/alerts.js, Pengaturan > Rekap pagi dan peringatan, setting alertsOn): the recap numbers also receive WhatsApp messages when a known tindak-level error appears (the same guide text the dashboard shows; entries marked push:false in GUIDE, such as the update reminder, are skipped) and after the bot was disconnected for more than ten minutes. A disconnected bot cannot send WhatsApp, so the gap is reported after reconnecting, using the persisted alert:connected_at stamp; it also covers a PC that was off. The same cause is repeated at most every six hours (alert:sent). A failed send leaves the cause pending for the next check. The text states the length of the gap and never guesses a cause.
+- Unanswered questions (table unanswered, migration 025, Pengetahuan page): when the AI hands a chat over as tidak_bisa_bantu, or says the fact is not in the data and names what is missing, chatTurn returns unanswered and the bot records it inside the same transaction that queues the replies. Real chats only: self-tests and retryable failures are not recorded. The same question is counted once (fingerprint of the normalised text). "Jawab sebagai tanya-jawab" opens a new tanya-jawab prefilled with the question and closes the item when it is saved; "Abaikan" keeps it dismissed even if asked again; an answered one reopens if customers ask it again, which means the answer does not match.
+- Handover brief (src/bot/brief.js): GET /conversations/:session/:jid returns brief (want, have, missing, note) computed in code from order_info and notes, never by the AI. Answers marked menyusul count as missing. The conversation pane shows it above the full detail, and "Jadikan uji" saves the customer messages of the chat as an Uji AI scenario with #angka-uang forbidden.
+- Restore (maintenance.js restoreContent, Pengaturan > Pulihkan isi toko): only shop content is restored from a daily backup (products, custom_keywords, store_info, faq, promotions, ai_scenarios and the settings keys cfg:, reply:, link:, catmap: plus the four AI prompt texts). Conversations, message history, WhatsApp pairing and Signal keys, AI keys and rest state, and job/alert bookkeeping are never restored: restoring old Signal keys is forbidden. A safety copy (sebelum-pulih-*.sqlite, last five kept, not offered as a backup) is taken first; the backup is checked with quick_check; the whole replacement is one transaction. Only names matching chatbot-YYYY-MM-DD.sqlite are accepted.
+- Statistik no longer shows intent labels (AI-only mode labels everything "ai"); it shows the share of conversations handed to CS, the most discussed products and the open unanswered questions. On narrow screens the menu bar must keep its own row height: the .app grid uses grid-template-rows:auto minmax(0,1fr) so a tall viewport does not stretch it.
+
 ## Architecture
 
 | Location | Responsibility |
@@ -104,7 +113,9 @@ Up to four Ollama keys (Atur AI, columns 1-4; env OLLAMA_API_KEY, OLLAMA_API_KEY
 | src/bot/catalog.js, src/bot/media.js | Catalog and uploaded assets |
 | src/db.js, src/migrations.js | Initialization and in-place migrations |
 | src/settings.js, src/ai-settings.js | Editable runtime configuration |
-| src/maintenance.js | Backup, retention, recap |
+| src/maintenance.js | Backup, retention, recap, restore of shop content |
+| src/alerts.js | WhatsApp alerts to the owner numbers |
+| src/bot/relevance.js, src/bot/unanswered.js, src/bot/brief.js | Prompt trimming, unanswered question list, handover brief |
 | src/errors.js, src/activity.js | Guidance and activity feed |
 | scripts/launcher.ps1, scripts/health-watchdog.ps1 | Windows install, update, startup, owned-process supervision |
 | test/multidevice.test.js | Multi-device recovery and takeover simulations |

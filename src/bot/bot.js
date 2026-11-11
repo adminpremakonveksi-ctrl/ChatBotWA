@@ -10,6 +10,7 @@ import { cancelDeliveries, completeDelivery, enqueueDelivery, pendingDeliveries 
 import { classify as defaultClassify } from './classify.js';
 import { isAutoMessage, releaseAutoHandovers } from './auto-messages.js';
 import { chatTurn } from './chat.js';
+import { recordUnanswered } from './unanswered.js';
 import { decide } from './engine.js';
 import { productName } from './products.js';
 import { replies } from './replies.js';
@@ -301,7 +302,7 @@ export class Bot {
         return this.#deliver(sessionKey, transport, jid, conversation, text, classified, { ...turn, inboxIds: ids });
     }
 
-    async #deliver(sessionKey, transport, jid, conversation, text, classified, { actions, patch, inboxIds = [], retryable = false, retryAfterMs = 0, silent = '' }) {
+    async #deliver(sessionKey, transport, jid, conversation, text, classified, { actions, patch, inboxIds = [], retryable = false, retryAfterMs = 0, silent = '', unanswered = null }) {
         if (silent && !retryable && !actions.some((a) => a.type === 'handover')) {
             actions = [...actions, { type: 'handover', reason: 'AI tidak dapat menjawab: ' + String(silent).slice(0, 160) }];
         }
@@ -320,6 +321,7 @@ export class Bot {
 
         db.transaction(() => {
             this.#queueTurn(sessionKey, transport, jid, conversation, classified, actions, patch, who);
+            if (unanswered && !classified.selfTest && !retryable) recordUnanswered(unanswered);
             if (retryable) deferIncoming(sessionKey, inboxIds, silent, retryAfterMs);
             else completeIncoming(sessionKey, inboxIds);
         })();

@@ -321,6 +321,10 @@ export function updateTemplate(key, value) {
     overrides = null;
 }
 
+export const forgetTemplates = () => {
+    overrides = null;
+};
+
 export function resetTemplate(key) {
     if (!TEMPLATES[key]) fail('Template tidak dikenal');
 

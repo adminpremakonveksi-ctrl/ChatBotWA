@@ -23,13 +23,16 @@ import { WORD_LISTS, addWord, removeWord, updateWord, wordRows } from './bot/wor
 import { chooseKey } from './ai-keys.js';
 import { aiSettings, listOllamaModels, loadAiSettings, updateAiSettings } from './ai-settings.js';
 import { classifyWithOllama } from './bot/classify-ollama.js';
-import { backup, buildRecap, sendTestRecap, startMaintenance } from './maintenance.js';
+import { startAlerts } from './alerts.js';
+import { backup, buildRecap, listBackups, restoreContent, sendTestRecap, startMaintenance } from './maintenance.js';
 import { startUpdateCheck, updateStatus } from './update-check.js';
 import { startupChecks } from './startup-check.js';
 import { manager } from './manager.js';
 import { backupSuggestions, currentSettings, loadSettings, updateSettings } from './settings.js';
 import { releaseAutoHandovers } from './bot/auto-messages.js';
 import { deleteFaq, deleteTopic, listFaq, listTopics, moveTopic, saveFaq, saveTopic } from './bot/knowledge.js';
+import { handoverBrief } from './bot/brief.js';
+import { closeUnanswered, listUnanswered, openUnansweredCount } from './bot/unanswered.js';
 import { deleteScenario, listScenarios, runScenario, saveScenario } from './bot/ai-scenarios.js';
 import { clearAi, listAi } from './bot/ai-log.js';
 import { deletePromotion, listPromotions, promotionActive, savePromotion } from './bot/promotions.js';
@@ -155,6 +158,7 @@ app.get('/info', wrap(async (req, res) => {
         handoverHours: config.bot.handoverHours,
         recapTo: config.recap.to,
         recapAt: config.recap.at,
+        alertsOn: config.recap.alerts,
         backupDir: config.maintenance.backupDir,
         backupOutside: !path.resolve(config.maintenance.backupDir).toLowerCase().startsWith(path.resolve(root).toLowerCase()),
         lastBackup: getSetting('backup:last') ?? getSetting('job:backup'),
@@ -269,7 +273,9 @@ app.get('/conversations', wrap(async (req, res) => {
 app.get('/conversations/:session/:jid', wrap(async (req, res) => {
     const { session, jid } = req.params;
 
-    res.json({ conversation: loadConversation(session, jid), messages: messagesOf(session, jid) });
+    const conversation = loadConversation(session, jid);
+
+    res.json({ conversation, messages: messagesOf(session, jid), brief: handoverBrief(conversation) });
 }));
 
 app.post('/conversations/:session/:jid/reset', wrap(async (req, res) => {
@@ -415,13 +421,23 @@ app.post('/backup/now', wrap(async (req, res) => {
     res.json({ file: result.file });
 }));
 
+app.get('/backups', wrap(async (req, res) => {
+    res.json({ backups: listBackups() });
+}));
+
+app.post('/backups/:name/restore', wrap(async (req, res) => {
+    res.json(await restoreContent(req.params.name));
+}));
+
 app.post('/recap/test', wrap(async (req, res) => {
     res.json({ sent: await sendTestRecap({ manager, bot }) });
 }));
 
 
 app.get('/analytics', wrap(async (req, res) => {
-    res.json(analytics(Math.min(90, Math.max(7, Number(req.query.days ?? 30)))));
+    const result = analytics(Math.min(90, Math.max(7, Number(req.query.days ?? 30))));
+
+    res.json({ ...result, products: result.products.map((row) => ({ ...row, name: productName(row.key) })), unanswered: listUnanswered(5), unansweredTotal: openUnansweredCount() });
 }));
 
 
@@ -524,7 +540,7 @@ app.delete('/promotions/:id', wrap(async (req, res) => {
 }));
 
 app.get('/knowledge', wrap(async (req, res) => {
-    res.json({ topics: listTopics(), faq: listFaq() });
+    res.json({ topics: listTopics(), faq: listFaq(), unanswered: listUnanswered() });
 }));
 
 app.post('/knowledge/topics', wrap(async (req, res) => {
@@ -542,6 +558,11 @@ app.post('/knowledge/topics/:id/move', wrap(async (req, res) => {
 app.delete('/knowledge/topics/:id', wrap(async (req, res) => {
     deleteTopic(Number(req.params.id));
     res.json({ ok: true });
+}));
+
+app.post('/knowledge/unanswered/:id/:status', wrap(async (req, res) => {
+    closeUnanswered(Number(req.params.id), req.params.status);
+    res.json({ ok: true, unanswered: listUnanswered() });
 }));
 
 app.post('/knowledge/faq', wrap(async (req, res) => {
@@ -612,6 +633,7 @@ async function main() {
 
     await manager.boot(bot);
     startMaintenance({ manager, bot });
+    startAlerts({ manager, bot });
     startUpdateCheck();
 
     const missing = media.checklist().filter((item) => !item.ok);

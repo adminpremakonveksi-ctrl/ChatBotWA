@@ -20,6 +20,7 @@ const KEYS = {
     perCustomer: 'ai:limit_customer',
     total: 'ai:limit_total',
     timeout: 'ai:timeout_s',
+    trim: 'ai:trim_knowledge',
 };
 
 const fromEnv = { ...config.ollama };
@@ -48,6 +49,7 @@ export function loadAiSettings() {
         total: Number(getSetting(KEYS.total)) || DEFAULT_LIMITS.total,
     };
     config.ollama.timeoutMs = (Number(getSetting(KEYS.timeout)) || 0) * 1000 || fromEnv.timeoutMs;
+    config.ollama.trimKnowledge = getSetting(KEYS.trim) !== '0';
 }
 
 export const DEFAULT_LIMITS = { perCustomer: 40, total: 60 };
@@ -79,6 +81,7 @@ export function aiSettings() {
         perCustomer: config.ollama.limits?.perCustomer ?? DEFAULT_LIMITS.perCustomer,
         total: config.ollama.limits?.total ?? DEFAULT_LIMITS.total,
         timeoutSeconds: Math.round(config.ollama.timeoutMs / 1000),
+        trimKnowledge: config.ollama.trimKnowledge !== false,
     };
 }
 
@@ -89,7 +92,7 @@ const cleanKey = (value) => {
     return text;
 };
 
-export function updateAiSettings({ key, key2, key3, key4, keyCooldownMinutes, model, host, chatPrompt, chatExamples, openingPrompt, answerPrompt, perCustomer, total, timeoutSeconds } = {}) {
+export function updateAiSettings({ key, key2, key3, key4, keyCooldownMinutes, model, host, chatPrompt, chatExamples, openingPrompt, answerPrompt, perCustomer, total, timeoutSeconds, trimKnowledge } = {}) {
     const incoming = { key, key2, key3, key4 };
     const nextKeys = SLOT_NAMES.map((name, index) => (incoming[name] === undefined ? keySlots()[index] : cleanKey(incoming[name])));
     const used = nextKeys.filter(Boolean);
@@ -109,6 +112,8 @@ export function updateAiSettings({ key, key2, key3, key4, keyCooldownMinutes, mo
         if (!Number.isInteger(n) || n < min || n > max) fail(`${label}: ${min}-${max}`);
         setSetting(KEYS[name], String(n));
     }
+
+    if (trimKnowledge !== undefined) setSetting(KEYS.trim, trimKnowledge === false || trimKnowledge === 'false' || trimKnowledge === '0' ? '0' : '1');
 
     SLOT_NAMES.forEach((name, index) => {
         if (incoming[name] === undefined) return;

@@ -186,7 +186,11 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .conv { border-left:4px solid transparent } .conv.who-bot { border-left-color:var(--good) } .conv.who-wait { border-left-color:var(--warn) } .conv.who-cs { border-left-color:var(--ink-3) }
 .who-banner { display:flex; gap:10px; align-items:center; padding:10px 14px; font-size:13.5px; border-bottom:1px solid var(--line) }
 .who-banner.bot { background:var(--good-soft); color:var(--good) } .who-banner.wait { background:var(--warn-soft); color:var(--warn) } .who-banner.cs { background:var(--panel-2); color:var(--ink-2) }
-.who-banner b { font-size:15px }
+.who-banner b { font-size:15px; white-space:nowrap }
+.brief { display:grid; gap:6px; padding:12px 16px; border-bottom:1px solid var(--line); background:var(--panel-2); font-size:13.5px }
+.brief > div { display:grid; grid-template-columns:96px minmax(0,1fr); gap:10px; align-items:baseline }
+.brief > div > b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3) }
+.brief-more { padding:0 16px; border-bottom:1px solid var(--line) }
 .order { padding:8px 14px; font-size:13px; border-bottom:1px solid var(--line-2); background:var(--panel-2) }
 .order dt { color:var(--ink-3); font-size:12px; margin-top:4px } .order dd { margin:0 }
 .bub .who { display:block; font-size:11px; opacity:.7; margin-bottom:2px }
@@ -196,7 +200,8 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .conv .time { font-size:11.5px; color:var(--ink-3) }
 .conv .last { color:var(--ink-2); font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap }
 .pane { display:flex; flex-direction:column; min-width:0; min-height:0 }
-.pane-head { padding:12px 16px; border-bottom:1px solid var(--line); display:flex; gap:12px; align-items:center }
+.pane-head { padding:12px 16px; border-bottom:1px solid var(--line); display:flex; flex-wrap:wrap; gap:12px; align-items:center }
+.pane-head .steps { flex:1 1 100%; overflow-x:auto }
 .chatwall { flex:1; overflow-y:auto; padding:18px 6%; background:var(--chat-bg); display:flex; flex-direction:column; gap:6px;
   background-image:radial-gradient(color-mix(in srgb, var(--ink) 5%, transparent) 1px, transparent 1px); background-size:18px 18px }
 .bub { max-width:72%; padding:7px 10px 18px; border-radius:9px; white-space:pre-wrap; word-wrap:break-word; position:relative; box-shadow:0 1px .5px rgba(0,0,0,.13); font-size:13.5px }
@@ -373,7 +378,7 @@ details.tbl summary { cursor:pointer; color:var(--ink-3); font-size:12px; margin
 
 @media (max-width: 1100px) { .g4 { grid-template-columns:repeat(2,minmax(0,1fr)) } .g-main, .sim { grid-template-columns:1fr } .teach-form { grid-template-columns:1fr 1fr } }
 @media (max-width: 760px) {
-  .app { grid-template-columns:minmax(0,1fr) } aside { position:static; height:auto; flex-direction:row; overflow-x:auto; padding:10px; gap:2px; border-right:0; border-bottom:1px solid var(--line) }
+  .app { grid-template-columns:minmax(0,1fr); grid-template-rows:auto minmax(0,1fr); align-content:start } aside { position:static; height:auto; flex-direction:row; overflow-x:auto; padding:10px; gap:2px; border-right:0; border-bottom:1px solid var(--line) }
   .brand, .aside-foot { display:none } .nav { width:auto; white-space:nowrap } .nav .count { display:none }
   .topbar, .content { padding-left:16px; padding-right:16px } .topbar { flex-wrap:wrap; gap:8px } .topbar h1 { width:100% } .topbar .sp { display:none }
   .hero { grid-template-columns:1fr } .pane-head { flex-wrap:wrap } .steps { overflow-x:auto; max-width:100% } .teach-form { grid-template-columns:1fr } .g4, .g3, .g2 { grid-template-columns:1fr }
@@ -398,7 +403,9 @@ input[type="checkbox"], input[type="radio"] { accent-color:var(--accent); width:
 label.lb, .card label.lb, .pola-body label.lb, .promo-form > label.lb { display:block; margin:18px 0 6px; font-weight:600; font-size:13.5px; line-height:1.35 }
 label.lb:first-child, .card label.lb:first-child, .pola-body label.lb:first-child { margin-top:0 }
 label.lb small, .card label.lb small { display:block; margin-top:2px; font-weight:400; font-size:12px; line-height:1.45; letter-spacing:.01em; color:var(--ink-3) }
-label.lb.lb-check, .card label.lb.lb-check, .pola-body label.lb.lb-check { display:flex; align-items:center; gap:10px; margin:16px 0; font-weight:500; cursor:pointer }
+label.lb.lb-check, .card label.lb.lb-check, .pola-body label.lb.lb-check { display:flex; align-items:flex-start; gap:10px; margin:16px 0; font-weight:500; cursor:pointer }
+label.lb.lb-check > input { margin-top:3px; flex:none }
+label.lb.lb-check > span { flex:1; min-width:0 }
 .pola-body h4 { margin:28px 0 4px; padding-top:20px; border-top:1px solid var(--line-2); font-size:14.5px; font-weight:650; letter-spacing:-.005em }
 .pola-body h4 small { display:block; margin-top:3px; font-weight:400; font-size:12px; line-height:1.45; color:var(--ink-3) }
 .pola-aside { align-self:start; padding:14px 16px; border-radius:12px; background:var(--panel-2); border:1px solid var(--line-2); line-height:1.6; color:var(--ink-2) }
@@ -651,6 +658,11 @@ input.f, select.f, textarea.f { border-radius:var(--r-ctl); padding:10px 14px }
           <h3>Pengetahuan Mawar</h3>
           <p class="hint">Informasi untuk jawaban AI: info toko, tanya-jawab, referensi tambahan di bawah, dan detail pada halaman <a href="#produk" data-goto="produk">Produk</a>. Tulis informasi yang benar dan disetujui toko; yang kosong akan ditanyakan ke CS. Harga produk dan penawaran tetap ditangani CS. Perubahan langsung berlaku.</p>
         </div>
+        <div class="card stack hidden" id="unansweredCard">
+          <div class="row"><h3 style="flex:1">Pertanyaan yang belum terjawab</h3><span class="small muted" id="unansweredCount"></span></div>
+          <p class="hint">Pelanggan menanyakan ini, tetapi Pengetahuan belum punya jawabannya, jadi Mawar meneruskannya ke CS. Isi jawabannya sekali, lalu Mawar bisa menjawab sendiri lain kali. Yang paling sering ditanyakan ada di atas.</p>
+          <div class="stack" id="unansweredList"></div>
+        </div>
         <div class="card stack">
           <div class="row"><h3 style="flex:1">Info toko</h3><span class="small muted" id="topicCount"></span><button class="btn primary" id="topicNew">+ Topik baru</button></div>
           <p class="hint">Satu topik satu hal: lokasi, jam kerja, cara pesan, DP, pengiriman, dan sebagainya. Tulis seperti menjelaskan ke karyawan baru.</p>
@@ -672,10 +684,11 @@ input.f, select.f, textarea.f { border-radius:var(--r-ctl); padding:10px 14px }
         <div class="card"><h3>Pesan masuk per hari</h3><p class="hint">Jumlah pesan pelanggan yang diterima bot, semua jam.</p><div class="chart" id="chDaily"></div><details class="tbl"><summary>Lihat sebagai tabel</summary><div id="tbDaily"></div></details></div>
         <div class="grid g2">
           <div class="card"><h3>Jam ramai</h3><p class="hint">Pesan masuk per jam (WIB). Area gelap = jam bot diam.</p><div class="chart" id="chHours"></div><details class="tbl"><summary>Lihat sebagai tabel</summary><div id="tbHours"></div></details></div>
-          <div class="card"><h3>Yang paling sering ditanyakan</h3><p class="hint">Maksud pesan yang dikenali bot.</p><div id="chIntents"></div></div>
+          <div class="card"><h3>Produk paling sering dibahas</h3><p class="hint">Jumlah percakapan yang menyebut tiap produk pada rentang ini.</p><div id="chProducts"></div></div>
         </div>
         <div class="grid g2">
           <div class="card"><h3>Corong percakapan</h3><p class="hint">Berapa pelanggan sampai ke tiap tahap alur. Persen dihitung dari yang menghubungi.</p><div id="chFunnel"></div></div>
+          <div class="card"><h3>Pertanyaan yang belum terjawab</h3><p class="hint">Pertanyaan pelanggan yang tidak ada jawabannya di Pengetahuan, jadi diserahkan ke CS.</p><div id="chUnanswered"></div></div>
         </div>
         <div class="card"><h3>Kenapa diserahkan ke CS</h3><p class="hint">Alasan bot berhenti membalas.</p><div id="chHandover"></div></div>
       </section>
@@ -786,6 +799,7 @@ input.f, select.f, textarea.f { border-radius:var(--r-ctl); padding:10px 14px }
               <div class="aifield"><label for="aiTotal">Seluruh bot<small>Panggilan AI per menit (melindungi kuota dari spam).</small></label><div class="aiunit"><input class="f" type="number" id="aiTotal" name="aiTotal" min="1" max="1000"><span>per menit</span></div></div>
               <div class="aifield"><label for="aiTimeout">Batas waktu jawaban<small>Lewat dari ini bot diam untuk pesan itu. Naikkan kalau internet atau AI-nya lambat.</small></label><div class="aiunit"><input class="f" type="number" id="aiTimeout" name="aiTimeout" min="10" max="180"><span>detik</span></div></div>
             </div>
+            <label class="lb lb-check"><input type="checkbox" id="aiTrim" name="aiTrim"><span>Hemat token: kirim hanya info toko dan tanya-jawab yang berkaitan dengan pesan pelanggan<small>Prompt jadi sekitar sepertiga lebih pendek, jadi jatah kunci AI lebih awet. Kalau AI merasa datanya kurang, ia otomatis diulang dengan data lengkap. Matikan kalau jawaban terasa kurang lengkap.</small></span></label>
           </div>
 
           <div class="aisave" role="region" aria-label="Simpan pengaturan AI"><span class="aisave-note hidden" id="aiDirty" role="status">Ada perubahan yang belum disimpan</span><button class="btn primary">Simpan</button></div>
@@ -828,12 +842,13 @@ input.f, select.f, textarea.f { border-radius:var(--r-ctl); padding:10px 14px }
         </form>
 
         <form class="card" id="recapForm">
-          <div class="row"><h3 style="flex:1">Rekap pagi untuk CS</h3><button type="button" class="btn" id="testRecap">Kirim rekap uji</button><button class="btn primary">Simpan</button></div>
-          <p class="hint">Setiap Senin–Sabtu, bot mengirim daftar pelanggan semalam ke WhatsApp CS. Senin mencakup Sabtu malam dan Minggu.</p>
+          <div class="row"><h3 style="flex:1">Rekap pagi dan peringatan</h3><button type="button" class="btn" id="testRecap">Kirim rekap uji</button><button class="btn primary">Simpan</button></div>
+          <p class="hint">Setiap Senin–Sabtu, bot mengirim daftar pelanggan semalam ke WhatsApp CS. Senin mencakup Sabtu malam dan Minggu. Nomor yang sama juga menerima peringatan bila ada yang perlu ditindak.</p>
           <div class="form">
-            <label>Nomor WhatsApp penerima<small>Bisa lebih dari satu, pisahkan dengan koma. Kosongkan untuk mematikan rekap.</small></label><input class="f" name="recapTo" placeholder="0812xxxxxxxx">
+            <label>Nomor WhatsApp penerima<small>Bisa lebih dari satu, pisahkan dengan koma. Kosongkan untuk mematikan rekap dan peringatan.</small></label><input class="f" name="recapTo" placeholder="0812xxxxxxxx">
             <label>Jam kirim<small>Kosong = saat bot selesai berjaga.</small></label><div class="inline"><input class="f" type="time" name="recapAt"><span class="muted small" id="recapAtHint"></span></div>
           </div>
+          <label class="lb lb-check"><input type="checkbox" name="alertsOn"><span>Kirim peringatan ke nomor ini<small>Dikirim bila kunci AI habis semua atau ada masalah yang perlu tindakan, dan bila bot sempat terputus lebih dari 10 menit (dilaporkan setelah tersambung lagi, karena saat terputus WhatsApp tidak bisa dipakai mengirim). Masalah yang sama paling cepat dikirim lagi setelah 6 jam.</small></span></label>
           <div class="chatwall" style="border-radius:10px;max-height:340px;margin-top:14px"><div class="bub me" id="recapPreview">…</div></div>
         </form>
 
@@ -852,6 +867,12 @@ input.f, select.f, textarea.f { border-radius:var(--r-ctl); padding:10px 14px }
             <div class="stack" style="gap:8px"><input class="f" name="backupDir" placeholder="G:\My Drive\Backup ChatBot Prema"><div class="quick" id="backupSuggest"></div></div>
           </div>
         </form>
+
+        <div class="card stack" id="restoreCard">
+          <div class="row"><h3 style="flex:1">Pulihkan isi toko dari backup</h3><span class="small muted" id="restoreCount"></span></div>
+          <p class="hint">Kalau produk, pengetahuan, promo, atau template terhapus atau rusak, kembalikan dari backup. Yang dipulihkan: produk, info toko, tanya-jawab, promo, template, skenario uji, instruksi AI, dan pengaturan toko. <b>Tidak berubah:</b> percakapan pelanggan, tautan WhatsApp, dan kunci AI. Salinan kondisi sekarang disimpan dulu, jadi bisa dikembalikan lagi.</p>
+          <div id="restoreList"></div>
+        </div>
       </section>
     </div>
   </div>
@@ -1301,12 +1322,31 @@ function orderSummary(c, row) {
     ${notes.length ? `<dt>${order ? '📝 Catatan AI untuk CS' : '❓ Untuk dijawab CS'}</dt>${notes.map((n) => `<dd>• ${esc(n)}</dd>`).join('')}` : ''}
   </dl>`;
 }
+function briefCard(brief, detail) {
+  if (!brief) return detail;
+  const rows = [
+    ['Mau', esc(brief.want)],
+    ['Sudah ada', brief.have.length ? brief.have.map((h) => `${esc(h.hal)}: <b>${esc(h.isi)}</b>`).join(' · ') : '<span class="muted">belum ada</span>'],
+    ['Masih kosong', brief.missing.length ? brief.missing.map(esc).join(', ') : '<span class="muted">semua sudah terjawab</span>'],
+    ...(brief.note ? [['Catatan AI', esc(brief.note)]] : []),
+  ];
+  return `<div class="brief">${rows.map(([k, v]) => `<div><b>${k}</b><span>${v}</span></div>`).join('')}</div>${detail ? `<details class="okmore brief-more"><summary class="small muted">Detail lengkap</summary>${detail}</details>` : ''}`;
+}
+async function saveAsScenario(c, row, messages) {
+  const said = messages.filter((m) => m.direction === 'in' && m.text && !m.text.startsWith('[file]')).map((m) => m.text.replace(/\s+/g, ' ').trim()).slice(-10);
+  if (!said.length) { toast('Belum ada pesan pelanggan untuk dijadikan skenario'); return; }
+  const who = c.name ? 'Kak ' + c.name : row.phone ? '+' + row.phone : 'pelanggan';
+  try {
+    await api('/ai/scenarios', { method:'POST', body: JSON.stringify({ name: `Chat ${who} ${new Date().toLocaleDateString('id-ID', { day:'numeric', month:'short' })}`.slice(0, 80), messages: said, forbid: ['#angka-uang'], expect: [] }) });
+    toast('Tersimpan di Coba bot, bagian Uji AI. Tambahkan isi "Harus ada" di sana kalau perlu.');
+  } catch (err) { toast('Belum tersimpan: ' + err.message); }
+}
 async function openConv(session, jid, quiet) {
   openKey = [session, jid];
   if (!quiet) renderConvs();
   const pane = $('#convPane');
   const wall = $('.chatwall', pane); const atBottom = !wall || wall.scrollHeight - wall.scrollTop - wall.clientHeight < 40;
-  const { messages, conversation: c } = await api(`/conversations/${encodeURIComponent(session)}/${encodeURIComponent(jid)}`);
+  const { messages, conversation: c, brief } = await api(`/conversations/${encodeURIComponent(session)}/${encodeURIComponent(jid)}`);
   const row = convs.find((x) => x.jid === jid) || {};
   let lastDay = '';
   const bubbles = messages.map((m) => {
@@ -1325,16 +1365,17 @@ async function openConv(session, jid, quiet) {
   const phone = row.phone || (jid.endsWith('@s.whatsapp.net') ? jid.split('@')[0] : null);
   pane.innerHTML = `
     <div class="pane-head"><div class="ava" style="background:${avaColor(jid)}">${esc(initials(c.name))}</div>
-      <div style="flex:1;min-width:0"><b>${esc(c.name ? 'Kak ' + c.name : 'Tanpa nama')}</b>${c.origin ? ' <span class="muted">· ' + esc(c.origin) + '</span>' : ''}
+      <div style="flex:1;min-width:160px"><b>${esc(c.name ? 'Kak ' + c.name : 'Tanpa nama')}</b>${c.origin ? ' <span class="muted">· ' + esc(c.origin) + '</span>' : ''}
       <div class="small muted">${phone ? `<a href="https://wa.me/${esc(phone)}" target="_blank" rel="noopener">+${esc(phone)}</a>` : 'nomor disembunyikan WhatsApp'}${c.product ? ' · ' + esc(row.product_name || c.product) : ''}</div></div>
       ${stepper(c.step)}</div>
     ${whoBanner(c)}
-    ${orderSummary(c, row)}
+    ${briefCard(brief, orderSummary(c, row))}
     <div class="chatwall">${bubbles || '<div class="sys">Belum ada pesan.</div>'}</div>
     <div class="pane-foot">${handed
-      ? `<span class="pill ${c.handover_reason === 'CS membalas' ? 'quiet' : 'warn'}"><span class="dot"></span>${esc(c.handover_reason || 'di CS')}</span><span class="muted small" style="flex:1">Bot diam di nomor ini.</span><button class="btn" onclick='act(${JSON.stringify(session)}, ${JSON.stringify(jid)}, "reset")'>Kembalikan ke bot</button>`
-      : `<span class="muted small" style="flex:1">Bot sedang menangani · ${esc(STEP_LABEL[c.step] || c.step)}</span><button class="btn primary" onclick='act(${JSON.stringify(session)}, ${JSON.stringify(jid)}, "handover")'>CS ambil alih</button>`}</div>`;
+      ? `<span class="pill ${c.handover_reason === 'CS membalas' ? 'quiet' : 'warn'}"><span class="dot"></span>${esc(c.handover_reason || 'di CS')}</span><span class="muted small" style="flex:1">Bot diam di nomor ini.</span><button class="btn" data-make-test title="Simpan pesan pelanggan di chat ini sebagai skenario Uji AI">🧪 Jadikan uji</button><button class="btn" onclick='act(${JSON.stringify(session)}, ${JSON.stringify(jid)}, "reset")'>Kembalikan ke bot</button>`
+      : `<span class="muted small" style="flex:1">Bot sedang menangani · ${esc(STEP_LABEL[c.step] || c.step)}</span><button class="btn" data-make-test title="Simpan pesan pelanggan di chat ini sebagai skenario Uji AI">🧪 Jadikan uji</button><button class="btn primary" onclick='act(${JSON.stringify(session)}, ${JSON.stringify(jid)}, "handover")'>CS ambil alih</button>`}</div>`;
   const nw = $('.chatwall', pane); if (atBottom || !quiet) nw.scrollTop = nw.scrollHeight;
+  $('[data-make-test]', pane).onclick = () => saveAsScenario(c, row, messages);
 }
 async function act(session, jid, what) {
   await api(`/conversations/${encodeURIComponent(session)}/${encodeURIComponent(jid)}/${what}`, { method:'POST' });
@@ -1637,19 +1678,20 @@ $('#prodNew').onclick = async () => {
   } catch (err) { toast('Gagal: ' + err.message); }
 };
 
-let topics = [], faqs = [], faqDraft = false;
+let topics = [], faqs = [], faqDraft = false, unanswered = [], faqSeed = null;
 
 async function loadPengetahuan() {
   const [k, p] = await Promise.all([api('/knowledge'), products.length ? null : api('/products')]);
-  ({ topics, faq: faqs } = k);
+  ({ topics, faq: faqs, unanswered } = k);
   if (p) products = p.products;
-  renderTopics(); renderFaq();
+  renderTopics(); renderFaq(); renderUnanswered();
 }
 function knowCounts() {
   const empty = topics.filter((t) => !t.content.trim()).length;
   $('#topicCount').textContent = `${topics.length - empty} dari ${topics.length} terisi`;
   $('#faqCount').textContent = `${faqs.length} tanya-jawab`;
-  const nk = $('#navKnow'); nk.textContent = empty; nk.classList.toggle('hidden', !empty);
+  const todo = empty + unanswered.length;
+  const nk = $('#navKnow'); nk.textContent = todo; nk.classList.toggle('hidden', !todo);
 }
 function renderTopics() {
   $('#topicList').innerHTML = topics.length ? topics.map((t, i) => `<div class="card pola-card" data-topic="${t.id}" style="padding:12px">
@@ -1687,8 +1729,30 @@ $('#topicNew').onclick = async () => {
 function faqProductOptions(selected) {
   return `<option value="">Semua produk</option>` + products.map((p) => `<option value="${esc(p.key)}" ${p.key === selected ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 }
+function renderUnanswered() {
+  $('#unansweredCard').classList.toggle('hidden', !unanswered.length);
+  $('#unansweredCount').textContent = `${unanswered.length} menunggu`;
+  $('#unansweredList').innerHTML = unanswered.map((u) => `<div class="card pola-card" data-un="${u.id}" style="padding:12px">
+      <div class="row" style="gap:8px;flex-wrap:wrap"><b style="flex:1;min-width:200px">“${esc(u.question)}”</b><span class="pill ${u.times > 1 ? 'warn' : 'quiet'}">${u.times}× ditanyakan</span></div>
+      ${u.missing ? `<div class="small muted" style="margin-top:4px">Yang kurang menurut Mawar: ${esc(u.missing)}</div>` : ''}
+      <div class="row" style="gap:8px;margin-top:8px"><button class="btn primary sm" data-answer>Jawab sebagai tanya-jawab</button><button class="btn sm" data-dismiss>Abaikan</button></div>
+    </div>`).join('');
+  knowCounts();
+  $$('#unansweredList [data-un]').forEach((card) => {
+    const item = unanswered.find((u) => u.id === Number(card.dataset.un));
+    $('[data-answer]', card).onclick = () => {
+      faqSeed = { from: item.id, question: item.question, product: products.some((p) => p.key === item.product) ? item.product : null };
+      faqDraft = true; renderFaq();
+      const row = $('#faqList [data-faq="0"]'); row?.scrollIntoView({ block:'center', behavior:'smooth' }); $('[data-a]', row)?.focus();
+    };
+    $('[data-dismiss]', card).onclick = async () => {
+      try { ({ unanswered } = await api(`/knowledge/unanswered/${item.id}/dismissed`, { method:'POST', body:'{}' })); renderUnanswered(); toast('Diabaikan'); }
+      catch (err) { toast('Gagal: ' + err.message); }
+    };
+  });
+}
 function renderFaq() {
-  const rows = [...(faqDraft ? [{ id: 0, product: null, question: '', answer: '' }] : []), ...faqs];
+  const rows = [...(faqDraft ? [{ id: 0, product: faqSeed?.product ?? null, question: faqSeed?.question ?? '', answer: '' }] : []), ...faqs];
   $('#faqList').innerHTML = rows.length ? rows.map((f) => `<div class="card pola-card" data-faq="${f.id}" style="padding:12px">
       <div class="row" style="gap:8px;flex-wrap:wrap"><select class="f" data-product style="width:auto">${faqProductOptions(f.product)}</select>${f.id ? '' : '<span class="pill warn">baru</span>'}</div>
       <label class="lb">Pertanyaan pelanggan</label><input class="f" data-q value="${esc(f.question)}" maxlength="500" placeholder="mis. Sablonnya awet dicuci?">
@@ -1703,17 +1767,18 @@ function renderFaq() {
       try {
         const { faq } = await api(id ? '/knowledge/faq/' + id : '/knowledge/faq', { method: id ? 'PUT' : 'POST', body });
         if (id) faqs = faqs.map((f) => (f.id === id ? faq : f)); else { faqs.push(faq); faqDraft = false; }
+        if (!id && faqSeed) { ({ unanswered } = await api(`/knowledge/unanswered/${faqSeed.from}/done`, { method:'POST', body:'{}' })); faqSeed = null; renderUnanswered(); }
         renderFaq(); toast('Tersimpan. Mawar langsung memakainya.');
       } catch (err) { toast('Belum tersimpan: ' + err.message); }
     };
     $('[data-delete]', card).onclick = async () => {
-      if (!id) { faqDraft = false; renderFaq(); return; }
+      if (!id) { faqDraft = false; faqSeed = null; renderFaq(); return; }
       if (!confirm('Hapus tanya-jawab ini?')) return;
       await api('/knowledge/faq/' + id, { method:'DELETE' }); faqs = faqs.filter((f) => f.id !== id); renderFaq(); toast('Dihapus');
     };
   });
 }
-$('#faqNew').onclick = () => { faqDraft = true; renderFaq(); $('#faqList [data-faq="0"] [data-q]')?.focus(); };
+$('#faqNew').onclick = () => { faqDraft = true; faqSeed = null; renderFaq(); $('#faqList [data-faq="0"] [data-q]')?.focus(); };
 
 
 let promotions = [], promotionDraft = false;
@@ -1797,12 +1862,11 @@ async function loadStatistik() {
 }
 function renderStatistik() {
   const a = lastStats; if (!a || page !== 'statistik') return;
-  const rate = a.recognisedRate;
   const busiest = a.hours.reduce((m, h) => h.n > m.n ? h : m, { n: -1 });
   $('#statTiles').innerHTML = [
     ['Pelanggan', num(a.totals.pelanggan), `${statDays} hari terakhir`],
     ['Pesan masuk', num(a.totals.masuk), `rata-rata ${num(Math.round(a.totals.masuk / statDays))}/hari`],
-    ['Dikenali bot', rate == null ? '–' : Math.round(rate * 100) + '%', 'sisanya langsung ke CS'],
+    ['Perlu CS', a.conversations.total ? Math.round(a.conversations.handed / a.conversations.total * 100) + '%' : '–', `${num(a.conversations.handed)} dari ${num(a.conversations.total)} percakapan dioper bot ke CS`],
     ['Jam paling ramai', busiest.n > 0 ? String(busiest.hour).padStart(2, '0') + '.00' : '–', busiest.n > 0 ? `${num(busiest.n)} pesan` : 'belum ada data'],
   ].map(([l, v, f]) => `<div class="card kpi"><div class="label">${l}</div><div class="value">${v}</div><div class="foot">${f}</div></div>`).join('');
 
@@ -1818,7 +1882,10 @@ function renderStatistik() {
     tooltip: (h) => `<b>${String(h.hour).padStart(2, '0')}.00–${String(h.hour).padStart(2, '0')}.59</b><br>${num(h.n)} pesan` });
   $('#tbHours').innerHTML = table(['Jam', 'Pesan'], a.hours.map((h) => [String(h.hour).padStart(2, '0') + '.00', h.n]));
 
-  hbars($('#chIntents'), a.intents, { label: (r) => INTENT[r.intent] || r.intent, value: (r) => r.n });
+  hbars($('#chProducts'), a.products, { label: (r) => r.name || r.key, value: (r) => r.n });
+  hbars($('#chUnanswered'), a.unanswered, { label: (r) => r.question, value: (r) => r.times });
+  if (a.unanswered.length) $('#chUnanswered').insertAdjacentHTML('beforeend', `<p class="small muted" style="margin-top:10px">${num(a.unansweredTotal)} pertanyaan menunggu jawaban. <a href="#pengetahuan" data-goto="pengetahuan">Isi jawabannya di Pengetahuan</a>.</p>`);
+  else $('#chUnanswered').innerHTML = '<div class="empty">Semua pertanyaan sudah terjawab.</div>';
   hbars($('#chHandover'), a.handovers, { label: (r) => r.reason, value: (r) => r.n });
   const first = a.funnel[0]?.n || 0;
   hbars($('#chFunnel'), first ? a.funnel : [], { label: (r) => `${r.stage}${first ? ' · ' + Math.round(r.n / first * 100) + '%' : ''}`, value: (r) => r.n });
@@ -2025,13 +2092,14 @@ function renderAi(ai) {
     $('#aiForm [name=aiTotal]').value = ai.total ?? '';
     $('#aiForm [name=aiTimeout]').value = ai.timeoutSeconds ?? '';
     $('#aiForm [name=aiKeyCooldown]').value = ai.keyCooldownMinutes ?? '';
+    $('#aiForm [name=aiTrim]').checked = ai.trimKnowledge !== false;
   }
 }
 async function loadAi() { renderAi(await api('/ai')); }
 $('#aiForm').addEventListener('input', () => setAiDirty(true));
 $('#aiForm').onsubmit = async (e) => {
   e.preventDefault();
-  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value, timeoutSeconds: f.aiTimeout.value, keyCooldownMinutes: f.aiKeyCooldown.value };
+  const f = e.target, body = { model: f.aiModel.value, host: f.aiHost.value, chatPrompt: f.aiChatPrompt.value, chatExamples: f.aiChatExamples.value, perCustomer: f.aiPerCustomer.value, total: f.aiTotal.value, timeoutSeconds: f.aiTimeout.value, keyCooldownMinutes: f.aiKeyCooldown.value, trimKnowledge: f.aiTrim.checked };
   ['key', 'key2', 'key3', 'key4'].forEach((name, index) => { if (f[`aiKey${index + 1}`].value.trim()) body[name] = f[`aiKey${index + 1}`].value; });
   try { const saved = await api('/ai', { method:'PUT', body: JSON.stringify(body) }); keyEditing.clear(); setAiDirty(false); renderAi(saved); [1, 2, 3, 4].forEach((n) => { f[`aiKey${n}`].value = ''; }); toast('Pengaturan AI tersimpan dan langsung berlaku'); loadStatus(); }
   catch (err) {                                 }
@@ -2067,7 +2135,26 @@ $('#aiTest').onclick = async (e) => {
   } catch (err) { $('#aiTestOut').innerHTML = `<span class="pill warn"><span class="dot"></span>Gagal: ${esc(err.message)}</span>`; }
   finally { e.target.disabled = false; }
 };
+const RESTORED = { products:'produk', custom_keywords:'kata kunci produk', store_info:'topik info toko', faq:'tanya-jawab', promotions:'promo', ai_scenarios:'skenario uji' };
+async function loadBackups() {
+  const { backups } = await api('/backups');
+  $('#restoreCount').textContent = backups.length ? `${backups.length} backup tersedia` : '';
+  $('#restoreList').innerHTML = backups.length
+    ? backups.map((b) => `<div class="row restore-row" style="gap:10px;padding:10px 0;border-top:1px solid var(--line-2)"><div style="flex:1;min-width:0"><b>${esc(new Date(b.date + 'T00:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' }))}</b><div class="small muted">${num(b.kb)} KB</div></div><button type="button" class="btn sm" data-restore="${esc(b.name)}" data-label="${esc(b.date)}">Pulihkan</button></div>`).join('')
+    : '<div class="empty">Belum ada backup. Klik "Backup sekarang" di atas.</div>';
+  $$('#restoreList [data-restore]').forEach((button) => button.onclick = async () => {
+    if (!confirm(`Pulihkan isi toko ke kondisi backup ${button.dataset.label}?\n\nProduk, pengetahuan, promo, template, dan pengaturan toko diganti dengan isi backup itu. Percakapan, tautan WhatsApp, dan kunci AI tidak berubah. Kondisi sekarang disimpan dulu.`)) return;
+    button.disabled = true;
+    try {
+      const r = await api(`/backups/${encodeURIComponent(button.dataset.restore)}/restore`, { method:'POST', body:'{}' });
+      toast('Dipulihkan: ' + Object.entries(r.restored).map(([t, n]) => `${n} ${RESTORED[t] || t}`).join(', '));
+      settingsLoaded = false; prodLoaded = false; tplLoaded = false; products = []; await refresh();
+    } catch (err) { toast('Belum dipulihkan: ' + err.message); }
+    finally { button.disabled = false; }
+  });
+}
 async function loadPengaturan() {
+  loadBackups().catch(() => {});
   const [{ values, backupSuggestions, lastBackup }, { text }] = await Promise.all([api('/settings'), api('/recap/preview')]);
   $('#recapPreview').textContent = text || 'Belum ada pelanggan sejak rekap terakhir. Rekap akan berisi daftar pelanggan semalam.';
   $('#recapAtHint').textContent = values.recapAt ? '' : `sekarang: ${values.activeUntil}`;
@@ -2082,6 +2169,7 @@ async function loadPengaturan() {
     set('#settingsForm', 'holidays', (values.holidays || []).map((h) => `${h.from}${h.to !== h.from ? ' - ' + h.to : ''}${h.label ? ' ' + h.label : ''}`).join('\n'));
     set('#recapForm', 'recapTo', (values.recapTo || []).map((n) => '0' + n.slice(2)).join(', '));
     set('#recapForm', 'recapAt', values.recapAt);
+    $('#recapForm [name=alertsOn]').checked = values.alertsOn !== false;
     set('#backupForm', 'backupDir', values.backupDir);
     set('#autoForm', 'autoMessages', values.autoMessages);
     settingsLoaded = true;
@@ -2109,19 +2197,19 @@ function renderHours() {
 }
 $$('#settingsForm [name=activeFrom], #settingsForm [name=activeUntil]').forEach((el) => el.addEventListener('input', renderHours));
 async function saveForm(form, fields) {
-  const data = Object.fromEntries(fields.map((f) => [f, $(`[name=${f}]`, form).value]));
+  const data = Object.fromEntries(fields.map((f) => { const el = $(`[name=${f}]`, form); return [f, el.type === 'checkbox' ? el.checked : el.value]; }));
   const btn = $('button.primary', form); btn.disabled = true;
   try { await api('/settings', { method:'PUT', body: JSON.stringify(data) }); toast('Tersimpan dan langsung berlaku'); settingsLoaded = false; document.activeElement?.blur(); await refresh(); }
   catch (err) { toast('Belum tersimpan: ' + err.message); }
   finally { btn.disabled = false; }
 }
 $('#settingsForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['botName', 'csName', 'activeFrom', 'activeUntil', 'handoverHours', 'detailWaitDays', 'holidays']); };
-$('#recapForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['recapTo', 'recapAt']); };
+$('#recapForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['recapTo', 'recapAt', 'alertsOn']); };
 $('#backupForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['backupDir']); };
 $('#autoForm').onsubmit = (e) => { e.preventDefault(); saveForm(e.target, ['autoMessages']); };
 $('#backupNow').onclick = async (e) => {
   e.target.disabled = true;
-  try { const r = await api('/backup/now', { method:'POST' }); toast('Backup tersimpan: ' + r.file); }
+  try { const r = await api('/backup/now', { method:'POST' }); toast('Backup tersimpan: ' + r.file); loadBackups().catch(() => {}); }
   catch (err) { toast('Backup gagal: ' + err.message); }
   finally { e.target.disabled = false; }
 };

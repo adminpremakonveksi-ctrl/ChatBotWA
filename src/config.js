@@ -74,6 +74,7 @@ export const config = {
             .filter(Boolean),
         at: text('REKAP_JAM', text('ACTIVE_UNTIL', '07:30')),
         atSetting: text('REKAP_JAM'),
+        alerts: true,
     },
 
     ollama: {

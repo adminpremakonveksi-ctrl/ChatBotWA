@@ -6,7 +6,8 @@ import { dropGreeting } from './ai-text.js';
 import { allowAiCall } from './classify.js';
 import { ollamaEnabled, ollamaJson } from './classify-ollama.js';
 import { classifyWithRules } from './classify-rules.js';
-import { knowledgeBlock } from './knowledge.js';
+import { knowledgeParts } from './knowledge.js';
+import { relevanceQuery } from './relevance.js';
 import { isBotActive, localClock, localDateString, nextChange } from './schedule.js';
 import { recordAi } from './ai-log.js';
 import { getProduct, productKeys, productName } from './products.js';
@@ -345,9 +346,38 @@ function replyOf(answer) {
     return strings.length === 1 ? strings[0][1] : '';
 }
 
+const ALWAYS_SHOWN = ['jam kerja'];
+const GAVE_UP = /tidak ada di data|tidak ada data|belum diisi/i;
+
+function gaveUp(result) {
+    if (result.handover && ['tidak_bisa_bantu', 'lainnya', ''].includes(result.reason)) return true;
+
+    return GAVE_UP.test(String(result.thought ?? '')) && !result.reply;
+}
+
 export async function askChat(input, { media, fetchImpl } = {}) {
+    const options = { focus: input.focus ?? [], at: input.now ?? new Date() };
+    const lean = config.ollama.trimKnowledge !== false && !input.fullKnowledge;
+    const query = lean ? relevanceQuery({ text: input.text, history: input.history, productName: input.order?.produk ? productName(input.order.produk) : '' }) : null;
+    const parts = knowledgeParts(media, { ...options, query, keep: ALWAYS_SHOWN });
+    const full = () => answerWith(input, knowledgeParts(media, options).text, { media, fetchImpl });
+    let result;
+
+    try {
+        result = await answerWith(input, parts.text, { media, fetchImpl });
+    } catch (error) {
+        if (lean && parts.trimmed && error.refused) return full();
+        throw error;
+    }
+
+    if (lean && parts.trimmed && result && gaveUp(result)) return full();
+
+    return result;
+}
+
+async function answerWith(input, shopData, { media, fetchImpl }) {
     const order = input.order ?? { produk: null, jawaban: {} };
-    const knowledge = `${timeBlock(input.now)}\n\n${knowledgeBlock(media, { focus: input.focus ?? [], at: input.now ?? new Date() })}`;
+    const knowledge = `${timeBlock(input.now)}\n\n${shopData}`;
     const system = systemPrompt(order, knowledge, { greeted: Boolean(input.greeted) });
     const user = userTurn(input);
     const allowed = `${knowledge}\n${user}`;
@@ -378,8 +408,13 @@ export async function askChat(input, { media, fetchImpl } = {}) {
         if (!problem) {
             if (refused) recordAi({ who: input.who, message: input.text, reply: refused.reply, problem: refused.problem, outcome: 'ditulis ulang' });
 
+            const missing = String(answer?.pikir?.belum_tahu ?? '').trim().slice(0, 200);
+            const gap = (answer?.serahkan_cs === true && answer?.alasan === 'tidak_bisa_bantu') || (GAVE_UP.test(String(answer?.pikir?.fakta ?? '')) && Boolean(missing));
+
             return {
                 reply,
+                gap,
+                missing,
                 send: Array.isArray(answer?.kirim) ? answer.kirim : [],
                 handover: answer?.serahkan_cs === true,
                 reason: REASONS.includes(answer?.alasan) ? answer.alasan : '',
@@ -560,5 +595,5 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
         handover(complete ? REASON_TEXT.pesanan_lengkap : REASON_TEXT[answer.reason] ?? REASON_TEXT.lainnya);
     }
 
-    return { actions, patch, thought: answer.thought ?? '' };
+    return { actions, patch, thought: answer.thought ?? '', unanswered: answer.gap ? { question: input.text, missing: answer.missing, product: order.produk } : null };
 }

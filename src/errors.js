@@ -21,7 +21,7 @@ const KIRIM = 'Kalau terus berulang, tekan "Salin teks" dan kirim ke developer.'
 const DISK = 'Windows menolak menulis ke disk. 1) Cek ruang disk PC (kosongkan file besar dan Recycle Bin). 2) Pastikan folder bot tidak dibuka program lain. 3) Lalu ' + MULAI + '.';
 
 export const GUIDE = [
-    { match: /belum versi terbaru/i, level: 'tindak',
+    { match: /belum versi terbaru/i, level: 'tindak', push: false,
         meaning: 'Ada versi bot yang lebih baru di GitHub.',
         todo: `1) ${MULAI[0].toUpperCase()}${MULAI.slice(1)}. 2) Pembaruan terpasang otomatis; data dan chat tidak hilang.` },
     { match: /perangkat bot ini sendiri/i, level: 'tindak',
@@ -189,7 +189,7 @@ export const guideOf = (message, detail = {}) => {
     const found = find(message, detail);
 
     return found
-        ? { level: found.level, meaning: found.meaning, todo: found.todo, known: true }
+        ? { level: found.level, meaning: found.meaning, todo: found.todo, known: true, push: found.push !== false }
         : { ...FALLBACK, known: false };
 };
 

@@ -578,6 +578,23 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
             CREATE INDEX seen_messages_at ON seen_messages(seen_at);`);
         },
     },
+    {
+        id: '025_unanswered_questions',
+        up(db) {
+            db.exec(`CREATE TABLE unanswered (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                fingerprint TEXT NOT NULL UNIQUE,
+                question TEXT NOT NULL,
+                missing TEXT NOT NULL DEFAULT '',
+                product TEXT,
+                times INTEGER NOT NULL DEFAULT 1,
+                status TEXT NOT NULL DEFAULT 'open',
+                first_at TEXT NOT NULL,
+                last_at TEXT NOT NULL
+            );
+            CREATE INDEX unanswered_open ON unanswered(status, times, last_at);`);
+        },
+    },
 ];
 
 export function addAwayMessage(db) {

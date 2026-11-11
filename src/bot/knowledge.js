@@ -1,6 +1,7 @@
 import { all, get, now, run } from '../db.js';
 import { promotionKnowledge } from './promotions.js';
 import { INFO_PAIRS, listProducts } from './products.js';
+import { pickRelevant } from './relevance.js';
 
 
 const fail = (message, statusCode = 422) => {
@@ -104,7 +105,13 @@ function productBlock(p, sendable) {
 
 const productLine = (p) => `- ${p.name} [kode: ${p.key}]${p.info.sebutan.length ? ` (nama lain: ${p.info.sebutan.join(', ')})` : ''}`;
 
-export function knowledgeBlock(media, { focus = null, at = new Date() } = {}) {
+const SHORT_TOPIC = 240;
+const TOPIC_LIMIT = 6;
+const FAQ_LIMIT = 6;
+
+export function knowledgeParts(media, { focus = null, at = new Date(), query = null, keep = [] } = {}) {
+    const lean = Array.isArray(query);
+    let trimmed = 0;
     const products = listProducts();
     const full = (p) => !focus || focus.includes(p.key);
     const sendable = (key) => [
@@ -112,12 +119,22 @@ export function knowledgeBlock(media, { focus = null, at = new Date() } = {}) {
         media?.has?.('size-chart', key) && 'size chart',
     ].filter(Boolean);
 
-    const topics = listTopics()
-        .map((t) => `- ${t.title}: ${t.content || '(belum diisi toko: jawab akan ditanyakan ke CS)'}`)
-        .join('\n');
+    const allTopics = listTopics();
+    const shownTopics = lean ? pickRelevant(allTopics, (t) => `${t.title} ${t.content}`, query, TOPIC_LIMIT) : null;
+    const topicLine = (t) => {
+        const pinned = keep.some((fragment) => t.title.toLowerCase().includes(fragment));
+        if (!lean || pinned || shownTopics.has(t) || t.content.length <= SHORT_TOPIC) return `- ${t.title}: ${t.content || '(belum diisi toko: jawab akan ditanyakan ke CS)'}`;
+        trimmed++;
 
-    const faq = listFaq()
-        .filter((f) => !f.product || !focus || focus.includes(f.product))
+        return `- ${t.title}: (isi ada, tidak ditampilkan karena tidak berkaitan dengan pesan ini)`;
+    };
+    const topics = allTopics.map(topicLine).join('\n');
+
+    const ofProduct = listFaq().filter((f) => !f.product || !focus || focus.includes(f.product));
+    const shownFaq = lean ? pickRelevant(ofProduct, (f) => `${f.question} ${f.answer}`, query, FAQ_LIMIT) : null;
+    if (lean) trimmed += ofProduct.length - shownFaq.size;
+    const faq = ofProduct
+        .filter((f) => !lean || shownFaq.has(f))
         .map((f) => `- T: ${f.question}${f.product ? ` [produk: ${products.find((p) => p.key === f.product)?.name ?? f.product}]` : ''}\n  J: ${f.answer}`)
         .join('\n');
 
@@ -132,7 +149,7 @@ export function knowledgeBlock(media, { focus = null, at = new Date() } = {}) {
 
     const promotions = promotionKnowledge({ focus, at });
 
-    return [
+    const text = [
         `INFO TOKO:\n${topics || '(belum ada)'}`,
         `PRODUK (hanya ini yang dibuat toko):\n${productText || '(belum ada)'}`,
         faq && `TANYA-JAWAB DARI TOKO:\n${faq}`,
@@ -141,4 +158,8 @@ export function knowledgeBlock(media, { focus = null, at = new Date() } = {}) {
     ]
         .filter(Boolean)
         .join('\n\n');
+
+    return { text, trimmed };
 }
+
+export const knowledgeBlock = (media, options = {}) => knowledgeParts(media, options).text;

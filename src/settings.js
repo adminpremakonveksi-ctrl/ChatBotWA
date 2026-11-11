@@ -136,6 +136,11 @@ const FIELDS = {
         get: () => config.bot.jerseyPromo,
         set: (v) => (config.bot.jerseyPromo = v),
     },
+    alertsOn: {
+        validate: (v) => !(v === false || v === 'false' || v === '0' || v === 0),
+        get: () => config.recap.alerts,
+        set: (v) => (config.recap.alerts = v),
+    },
     recapTo: { validate: phones, get: () => config.recap.to, set: (v) => (config.recap.to = v) },
     holidays: { validate: parseHolidays, get: () => config.bot.holidays, set: (v) => (config.bot.holidays = v) },
     recapAt: {

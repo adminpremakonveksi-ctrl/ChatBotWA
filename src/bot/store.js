@@ -238,6 +238,16 @@ export function analytics(days = 30) {
         handovers,
         recognisedRate: labelled ? (labelled - other) / labelled : null,
         funnel: funnel(since),
+        products: all(
+            `SELECT product AS key, COUNT(*) AS n FROM conversations
+             WHERE product IS NOT NULL AND last_message_at >= datetime('now', ?) GROUP BY product ORDER BY n DESC LIMIT 8`,
+            [since],
+        ),
+        conversations: get(
+            `SELECT COUNT(*) AS total, COALESCE(SUM(step = 'handed_over' AND handover_reason NOT IN ('CS membalas', 'diambil alih dari konsol')), 0) AS handed
+             FROM conversations WHERE last_message_at >= datetime('now', ?)`,
+            [since],
+        ),
         patterns: intents.filter((row) => row.intent.startsWith('pola: ')).map((row) => ({ name: row.intent.slice(6), n: row.n })),
         totals: {
             masuk: daily.reduce((sum, d) => sum + d.masuk, 0),

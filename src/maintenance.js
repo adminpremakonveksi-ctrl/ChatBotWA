@@ -5,7 +5,10 @@ import { createHash } from 'node:crypto';
 import { pruneActivity } from './activity.js';
 import { localClock } from './bot/schedule.js';
 import { listConversations, phoneOf, prune } from './bot/store.js';
-import { productName } from './bot/products.js';
+import { forgetProducts, productName } from './bot/products.js';
+import { forgetTemplates } from './bot/replies.js';
+import { loadAiSettings } from './ai-settings.js';
+import { loadSettings } from './settings.js';
 import { config } from './config.js';
 import { db, getSetting, now, setSetting } from './db.js';
 import { logger } from './logger.js';
@@ -44,6 +47,72 @@ export async function backup(dir = config.maintenance.backupDir, keepDays = conf
     return { file, removed: old.length };
 }
 
+
+const BACKUP_NAME = /^chatbot-\d{4}-\d{2}-\d{2}\.sqlite$/;
+const SAFETY_PREFIX = 'sebelum-pulih-';
+const SAFETY_KEEP = 5;
+const CONTENT_TABLES = ['products', 'custom_keywords', 'store_info', 'faq', 'promotions', 'ai_scenarios'];
+const CONTENT_SETTINGS = `("key" LIKE 'cfg:%' OR "key" LIKE 'reply:%' OR "key" LIKE 'link:%' OR "key" LIKE 'catmap:%' OR "key" IN ('ai:chat_prompt', 'ai:chat_examples', 'ai:opening_prompt', 'ai:answer_prompt'))`;
+
+const refuse = (message, statusCode = 422) => {
+    throw Object.assign(new Error(message), { statusCode });
+};
+
+export function listBackups(dir = config.maintenance.backupDir) {
+    if (!fs.existsSync(dir)) return [];
+
+    return fs
+        .readdirSync(dir)
+        .filter((name) => BACKUP_NAME.test(name))
+        .sort()
+        .reverse()
+        .map((name) => ({ name, date: name.slice(8, 18), kb: Math.round(fs.statSync(path.join(dir, name)).size / 1024) }));
+}
+
+const columnsOf = (schema, table) => db.prepare(`PRAGMA ${schema}.table_info(${table})`).all().map((column) => column.name);
+
+export async function restoreContent(name, dir = config.maintenance.backupDir) {
+    if (!BACKUP_NAME.test(String(name))) refuse('Nama backup tidak valid');
+    const file = path.join(dir, name);
+    if (!fs.existsSync(file)) refuse('File backup tidak ditemukan', 404);
+
+    const stamp = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 14);
+    const safety = path.join(dir, `${SAFETY_PREFIX}${stamp}.sqlite`);
+    await db.backup(safety);
+    for (const old of fs.readdirSync(dir).filter((n) => n.startsWith(SAFETY_PREFIX)).sort().reverse().slice(SAFETY_KEEP)) fs.rmSync(path.join(dir, old), { force: true });
+
+    const restored = {};
+    db.prepare('ATTACH DATABASE ? AS old').run(file);
+
+    try {
+        if (db.prepare('PRAGMA old.quick_check').get().quick_check !== 'ok') refuse('File backup rusak, tidak dipakai');
+
+        db.transaction(() => {
+            for (const table of CONTENT_TABLES) {
+                const theirs = columnsOf('old', table);
+                if (!theirs.length) continue;
+
+                const shared = columnsOf('main', table).filter((column) => theirs.includes(column)).map((column) => `"${column}"`).join(', ');
+                db.exec(`DELETE FROM main.${table}`);
+                db.exec(`INSERT INTO main.${table} (${shared}) SELECT ${shared} FROM old.${table}`);
+                restored[table] = db.prepare(`SELECT COUNT(*) AS n FROM main.${table}`).get().n;
+            }
+
+            db.exec(`DELETE FROM main.settings WHERE ${CONTENT_SETTINGS}`);
+            db.exec(`INSERT INTO main.settings ("key", value, updated_at) SELECT "key", value, updated_at FROM old.settings WHERE ${CONTENT_SETTINGS}`);
+        })();
+    } finally {
+        db.exec('DETACH DATABASE old');
+    }
+
+    forgetProducts();
+    forgetTemplates();
+    loadSettings();
+    loadAiSettings();
+    log.info({ backup: name, restored }, 'isi toko dipulihkan dari backup');
+
+    return { restored, safety: path.basename(safety) };
+}
 
 const STEP_LABEL = {
     new: 'baru menyapa',
