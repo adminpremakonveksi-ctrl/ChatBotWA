@@ -64,6 +64,16 @@ export function resetConversation(sessionKey, jid) {
     );
 }
 
+export const countAiFailures = () =>
+    get(`SELECT COUNT(*) AS n FROM conversations WHERE step = 'handed_over' AND handover_reason LIKE 'AI tidak dapat menjawab%'`).n;
+
+export function releaseAiFailures() {
+    const rows = all(`SELECT session_key, jid FROM conversations WHERE step = 'handed_over' AND handover_reason LIKE 'AI tidak dapat menjawab%'`);
+    for (const row of rows) resetConversation(row.session_key, row.jid);
+
+    return rows.length;
+}
+
 export function markHandover(sessionKey, jid, reason) {
     if (['CS membalas', 'diambil alih dari konsol', 'pesan perangkat toko belum terbaca'].includes(reason)) {
         cancelDeliveries(sessionKey, jid);

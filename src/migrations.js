@@ -595,6 +595,26 @@ CREATE TABLE IF NOT EXISTS ai_scenarios (
             CREATE INDEX unanswered_open ON unanswered(status, times, last_at);`);
         },
     },
+    {
+        id: '026_error_log',
+        up(db) {
+            db.exec(`CREATE TABLE error_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                at TEXT NOT NULL,
+                last_at TEXT NOT NULL,
+                level TEXT NOT NULL,
+                source TEXT NOT NULL,
+                message TEXT NOT NULL,
+                meaning TEXT NOT NULL DEFAULT '',
+                todo TEXT NOT NULL DEFAULT '',
+                guide_level TEXT NOT NULL DEFAULT 'cek',
+                known INTEGER NOT NULL DEFAULT 0,
+                code TEXT NOT NULL DEFAULT '?',
+                count INTEGER NOT NULL DEFAULT 1
+            );
+            CREATE INDEX error_log_last ON error_log(last_at);`);
+        },
+    },
 ];
 
 export function addAwayMessage(db) {

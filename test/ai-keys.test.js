@@ -393,3 +393,69 @@ test('the console has its own look: warm palette, serif headings, a floating sid
     assert.match(page, /\$\('#startCard'\)\.dataset\.ok = bad\.length \? 'false' : 'true'/);
     assert.match(page, /class="okmore"/);
 });
+
+test('Ollama 402 (credits used up) moves to the next key like a spent quota does', async () => {
+    useKeys(3);
+    const calls = [];
+    const fetchImpl = scripted({ [KEYS[0]]: refusal(402, 'Add usage credits or subscribe') }, calls);
+
+    const first = await call(fetchImpl);
+    assert.deepEqual(first.answer, { ok: true });
+    assert.deepEqual(calls, [KEYS[0], KEYS[1]]);
+    assert.equal(keyStatus().find((k) => k.slot === 1).state, 'habis');
+    assert.equal(keyStatus().find((k) => k.slot === 2).state, 'aktif');
+
+    calls.length = 0;
+    await call(fetchImpl);
+    assert.deepEqual(calls, [KEYS[1]], 'the exhausted key is not asked again');
+});
+
+test('when every key answers 402 the message waits and retries instead of being handed to CS', async () => {
+    useKeys(2);
+    const fetchImpl = scripted({ [KEYS[0]]: refusal(402, 'Add usage credits'), [KEYS[1]]: refusal(402, 'Add usage credits') });
+
+    await assert.rejects(call(fetchImpl), (error) => /429/.test(error.message) && /habis jatahnya/.test(error.message));
+
+    const { chatTurn } = await import('../src/bot/chat.js');
+    const failing = async () => {
+        throw new Error('Ollama 402: Add usage credits or subscribe');
+    };
+    const turn = await chatTurn({ step: 'chat' }, { text: 'minimal order berapa?', who: 'toko|402@s.whatsapp.net' }, { ask: failing });
+    assert.equal(turn.retryable, true);
+});
+
+test('a 402 warning has a guide that asks for action, and chats handed over by a failing AI can be released in one go', async () => {
+    const { guideOf } = await import('../src/errors.js');
+    assert.equal(guideOf('Ollama 402: Add usage credits or subscribe').level, 'tindak');
+    assert.equal(guideOf('semua kunci AI sudah dicek satu per satu dan semuanya habis jatahnya').level, 'tindak');
+
+    const { saveConversation, releaseAiFailures, loadConversation } = await import('../src/bot/store.js');
+    saveConversation('toko', '6281@s.whatsapp.net', { step: 'handed_over', handover_reason: 'AI tidak dapat menjawab: Ollama 402: Add usage credits', handed_over_at: new Date().toISOString().slice(0, 19).replace('T', ' ') });
+    saveConversation('toko', '6282@s.whatsapp.net', { step: 'handed_over', handover_reason: 'CS membalas', handed_over_at: new Date().toISOString().slice(0, 19).replace('T', ' ') });
+
+    assert.equal(releaseAiFailures(), 1);
+    assert.equal(loadConversation('toko', '6281@s.whatsapp.net').step, 'new');
+    assert.equal(loadConversation('toko', '6282@s.whatsapp.net').step, 'handed_over', 'a chat CS took over stays with CS');
+    assert.equal(releaseAiFailures(), 0);
+});
+
+test('chats handed over because the AI failed come back to the bot on their own once the AI is usable again', async () => {
+    const { recoverAiHandovers } = await import('../src/ai-recovery.js');
+    const { saveConversation, loadConversation } = await import('../src/bot/store.js');
+    const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
+    const handed = (jid, reason) => saveConversation('toko', jid, { step: 'handed_over', handover_reason: reason, handed_over_at: stamp });
+
+    useKeys(2);
+    handed('6291@s.whatsapp.net', 'AI tidak dapat menjawab: Ollama 402: Add usage credits');
+    handed('6292@s.whatsapp.net', 'minta bicara dengan CS');
+
+    markKey(KEYS[0], 402, 'Add usage credits');
+    markKey(KEYS[1], 402, 'Add usage credits');
+    assert.equal(recoverAiHandovers(), 0, 'while every key is resting nothing is released');
+    assert.equal(loadConversation('toko', '6291@s.whatsapp.net').step, 'handed_over');
+
+    resetKeyStates();
+    assert.equal(recoverAiHandovers(), 1);
+    assert.equal(loadConversation('toko', '6291@s.whatsapp.net').step, 'new');
+    assert.equal(loadConversation('toko', '6292@s.whatsapp.net').step, 'handed_over', 'a chat the customer or CS asked for stays with CS');
+});

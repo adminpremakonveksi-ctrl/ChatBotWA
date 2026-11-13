@@ -191,6 +191,25 @@ table.t th { font-size:11.5px; text-transform:uppercase; letter-spacing:.04em; c
 .brief > div { display:grid; grid-template-columns:96px minmax(0,1fr); gap:10px; align-items:baseline }
 .brief > div > b { font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3) }
 .brief-more { padding:0 16px; border-bottom:1px solid var(--line) }
+.heal-title { margin:18px 0 6px; font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--ink-3); font-weight:700 }
+.heal-row { display:grid; grid-template-columns:56px minmax(0,1fr); gap:10px; padding:6px 0; font-size:13.5px; border-top:1px solid var(--line-2) }
+.heal-row span { color:var(--good) }
+.issue-wrap { overflow-x:auto }
+.issue-table { width:100%; border-collapse:collapse; font-size:13.5px }
+.issue-table th { text-align:left; font-size:11px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); padding:0 12px 8px 0; white-space:nowrap }
+.issue-table td { vertical-align:top; padding:12px 12px 12px 0; border-top:1px solid var(--line-2); line-height:1.55 }
+.issue-table td:nth-child(1) { white-space:nowrap }
+.issue-table td:nth-child(2) code { font-size:12.5px; padding:2px 7px; border-radius:7px; background:var(--panel-2); border:1px solid var(--line) }
+.issue-table td:nth-child(3) { min-width:200px }
+.issue-table td:nth-child(3) .pill { margin-bottom:4px }
+.issue-table td:nth-child(4) { min-width:240px; color:var(--ink-2) }
+@media (max-width:760px) {
+  .issue-table thead { display:none }
+  .issue-table, .issue-table tbody, .issue-table tr, .issue-table td { display:block }
+  .issue-table tr { padding:10px 0; border-top:1px solid var(--line-2) }
+  .issue-table td { border:0; padding:3px 0 }
+  .issue-table td::before { content:attr(data-label); display:block; font-size:10.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3) }
+}
 .order { padding:8px 14px; font-size:13px; border-bottom:1px solid var(--line-2); background:var(--panel-2) }
 .order dt { color:var(--ink-3); font-size:12px; margin-top:4px } .order dd { margin:0 }
 .bub .who { display:block; font-size:11px; opacity:.7; margin-bottom:2px }
@@ -543,6 +562,15 @@ input.f, select.f, textarea.f { border-radius:var(--r-ctl); padding:10px 14px }
           <div class="row"><h3 style="flex:1">Siap mulai</h3><span class="small muted" id="startWhen"></span><button class="btn sm" type="button" id="startRecheck">Cek ulang</button></div>
           <p class="hint" id="startText">Mengecek internet, jam PC, WhatsApp, AI dan versi bot…</p>
           <div id="startList"></div>
+        </div>
+        <div class="card" id="issueCard">
+          <div class="row"><h3 style="flex:1">Masalah 24 jam terakhir</h3><span class="small muted" id="issueWhen"></span></div>
+          <p class="hint" id="issueHint">Semua error dan peringatan, jam berapa, apa artinya, dan solusinya. Yang perlu tindakan paling atas; catatan di bawah tidak perlu diapa-apakan. Tersimpan walau bot dimatikan.</p>
+          <div id="issueList"></div>
+          <div id="healBox" class="hidden">
+            <h4 class="heal-title">Dipulihkan otomatis</h4>
+            <div id="healList"></div>
+          </div>
         </div>
         <div class="grid g4" id="kpis"></div>
         <div class="grid g-main">
@@ -1165,8 +1193,24 @@ async function loadStartChecks(fresh) {
 }
 document.getElementById('startRecheck')?.addEventListener('click', () => { $('#startText').textContent = 'Mengecek…'; loadStartChecks(true); });
 
+async function loadHealed() {
+  const { items } = await api('/heal/summary?hours=24');
+  $('#healBox').classList.toggle('hidden', !items.length);
+  $('#healList').innerHTML = items.map((h) => `<div class="heal-row"><b>${esc(utc(h.at).toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }))}</b><span>✓ ${esc(h.action)}</span></div>`).join('');
+}
+async function loadIssues() {
+  loadHealed().catch(() => {});
+  const r = await api('/errors/summary?hours=24');
+  $('#issueWhen').textContent = r.total ? `${num(r.total)} kejadian` : '';
+  const clock = (stamp) => { const d = utc(stamp); return d ? d.toLocaleTimeString('id-ID', { hour:'2-digit', minute:'2-digit' }) : ''; };
+  const steps = (text) => esc(text).replace(/\s(?=\d\)\s)/g, '<br>');
+  $('#issueList').innerHTML = r.groups.length
+    ? `<div class="issue-wrap"><table class="issue-table"><thead><tr><th>Jam</th><th>Kode</th><th>Masalah</th><th>Solusinya</th></tr></thead><tbody>${r.groups.map((g) => `<tr class="${esc(g.level)}"><td data-label="Jam"><b>${clock(g.lastAt)}</b>${g.count > 1 ? `<div class="muted small">${num(g.count)} kali sejak ${clock(g.firstAt)}</div>` : ''}</td><td data-label="Kode"><code>${esc(g.code)}</code></td><td data-label="Masalah"><span class="pill ${g.level === 'tindak' ? 'bad' : g.level === 'info' ? 'quiet' : 'warn'}">${g.level === 'tindak' ? 'Perlu tindakan' : g.level === 'info' ? 'Catatan' : 'Cek'}</span><div>${g.known ? esc(g.meaning) : 'Kesalahan belum dikenali: ' + esc(g.message)}</div></td><td data-label="Solusinya" class="small">${g.todo ? steps(g.todo) : '<span class="muted">Tidak perlu apa-apa.</span>'}</td></tr>`).join('')}</tbody></table></div>${r.more ? `<p class="small muted" style="margin-top:8px">Dan ${r.more} masalah lain. Lihat halaman Log.</p>` : ''}`
+    : '<span class="pill good"><span class="dot"></span>Tidak ada masalah dalam 24 jam terakhir</span>';
+}
 async function loadRingkasan() {
   loadStartChecks(false).catch(() => {});
+  loadIssues().catch(() => {});
   const [a, { conversations }] = await Promise.all([api('/analytics?days=14'), api('/conversations?hours=24')]);
   drawTimeline();
   const main = sessions[0];
@@ -1906,6 +1950,22 @@ async function loadMedia() {
 }
 const productLabel = (key) => (kwMeta?.products || []).find((p) => p.key === key)?.name || key;
 
+async function runCatalogTest(url = '') {
+  const box = $('#catTestResult'), button = $('#catTest');
+  if (!box) return;
+  box.innerHTML = '<p class="small muted">Mengetes koneksi katalog… (maksimal 25 detik)</p>';
+  if (button) button.disabled = true;
+  try {
+    const r = await api('/catalog/test', { method:'POST', body: JSON.stringify({ url }) });
+    const t = r.result;
+    box.innerHTML = t.ok
+      ? `<div class="who-banner bot" style="border-radius:12px;margin-bottom:10px"><b>✓ Bisa</b><span>${esc(t.message)} ${t.count}${t.more ? '+' : ''} produk terbaca${t.sample?.length ? ', mis. ' + t.sample.map(esc).join(', ') : ''}. Katalog langsung disinkronkan.</span></div>`
+      : `<div class="who-banner wait" style="border-radius:12px;margin-bottom:10px;flex-wrap:wrap"><b>✗ Belum bisa</b><span>${esc(t.message)}</span><span class="small" style="flex-basis:100%">${esc(t.advice)}</span></div>`;
+    if (t.ok) { catalog = r; loadMedia(); }
+  } catch (err) {
+    box.innerHTML = `<div class="who-banner wait" style="border-radius:12px;margin-bottom:10px"><b>✗ Tes gagal</b><span>${esc(err.message)}</span></div>`;
+  } finally { if (button) button.disabled = false; }
+}
 function renderCatalog() {
   const c = catalog, el = $('#catalogCard');
   if (!c) return;
@@ -1919,7 +1979,8 @@ function renderCatalog() {
     + (kwMeta?.products || []).map((p) => `<option value="${p.key}" ${it.override === p.key ? 'selected' : ''}>${esc(p.name)}</option>`).join('')
     + `<option value="none" ${it.override === 'none' ? 'selected' : ''}>Tidak dikirim bot</option>`;
   el.innerHTML = `
-    <div class="row"><h3 style="flex:1">Katalog WhatsApp Business</h3><button class="btn" id="catSync">↻ Sinkronkan sekarang</button></div>
+    <div class="row"><h3 style="flex:1">Katalog WhatsApp Business</h3><button class="btn" id="catTest">Tes koneksi</button><button class="btn" id="catSync">↻ Sinkronkan sekarang</button></div>
+    <div id="catTestResult" aria-live="polite"></div>
     <p class="hint">Dibaca langsung dari katalog nomor bot, otomatis saat tersambung dan tiap 6 jam. Saat pelanggan menanyakan produk, bot mengirim link produk yang cocok (maks. ${c.maxPerAnswer}, promo didahulukan), menggantikan gambar. Koreksi pemetaannya di kolom kanan bila perlu.</p>
     ${c.error ? `<p class="warnline" style="color:var(--warn)">Terakhir gagal dibaca: ${esc(c.error)}${/business|catalog|not.?found|404/i.test(c.error) ? ' · pastikan nomor bot memakai WhatsApp Business dan katalognya tidak kosong.' : ''}</p>` : ''}
     <div class="small muted" style="margin-bottom:6px">${c.syncedAt ? `${c.items.length} item · disinkronkan ${fmtTime(c.syncedAt)} · nomor +${esc(c.phone)}` : 'Belum pernah disinkronkan. Tautkan nomor bot (scan QR), lalu klik Sinkronkan.'}</div>
@@ -1929,6 +1990,7 @@ function renderCatalog() {
       <select class="f" data-map>${opts(it)}</select>
       <div class="sendflag">${sent.has(it.id) ? `<span class="pill good"><span class="dot"></span>dikirim</span>` : it.product ? '<span class="pill quiet" title="Sudah ada '+c.maxPerAnswer+' item lain untuk produk ini">cadangan</span>' : '<span class="pill quiet">tidak</span>'}</div>
     </div>`).join('')}`;
+  $('#catTest').onclick = () => runCatalogTest();
   $('#catSync').onclick = async (e) => {
     e.target.disabled = true; e.target.textContent = 'Menyinkronkan…';
     try { const r = await api('/catalog/sync', { method:'POST' }); toast(`${r.count} item katalog terbaca`); }
@@ -1975,7 +2037,7 @@ function renderMedia() {
   });
   $$('[data-savelink]').forEach((b) => b.onclick = async () => {
     const slot = b.closest('.slot').dataset.slot, url = $('[data-link]', b.closest('.slot')).value;
-    try { ({ slots: mediaSlots } = await api('/media/' + encodeURIComponent(slot) + '/link', { method:'PUT', body: JSON.stringify({ url }) })); renderMedia(); toast(url.trim() ? 'Link tersimpan' : 'Link dihapus'); loadStatus(); }
+    try { ({ slots: mediaSlots } = await api('/media/' + encodeURIComponent(slot) + '/link', { method:'PUT', body: JSON.stringify({ url }) })); renderMedia(); toast(url.trim() ? 'Link tersimpan' : 'Link dihapus'); loadStatus(); if (/wa\.me\/c\//i.test(url)) runCatalogTest(url); }
     catch (err) { toast('Belum tersimpan: ' + err.message); }
   });
   $$('[data-del]').forEach((b) => b.onclick = async () => {

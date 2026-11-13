@@ -7,7 +7,7 @@ import express from 'express';
 
 import { Bot } from './bot/bot.js';
 import { aiProvider } from './bot/classify.js';
-import { catalogStatus, setItemProduct } from './bot/catalog.js';
+import { catalogStatus, phoneFromLink, setItemProduct } from './bot/catalog.js';
 import { media } from './bot/media.js';
 import { createProduct, deleteProduct, listProducts, productKeywords, productName, updateProduct } from './bot/products.js';
 import { listTemplates, render, resetTemplate, updateTemplate } from './bot/replies.js';
@@ -23,7 +23,10 @@ import { WORD_LISTS, addWord, removeWord, updateWord, wordRows } from './bot/wor
 import { chooseKey } from './ai-keys.js';
 import { aiSettings, listOllamaModels, loadAiSettings, updateAiSettings } from './ai-settings.js';
 import { classifyWithOllama } from './bot/classify-ollama.js';
+import { startAiRecovery } from './ai-recovery.js';
 import { startAlerts } from './alerts.js';
+import { errorSummary } from './error-summary.js';
+import { listHealed } from './heal-log.js';
 import { backup, buildRecap, listBackups, restoreContent, sendTestRecap, startMaintenance } from './maintenance.js';
 import { startUpdateCheck, updateStatus } from './update-check.js';
 import { startupChecks } from './startup-check.js';
@@ -110,6 +113,14 @@ app.post('/activity', wrap(async (req, res) => {
     if (page) recordActivity({ source: 'dashboard', page, action: `Membuka halaman ${page}` });
 
     res.json({ ok: true });
+}));
+
+app.get('/heal/summary', wrap(async (req, res) => {
+    res.json({ items: listHealed(req.query.hours) });
+}));
+
+app.get('/errors/summary', wrap(async (req, res) => {
+    res.json(errorSummary(req.query.hours));
 }));
 
 app.get('/errors', (req, res) => res.json({ errors: errorsSince(req.query.after), latest: latestErrorId(), version: VERSION }));
@@ -326,6 +337,16 @@ app.post('/media/:slot', express.raw({ type: () => true, limit: '16mb' }), wrap(
 
 app.get('/catalog', wrap(async (req, res) => {
     res.json(catalogStatus());
+}));
+
+app.post('/catalog/test', wrap(async (req, res) => {
+    const session = await manager.defaultSession().catch(() => null);
+    const result = session
+        ? await session.testCatalog(phoneFromLink(req.body?.url))
+        : { ok: false, reason: 'belum_tersambung', phone: null, source: null, message: 'Belum ada nomor WhatsApp yang didaftarkan.', advice: 'Tambahkan nomor dan scan QR di kartu WhatsApp, lalu coba lagi.' };
+    const synced = result.ok ? await session.syncCatalog().catch(() => null) : null;
+
+    res.json({ result, synced, ...catalogStatus() });
 }));
 
 app.post('/catalog/sync', wrap(async (req, res) => {
@@ -634,6 +655,7 @@ async function main() {
     await manager.boot(bot);
     startMaintenance({ manager, bot });
     startAlerts({ manager, bot });
+    startAiRecovery();
     startUpdateCheck();
 
     const missing = media.checklist().filter((item) => !item.ok);

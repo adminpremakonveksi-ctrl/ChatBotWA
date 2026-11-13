@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { config } from './config.js';
 import { getSetting, setSetting } from './db.js';
+import { healed } from './heal-log.js';
 import { logger } from './logger.js';
 
 export const MAX_KEYS = 4;
@@ -73,6 +74,7 @@ export function pickKey(now = Date.now()) {
 
     if (index !== current) {
         logger.info({ from: current + 1, to: index + 1 }, `kunci AI ${current + 1} sedang tidak bisa dipakai, pindah ke kunci ${index + 1}`);
+        healed(`Kunci AI ${current + 1} tidak bisa dipakai, bot pindah ke kunci ${index + 1}`, 'otomatis');
         current = index;
         persist(now);
     }
@@ -103,7 +105,7 @@ export function markKey(key, status, message = '', now = Date.now()) {
     load();
 
     const rejected = status === 401 || status === 403;
-    const duration = rejected ? REJECTED_COOLDOWN_MS : USAGE_LIMIT.test(String(message)) ? restingMs() : TRANSIENT_COOLDOWN_MS;
+    const duration = rejected ? REJECTED_COOLDOWN_MS : status === 402 || USAGE_LIMIT.test(String(message)) ? restingMs() : TRANSIENT_COOLDOWN_MS;
     resting.set(fingerprint(key), { until: now + duration, reason: rejected ? 'ditolak' : 'habis' });
     persist(now);
 

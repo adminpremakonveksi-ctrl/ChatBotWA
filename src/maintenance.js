@@ -3,6 +3,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 
 import { pruneActivity } from './activity.js';
+import { pruneErrors } from './error-summary.js';
 import { localClock } from './bot/schedule.js';
 import { listConversations, phoneOf, prune } from './bot/store.js';
 import { forgetProducts, productName } from './bot/products.js';
@@ -221,7 +222,7 @@ export async function recap({ manager, bot }) {
 export function startMaintenance({ manager, bot }) {
     const jobs = [
         { name: 'backup', at: () => config.maintenance.backupAt, run: () => backup().then((r) => `${r.file} (${r.removed} lama dihapus)`) },
-        { name: 'prune', at: () => config.maintenance.backupAt, run: async () => { pruneRetryMessages(); return JSON.stringify({ ...prune(config.maintenance.logKeepDays), aktivitas: pruneActivity(config.maintenance.logKeepDays) }); } },
+        { name: 'prune', at: () => config.maintenance.backupAt, run: async () => { pruneRetryMessages(); return JSON.stringify({ ...prune(config.maintenance.logKeepDays), aktivitas: pruneActivity(config.maintenance.logKeepDays), error: pruneErrors(14) }); } },
         { name: 'recap', at: () => config.recap.at, skipSunday: true, run: () => recap({ manager, bot }) },
     ];
 

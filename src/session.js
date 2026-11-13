@@ -16,7 +16,8 @@ import makeWASocket, {
 } from 'baileys';
 
 import { useSqliteAuthState } from './auth-state.js';
-import { recordSyncError, syncCatalog } from './bot/catalog.js';
+import { recordSyncError, syncCatalog, testCatalog } from './bot/catalog.js';
+import { healed } from './heal-log.js';
 import { logMessage, markHandover, markSeen, wasSeen } from './bot/store.js';
 import { isBotActive } from './bot/schedule.js';
 import { fixDeviceCacheNotifications, fixMexNotifications, makePlaceholderCache, sessionHandledLog } from './baileys-fixes.js';
@@ -36,6 +37,7 @@ const MAX_BACKOFF_MS = 60000;
 const RECONNECTS_BEFORE_ALERT = 3;
 const CATALOG_FIRST_DELAY_MS = 60000;
 const CATALOG_RETRY_MS = [3 * 60000, 10 * 60000];
+const CATALOG_LONG_RETRY_MS = [30 * 60000, 2 * 3600000, 6 * 3600000];
 
 const IGNORED_TYPES = new Set([
     'protocolMessage',
@@ -517,6 +519,8 @@ export class Session {
             if (this.state !== 'connected' || !this.socket) return;
 
             await syncCatalog(socket, { isCurrent: () => this.socket === socket && this.state === 'connected' });
+            if (this.catalogFailures) healed('Katalog WhatsApp terbaca lagi setelah sempat gagal', 'otomatis');
+            this.catalogFailures = 0;
         } catch (error) {
             if (this.socket !== socket || this.state !== 'connected') return;
             const retry = CATALOG_RETRY_MS[attempt];
@@ -529,15 +533,28 @@ export class Session {
                 return;
             }
 
-            this.#catalogFailed(error, attempt + 1);
+            this.catalogFailures = (this.catalogFailures ?? 0) + 1;
+            this.#catalogFailed(error, attempt + 1, { repeat: this.catalogFailures > 1 });
             if (/timed? ?out|connection closed|econnreset|enotfound/i.test(error.message)) {
                 clearTimeout(this.catalogRetry);
-                this.catalogRetry = setTimeout(() => this.syncCatalogWithRetry(), 30 * 60000);
+                const wait = CATALOG_LONG_RETRY_MS[Math.min(this.catalogFailures - 1, CATALOG_LONG_RETRY_MS.length - 1)];
+                this.catalogRetry = setTimeout(() => this.syncCatalogWithRetry(), wait);
                 this.catalogRetry.unref?.();
             }
         } finally {
             if (this.catalogSyncing === socket) this.catalogSyncing = null;
         }
+    }
+
+    async testCatalog(phone = null) {
+        if (this.state !== 'connected' || !this.socket) {
+            return { ok: false, reason: 'belum_tersambung', phone: null, source: null, message: 'WhatsApp belum tersambung.', advice: 'Tautkan nomor bot dulu (scan QR di kartu WhatsApp), lalu coba lagi.' };
+        }
+
+        const result = await testCatalog(this.socket, { phone });
+        if (result.ok) this.catalogFailures = 0;
+
+        return result;
     }
 
     async syncCatalog() {
@@ -553,13 +570,13 @@ export class Session {
         }
     }
 
-    #catalogFailed(error, attempts) {
+    #catalogFailed(error, attempts, { repeat = false } = {}) {
         try {
             recordSyncError(error);
         } catch (writeError) {
             this.log.error({ err: writeError.message }, 'gagal menyimpan error katalog');
         }
-        this.log.warn({ err: error.message, attempts }, 'katalog WhatsApp gagal dibaca');
+        this.log[repeat ? 'info' : 'warn']({ err: error.message, attempts }, 'katalog WhatsApp gagal dibaca');
     }
 
     async stop() {

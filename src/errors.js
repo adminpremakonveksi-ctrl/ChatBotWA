@@ -2,6 +2,11 @@
 const MAX = 100;
 const feed = [];
 let lastId = 0;
+let sink = null;
+
+export const setErrorSink = (fn) => {
+    sink = fn;
+};
 
 const stamp = () => new Date().toISOString().replace('T', ' ').slice(0, 19);
 
@@ -85,14 +90,17 @@ export const GUIDE = [
         meaning: 'AI gagal, jadi bot memakai cara cadangan (kata kunci).',
         todo: TIDAK },
     { match: /semua kunci AI sudah dicek satu per satu/i, level: 'tindak',
-        meaning: 'Semua kunci Ollama yang terpasang sedang habis jatahnya (atau ditolak), jadi bot diam untuk pesan pelanggan.',
-        todo: '1) Buka Atur AI dan lihat status tiap kunci. 2) Tambahkan kunci Ollama lain (sampai 4 kunci) atau upgrade paket. 3) Jatah pulih sendiri dan bot mencoba lagi otomatis. 4) Sementara itu, balas pelanggan lewat WhatsApp Business di HP.' },
+        meaning: 'Semua kunci Ollama yang terpasang sedang habis jatahnya atau kreditnya (Ollama menjawab 402 atau 429), atau ditolak, jadi bot diam untuk pesan pelanggan. Pesan menunggu dan dicoba lagi sendiri, lalu diserahkan ke CS setelah 15 menit.',
+        todo: '1) Buka Atur AI dan lihat status tiap kunci. 2) Tambahkan kunci Ollama lain (sampai 4 kunci), tambah kredit, atau upgrade paket di ollama.com/plans. 3) Jatah pulih sendiri dan bot mencoba lagi otomatis. 4) Sementara itu, balas pelanggan lewat WhatsApp Business di HP.' },
     { match: /kunci AI \S+ ditolak Ollama/i, level: 'tindak',
         meaning: 'Ollama menolak salah satu kunci (salah, dihapus, atau sudah tidak berlaku). Bot melewatinya dan memakai kunci lain.',
         todo: '1) Buka Atur AI dan cari kunci yang berstatus "ditolak". 2) Tempel kunci yang benar dari ollama.com (Settings > Keys), atau hapus kolom itu. 3) Simpan.' },
     { match: /Ollama 401|Ollama 403|unauthori[sz]ed/i, level: 'tindak',
         meaning: 'Kunci AI ditolak (salah atau sudah tidak berlaku).',
         todo: '1) Buka Atur AI. 2) Isi ulang kunci Ollama yang benar. 3) Simpan.' },
+    { match: /Ollama 402|usage credits|payment required/i, level: 'tindak',
+        meaning: 'Ollama meminta tambah kredit atau langganan (kode 402): jatah akun AI habis.',
+        todo: '1) Buka Atur AI: bot otomatis pindah ke kunci berikutnya kalau ada. 2) Tambah kunci lain, tambah kredit, atau upgrade di ollama.com/plans. 3) Sementara itu, balas pelanggan lewat WhatsApp Business di HP.' },
     { match: /Ollama 429|rate.?limit|too many requests|batas pemakaian/i, level: 'cek',
         meaning: 'Jatah pemakaian AI habis untuk sementara. Bot diam sampai jatahnya pulih.',
         todo: '1) Tunggu; jatah pulih sendiri. 2) Kalau sering, ganti atau upgrade akun AI di Atur AI.' },
@@ -109,7 +117,7 @@ export const GUIDE = [
     { match: /balasan tertunda, akan dikirim ulang otomatis/i, level: 'info',
         meaning: 'Satu balasan belum terkirim (biasanya karena sambungan putus sebentar). Bot mengirim ulang sendiri.',
         todo: TIDAK },
-    { match: /gagal melanjutkan pesan masuk tertunda|gagal memproses (pesan|status)/i, level: 'cek',
+    { match: /gagal melanjutkan pesan masuk tertunda|gagal memproses (pesan|status)/i, level: 'cek', generic: true,
         meaning: 'Satu pesan gagal diproses. Pesannya tersimpan dan dicoba lagi otomatis; bot tetap jalan.',
         todo: `Tidak perlu apa-apa kalau tidak berulang. ${KIRIM}` },
 
@@ -140,6 +148,12 @@ export const GUIDE = [
     { match: /tugas harian gagal/i, level: 'cek',
         meaning: 'Tugas otomatis harian (backup, bersih-bersih data, rekap pagi) gagal dan dicoba lagi nanti.',
         todo: '1) Cek folder backup di Pengaturan: folder itu harus ada dan bisa ditulis. 2) Cek ruang disk PC.' },
+    { match: /Media upload failed|failed to upload|upload.{0,30}(gagal|timed? ?out)|gagal mengunggah/i, level: 'cek',
+        meaning: 'File (katalog, size chart, atau gambar) gagal diunggah ke server WhatsApp, jadi tidak terkirim ke pelanggan. Biasanya internet PC lambat atau file terlalu besar.',
+        todo: '1) Bot mencoba mengirim ulang sendiri selama 15 menit. 2) Cek ukuran file di halaman Media: PDF di bawah 10 MB lebih aman. 3) Cek internet PC. 4) Kalau terus berulang, kirim katalog lewat link (isi di Media > Katalog umum).' },
+    { match: /(ENOENT|no such file or directory).*media/i, level: 'tindak',
+        meaning: 'File katalog atau size chart yang mau dikirim tidak ditemukan di folder media PC ini.',
+        todo: '1) Buka halaman Media. 2) Unggah ulang file yang bertanda belum ada. 3) Jangan memindahkan atau menghapus isi folder media.' },
     { match: /katalog WhatsApp gagal dibaca/i, level: 'cek',
         meaning: 'Bot belum bisa membaca katalog WhatsApp Business (nomor belum memakai WhatsApp Business, katalog kosong, atau internet lambat). Bot tetap membalas pelanggan; hanya tautan produk dari katalog yang belum bisa dipakai.',
         todo: '1) Tidak perlu apa-apa kalau toko memang belum punya katalog. 2) Kalau punya, pastikan katalog terisi di aplikasi WhatsApp Business. Bot mencoba lagi sendiri.' },
@@ -181,8 +195,12 @@ const detailText = (detail) => {
 
 const find = (message, detail) => {
     const text = String(message ?? '');
+    const full = `${text} ${detailText(detail)}`;
 
-    return GUIDE.find((g) => g.match.test(text)) ?? GUIDE.find((g) => g.match.test(`${text} ${detailText(detail)}`)) ?? null;
+    return GUIDE.find((g) => !g.generic && g.match.test(text))
+        ?? GUIDE.find((g) => !g.generic && g.match.test(full))
+        ?? GUIDE.find((g) => g.generic && g.match.test(full))
+        ?? null;
 };
 
 export const guideOf = (message, detail = {}) => {
@@ -195,10 +213,39 @@ export const guideOf = (message, detail = {}) => {
 
 export const meaningOf = (message, detail = {}) => find(message, detail)?.meaning ?? null;
 
-export function recordError({ level = 'error', source = 'bot', message, detail = {} }) {
+const TECHNICAL_CODES = [
+    /\bOllama (\d{3})\b/,
+    /\b(SQLITE_[A-Z_]+|E[A-Z]{3,}\d?)\b/,
+    /\b(MessageCounterError|Bad MAC|PreKeyError|SessionError)\b/i,
+    /\bcode\D{0,10}(\d{3})\b/i,
+];
+
+export function codeOf(message, detail = {}) {
+    const text = `${message ?? ''} ${detailText(detail)}`;
+
+    for (const pattern of TECHNICAL_CODES) {
+        const hit = text.match(pattern);
+        if (hit) return hit[1];
+    }
+
+    const found = find(message, detail);
+
+    return found ? `G${String(GUIDE.indexOf(found) + 1).padStart(2, '0')}` : '?';
+}
+
+export function recordError({ level = 'error', source = 'bot', message, detail = {}, quiet = false }) {
     const text = String(message ?? '').slice(0, 1000);
-    feed.push({ id: ++lastId, time: stamp(), level, source, message: text, meaning: meaningOf(text, detail), guide: guideOf(text, detail), detail: plain(detail) });
-    if (feed.length > MAX) feed.shift();
+    const entry = { id: quiet ? 0 : ++lastId, time: stamp(), level, source, message: text, meaning: meaningOf(text, detail), guide: guideOf(text, detail), code: codeOf(text, detail), detail: plain(detail) };
+
+    if (!quiet) {
+        feed.push(entry);
+        if (feed.length > MAX) feed.shift();
+    }
+
+    try {
+        sink?.(entry);
+    } catch {
+    }
 }
 
 export const errorsSince = (id = 0) => feed.filter((e) => e.id > Number(id || 0));

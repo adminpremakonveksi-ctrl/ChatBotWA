@@ -12,14 +12,13 @@ export const logger = pino({
                 const [first, second] = args;
                 const detail = first && typeof first === 'object' ? first : {};
 
-                if (!detail.quiet) {
-                    recordError({
-                        level: level >= 50 ? 'error' : 'peringatan',
-                        source: this.bindings?.().part ?? 'bot',
-                        message: typeof first === 'string' ? first : second ?? detail.err ?? detail.reason ?? '',
-                        detail,
-                    });
-                }
+                recordError({
+                    level: level >= 50 ? 'error' : 'peringatan',
+                    source: this.bindings?.().part ?? 'bot',
+                    message: typeof first === 'string' ? first : second ?? detail.err ?? detail.reason ?? '',
+                    detail,
+                    quiet: Boolean(detail.quiet),
+                });
             }
 
             return method.apply(this, args);

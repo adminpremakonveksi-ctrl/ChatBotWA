@@ -530,7 +530,7 @@ export async function chatTurn(conversation, input, { media, ask = askChat, fetc
             { media, fetchImpl },
         );
     } catch (error) {
-        const retryable = !error.refused && /timeout|timed? ?out|abort|fetch failed|econn|enotfound|connection closed|\b429\b|\b5\d{2}\b|overload|temporarily unavailable/i.test(error.message);
+        const retryable = !error.refused && /timeout|timed? ?out|abort|fetch failed|econn|enotfound|connection closed|\b429\b|\b402\b|\b5\d{2}\b|overload|temporarily unavailable/i.test(error.message);
         logger.error({ quiet: retryable, err: error.message, reply: error.reply }, 'AI gagal membalas: bot diam untuk pesan ini');
         recordAi({ who: input.who, message: input.text, reply: error.reply ?? '', problem: error.message, outcome: error.refused ? 'diam' : 'error' });
 

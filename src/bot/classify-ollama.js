@@ -32,7 +32,7 @@ async function post(fetchImpl, options, slot) {
     }
 }
 
-const KEY_FAILURES = [401, 403, 429];
+const KEY_FAILURES = [401, 402, 403, 429];
 
 export async function ollamaJson({ system, user, schema, temperature = 0, messages = null }, { fetchImpl = fetch } = {}) {
     const requestBody = JSON.stringify({

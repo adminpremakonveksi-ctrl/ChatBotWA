@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { config } from './config.js';
 import { getSetting, setSetting } from './db.js';
 import { errorsSince, latestErrorId } from './errors.js';
+import { healed } from './heal-log.js';
 import { logger } from './logger.js';
 
 const log = logger.child({ part: 'alerts' });
@@ -80,6 +81,7 @@ export async function checkAlerts({ manager, bot }, at = Date.now()) {
     const lastSeen = Number(getSetting(SEEN_KEY) || 0);
 
     if (lastSeen && at - lastSeen >= GAP_MS) {
+        healed(`WhatsApp tersambung lagi setelah terputus sekitar ${length(at - lastSeen)}`, 'otomatis');
         await deliver({ session, bot }, gapText(lastSeen, at), `gap-${lastSeen}`);
         sent.push('terputus');
     }

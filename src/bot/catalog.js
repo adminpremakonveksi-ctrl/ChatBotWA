@@ -47,6 +47,50 @@ export function catalogOwner(socket = null) {
     return own ? { phone: own, source: 'nomor bot' } : null;
 }
 
+const TEST_TIMEOUT_MS = 25000;
+const LINK_PHONE = /wa\.me\/c\/(\d{8,15})/;
+
+export const phoneFromLink = (url) => String(url ?? '').match(LINK_PHONE)?.[1] ?? null;
+
+const withTimeout = (promise, ms) => {
+    let timer;
+    const limit = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error('Timed Out')), ms);
+    });
+
+    return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+};
+
+const verdict = (ok, reason, owner, message, advice, extra = {}) => ({ ok, reason, phone: owner?.phone ?? null, source: owner?.source ?? null, message, advice, ...extra });
+
+export async function testCatalog(socket, { phone = null, timeoutMs = TEST_TIMEOUT_MS } = {}) {
+    if (!socket?.user?.id) {
+        return verdict(false, 'belum_tersambung', null, 'WhatsApp belum tersambung.', 'Tautkan nomor bot dulu (scan QR di kartu WhatsApp), lalu coba lagi.');
+    }
+
+    const owner = phone ? { phone, source: 'link yang diuji' } : catalogOwner(socket);
+
+    try {
+        const result = await withTimeout(socket.getCatalog({ jid: `${owner.phone}@s.whatsapp.net`, limit: 5 }), timeoutMs);
+        const products = (result?.products ?? []).filter((p) => !p.isHidden);
+
+        if (!products.length) {
+            return verdict(false, 'kosong', owner, `Katalog +${owner.phone} terbaca, tetapi belum ada produk di dalamnya.`, 'Tambahkan produk di katalog WhatsApp Business (di HP toko), lalu coba lagi.');
+        }
+
+        return verdict(true, 'ok', owner, `Katalog +${owner.phone} bisa dibaca.`, '', { count: products.length, more: Boolean(result.nextPageCursor), sample: products.slice(0, 3).map((p) => String(p.name ?? '')) });
+    } catch (error) {
+        if (/timed? ?out/i.test(error.message)) {
+            return verdict(false, 'timeout', owner, `WhatsApp tidak menjawab dalam ${Math.round(timeoutMs / 1000)} detik untuk +${owner.phone}.`, 'Ini belum membuktikan katalog kosong. Penyebab yang biasa: nomor itu bukan WhatsApp Business atau belum punya katalog, atau WhatsApp sedang lambat. Coba lagi sebentar lagi. Kalau toko punya katalog di nomor lain, tempel link katalognya (wa.me/c/nomor) di kolom Katalog umum.');
+        }
+        if (/404|not.?found|item-not-found|bad-request|forbidden|40[13]/i.test(error.message)) {
+            return verdict(false, 'tidak_ada_katalog', owner, `Nomor +${owner.phone} tidak punya katalog WhatsApp Business yang bisa dibaca (${error.message}).`, 'Pastikan nomornya memakai WhatsApp Business dan katalognya dibuat. Kalau katalog ada di nomor lain, tempel link katalog toko (wa.me/c/nomor).');
+        }
+
+        return verdict(false, 'lainnya', owner, `Katalog +${owner.phone} gagal dibaca: ${error.message}`, 'Coba lagi. Kalau berulang, tekan "Salin teks" pada peringatan dan kirim ke developer.');
+    }
+}
+
 export async function syncCatalog(socket, { isCurrent = () => true } = {}) {
     if (!socket?.user?.id) throw new Error('WhatsApp belum tersambung');
 
